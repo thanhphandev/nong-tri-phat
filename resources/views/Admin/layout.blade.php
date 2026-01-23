@@ -92,7 +92,7 @@
                                 <ul class="submenu">
                                     <li><a href="{{ env('APP_URL') }}admin/nhap-hang">Nhập hàng</a></li>
                                     <li><a href="{{ env('APP_URL') }}admin/don-hang">Bán hàng</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/in-ma-vach">In mã vạch</a></li>
+
                                 </ul>
                             </li>
                             <li  class="has-submenu">

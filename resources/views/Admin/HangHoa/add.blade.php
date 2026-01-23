@@ -22,22 +22,11 @@
 	                    </div>
 	                @endif
                     <div class="form-group row">
-                        {{-- -<label class="control-label col-md-2 text-right p-t-10">Mã vạch</label>
-                        <div class="col-md-3">
-                            <div class="input-group">
-                                <input type="text" name="ma_vach" id="ma_vach" value="{{ old('ma_vach') }}" placeholder="Mã vạch (F3)" class="form-control" required>
-                                <div class="input-group-append">
-                                    <button id="BarCodeGen" class="btn btn-primary waves-effect waves-light" type="button"><i class="mdi mdi-barcode"></i></button>
-                                </div>
-                            </div>
-                        </div> --}}
+
                         <label class="control-label col-md-2 text-right p-t-10">Mã hàng</label>
                         <div class="col-md-4">
                             <div class="input-group">
                                 <input type="text" id="ma" name="ma" class="form-control" placeholder="Mã hàng" value="{{ old('ma') }}" required />
-                                <div class="input-group-append">
-                                    <button id="BarCodeGen" class="btn btn-primary waves-effect waves-light" type="button"><i class="mdi mdi-barcode"></i></button>
-                                </div>
                             </div>
                         </div>
                         <label class="control-label col-md-2 text-right p-t-10">Tên hàng</label>
@@ -105,7 +94,7 @@
 	                	<label class="control-label col-md-2 text-right p-t-10">Ghi chú</label>
 	                	<div class="col-md-10">
 	                		<input type="text" name="ghi_chu" id="ghi_chu" value="{{ old('ghi_chu') }}" placeholder="Ghi chú" class="form-control" />
-	                	</div>
+                        </div>
 	                </div>
 				</div>
 				<div class="form-actions">
@@ -224,11 +213,7 @@
                 $("#ma_vach").select(); return false;
             }
         };
-        $("#BarCodeGen").click(function(){
-            $.get("{{ env('APP_URL') }}admin/hang-hoa/get-ma-vach", function(mavach){
-                $("#ma").val(mavach);
-            });
-        });
+
         $(document).ready(function(){
         	$(".select2").select2();
         	jQuery(".number").number(true, 0);

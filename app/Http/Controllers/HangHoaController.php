@@ -23,18 +23,23 @@ class HangHoaController extends Controller
         $id_loaihang = $request->input('id_loaihang');
         $donvitinh = DonViTinh::All();
         $loaihang = LoaiHang::All();
-        $danhsach = HangHoa::where(true);
+        $danhsach = HangHoa::query();
         if($id_donvitinh) {
             $id_donvitinh = ObjectController::ObjectId($id_donvitinh);
             $danhsach = $danhsach->where('id_donvitinh', '=', $id_donvitinh);
         }
+        if($id_loaihang){
+            $id_loaihang = ObjectController::ObjectId($id_loaihang);
+            $danhsach = $danhsach->where('id_loaihang', '=', $id_loaihang);
+        }
         if($keywords){
-            $danhsach = $danhsach->where('ma_vach', '=', $keywords)
-                ->orWhere('ma', 'regexp', '/.*'.$keywords.'/i')
-                ->orWhere('ten', 'regexp', '/.*'.$keywords.'/i');
+            $danhsach = $danhsach->where(function($query) use ($keywords) {
+                $query->where('ma', 'regexp', '/.*'.$keywords.'/i')
+                      ->orWhere('ten', 'regexp', '/.*'.$keywords.'/i');
+            });
         }
         $danhsach = $danhsach->orderBy('updated_at', 'desc')->paginate(30);
-    	return view('Admin.HangHoa.list')->with(compact('danhsach','keywords','donvitinh','id_donvitinh'));
+    	return view('Admin.HangHoa.list')->with(compact('danhsach','keywords','donvitinh','id_donvitinh', 'loaihang', 'id_loaihang'));
     }
 
     function add(Request $request){
@@ -47,7 +52,7 @@ class HangHoaController extends Controller
 
     function create(Request $request){
     	$validator = Validator::make($request->all(), [
-            'ma_vach' => 'required|unique:hang_hoa',
+
             'ma' => 'required',
             'ten' => 'required',
             'id_donvitinh' => 'required'
@@ -93,7 +98,7 @@ class HangHoaController extends Controller
     function update(Request $request) {
         $data = $request->all();
         $validator = Validator::make($request->all(), [
-            'ma_vach' => 'required|unique:hang_hoa,_id,'.$data['id'],
+
             'ma' => 'required',
             'ten' => 'required',
             'id_donvitinh' => 'required',
@@ -138,25 +143,9 @@ class HangHoaController extends Controller
         return redirect()->intended(env('APP_URL') . 'admin/hang-hoa');
     }
 
-    function in_ma_vach(Request $request){
-        $keywords = $request->input('keywords');
-        if($keywords){
-            $danhsach = HangHoa::where('ma', 'regexp', '/.*'.$keywords.'/i')
-            ->orWhere('ten', 'regexp', '/.*'.$keywords.'/i')
-            ->orderBy('updated_at', 'desc')->paginate(30);
-        } else {
-            $danhsach = HangHoa::orderBy('updated_at', 'desc')->paginate(30);
-        }
 
-        return view('Admin.HangHoa.in-ma-vach')->with(compact('danhsach', 'keywords'));
-    }
 
-    function qrcode_print(Request $request){
-        $id_hanghoa = $request->input('id_hanghoa');
-        $so_luong = $request->input('so_luong');
-        $hh = HangHoa::find($id_hanghoa);
-        return view('Admin.HangHoa.qrcode')->with(compact('so_luong', 'hh'));
-    }
+
 
     function import(Request $request){
         $file_path = "storage/import/hanghoa.xlsx";
@@ -184,7 +173,7 @@ class HangHoaController extends Controller
     }
 
     function get_cart(Request $request, $mahanghoa = ''){
-        $hh = HangHoa::where('ma_vach', '=', $mahanghoa)->first();
+        $hh = HangHoa::where('ma', '=', $mahanghoa)->first();
         if($hh){
             $arr = array(
                 'id_hanghoa' => $hh['_id'],
@@ -199,10 +188,7 @@ class HangHoaController extends Controller
         echo json_encode($arr);
     }
 
-    function get_ma_vach(){
-        $mavach = date("YmyHis");
-        return $mavach;
-    }
+
 
     function autocomplete(Request $request) {
         $search = $request->input('search');

@@ -75,6 +75,7 @@
         	$(".select2").select2();
             $(".xem-hang-hoa").click(function(){
                 var _link = $(this).attr("href");
+                $("#ListHangHoa").html('<div class="text-center p-3"><i class="fa fa-spinner fa-spin"></i> Đang tải dữ liệu...</div>');
                 $.get(_link, function(hh){
                     $("#ListHangHoa").html(hh);
                 });
