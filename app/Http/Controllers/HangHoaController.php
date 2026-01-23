@@ -231,6 +231,28 @@ class HangHoaController extends Controller
 
 
 
+    function xem_ton_kho(Request $request, $id = ''){
+        $id = ObjectController::ObjectId($id);
+        $nhaphang = NhapHang::where('hanghoa.id_hanghoa', '=', $id)->orderBy('ngay_nhap', 'desc')->get();
+        $batches = [];
+        foreach($nhaphang as $nh){
+            if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])){
+                foreach($nh['hanghoa'] as $item){
+                    if(isset($item['id_hanghoa']) && (string)$item['id_hanghoa'] == (string)$id){
+                        $batches[] = [
+                            'ngay_chung_tu' => $nh['ngay_chung_tu'],
+                            'so_chung_tu' => $nh['so_chung_tu'],
+                            'ten_ncc' => isset($nh['ten_ncc']) ? $nh['ten_ncc'] : 'N/A',
+                            'so_luong' => $item['so_luong'],
+                            'ngay_het_han' => isset($item['ngay_het_han']) ? $item['ngay_het_han'] : null
+                        ];
+                    }
+                }
+            }
+        }
+        return view('Admin.HangHoa.ton-kho', compact('batches'));
+    }
+
     function autocomplete(Request $request) {
         $search = $request->input('search');
         $dbs = HangHoa::where('ma_vach','regexp','^'.$search.'/i')->orWhere('ma', 'regexp', '^'.$search.'/i')->get()->toArray();
