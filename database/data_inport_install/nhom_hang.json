@@ -1,0 +1,56 @@
+{"_id":{"$oid":"61833efd551c00002b00317b"},"ten":"Automat","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:01:33.382Z"},"created_at":{"$date":"2021-11-04T02:01:33.382Z"}}
+{"_id":{"$oid":"61833f0c551c00002b00317d"},"ten":"Âm tường","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:01:48.065Z"},"created_at":{"$date":"2021-11-04T02:01:48.065Z"}}
+{"_id":{"$oid":"61833f1e551c00002b00317f"},"ten":"Bảng nhựa","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:02:06.460Z"},"created_at":{"$date":"2021-11-04T02:02:06.460Z"}}
+{"_id":{"$oid":"61833f4d551c00002b003181"},"ten":"Bàn ủi","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:02:53.969Z"},"created_at":{"$date":"2021-11-04T02:02:53.969Z"}}
+{"_id":{"$oid":"61833f6f551c00002b003183"},"ten":"Băng Keo","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:03:27.244Z"},"created_at":{"$date":"2021-11-04T02:03:27.244Z"}}
+{"_id":{"$oid":"61833f79551c00002b003185"},"ten":"Bếp gas","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:03:37.702Z"},"created_at":{"$date":"2021-11-04T02:03:37.702Z"}}
+{"_id":{"$oid":"61833f87551c00002b003187"},"ten":"Biến điện","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:03:51.072Z"},"created_at":{"$date":"2021-11-04T02:03:51.072Z"}}
+{"_id":{"$oid":"61833f97551c00002b003189"},"ten":"Bình Thủy điện","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:04:07.535Z"},"created_at":{"$date":"2021-11-04T02:04:07.535Z"}}
+{"_id":{"$oid":"61833fbb551c00002b00318b"},"ten":"Bóng đèn","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:04:43.935Z"},"created_at":{"$date":"2021-11-04T02:04:43.935Z"}}
+{"_id":{"$oid":"61833fc7551c00002b00318d"},"ten":"Bơm nước","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:04:55.789Z"},"created_at":{"$date":"2021-11-04T02:04:55.789Z"}}
+{"_id":{"$oid":"61833fd5551c00002b00318f"},"ten":"Ca siêu tốc","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:05:09.428Z"},"created_at":{"$date":"2021-11-04T02:05:09.428Z"}}
+{"_id":{"$oid":"61833fe3551c00002b003191"},"ten":"Cầu Dao","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:05:23.732Z"},"created_at":{"$date":"2021-11-04T02:05:23.732Z"}}
+{"_id":{"$oid":"61833ff0551c00002b003193"},"ten":"Chá đèn","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:05:36.176Z"},"created_at":{"$date":"2021-11-04T02:05:36.176Z"}}
+{"_id":{"$oid":"61833ffc551c00002b003195"},"ten":"Cối sinh tố","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:05:48.846Z"},"created_at":{"$date":"2021-11-04T02:05:48.846Z"}}
+{"_id":{"$oid":"61834008551c00002b003197"},"ten":"Dây các loại","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:06:00.510Z"},"created_at":{"$date":"2021-11-04T02:06:00.510Z"}}
+{"_id":{"$oid":"61834015551c00002b003199"},"ten":"DÂY CADIVI","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:06:13.639Z"},"created_at":{"$date":"2021-11-04T02:06:13.639Z"}}
+{"_id":{"$oid":"61834021551c00002b00319b"},"ten":"Dây Cơ Thắng","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:06:25.952Z"},"created_at":{"$date":"2021-11-04T02:06:25.952Z"}}
+{"_id":{"$oid":"6183402e551c00002b00319d"},"ten":"Dây rút","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:06:38.620Z"},"created_at":{"$date":"2021-11-04T02:06:38.620Z"}}
+{"_id":{"$oid":"6183403b551c00002b00319f"},"ten":"Đèn Bàn","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:06:51.740Z"},"created_at":{"$date":"2021-11-04T02:06:51.740Z"}}
+{"_id":{"$oid":"61834047551c00002b0031a1"},"ten":"Đèn Đội","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:07:03.014Z"},"created_at":{"$date":"2021-11-04T02:07:03.014Z"}}
+{"_id":{"$oid":"6183405a551c00002b0031a3"},"ten":"Đèn Fa","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:07:22.838Z"},"created_at":{"$date":"2021-11-04T02:07:22.838Z"}}
+{"_id":{"$oid":"61834063551c00002b0031a5"},"ten":"Đèn Ngủ","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:07:31.768Z"},"created_at":{"$date":"2021-11-04T02:07:31.768Z"}}
+{"_id":{"$oid":"6183406f551c00002b0031a7"},"ten":"Đèn sạt","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:07:43.280Z"},"created_at":{"$date":"2021-11-04T02:07:43.280Z"}}
+{"_id":{"$oid":"61834080551c00002b0031a9"},"ten":"Đèn Pin","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:13:03.937Z"},"created_at":{"$date":"2021-11-04T02:08:00.396Z"}}
+{"_id":{"$oid":"6183408d551c00002b0031ab"},"ten":"Điện sáng","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:08:13.575Z"},"created_at":{"$date":"2021-11-04T02:08:13.575Z"}}
+{"_id":{"$oid":"6183409c551c00002b0031ad"},"ten":"Đuôi Đèn","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:08:28.920Z"},"created_at":{"$date":"2021-11-04T02:08:28.920Z"}}
+{"_id":{"$oid":"618340aa551c00002b0031af"},"ten":"Kenno","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:08:42.834Z"},"created_at":{"$date":"2021-11-04T02:08:42.834Z"}}
+{"_id":{"$oid":"618340be551c00002b0031b1"},"ten":"Kentom","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:09:02.980Z"},"created_at":{"$date":"2021-11-04T02:09:02.980Z"}}
+{"_id":{"$oid":"618340cb551c00002b0031b3"},"ten":"Lẫu Điện","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:09:15.718Z"},"created_at":{"$date":"2021-11-04T02:09:15.718Z"}}
+{"_id":{"$oid":"618340db551c00002b0031b5"},"ten":"Linh Tinh","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:09:31.207Z"},"created_at":{"$date":"2021-11-04T02:09:31.207Z"}}
+{"_id":{"$oid":"618340f0551c00002b0031b7"},"ten":"Lucky","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:09:52.542Z"},"created_at":{"$date":"2021-11-04T02:09:52.542Z"}}
+{"_id":{"$oid":"61834102551c00002b0031b9"},"ten":"Máng đèn - bộ","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:10:10.627Z"},"created_at":{"$date":"2021-11-04T02:10:10.627Z"}}
+{"_id":{"$oid":"6183410f551c00002b0031bb"},"ten":"MPE","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:10:23.988Z"},"created_at":{"$date":"2021-11-04T02:10:23.988Z"}}
+{"_id":{"$oid":"6183411c551c00002b0031bd"},"ten":"Năng Lượng","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:10:36.382Z"},"created_at":{"$date":"2021-11-04T02:10:36.382Z"}}
+{"_id":{"$oid":"61834129551c00002b0031bf"},"ten":"Nival","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:10:49.137Z"},"created_at":{"$date":"2021-11-04T02:10:49.137Z"}}
+{"_id":{"$oid":"61834135551c00002b0031c1"},"ten":"Nồi cơm","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:11:01.217Z"},"created_at":{"$date":"2021-11-04T02:11:01.217Z"}}
+{"_id":{"$oid":"6183413e551c00002b0031c3"},"ten":"Nồi cơm sharp","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:11:10.869Z"},"created_at":{"$date":"2021-11-04T02:11:10.869Z"}}
+{"_id":{"$oid":"6183414d551c00002b0031c5"},"ten":"ổ điện có dây","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:11:25.151Z"},"created_at":{"$date":"2021-11-04T02:11:25.151Z"}}
+{"_id":{"$oid":"6183415a551c00002b0031c7"},"ten":"ổ điện ko dây","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:11:38.623Z"},"created_at":{"$date":"2021-11-04T02:11:38.623Z"}}
+{"_id":{"$oid":"61834164551c00002b0031c9"},"ten":"ốc vít","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:11:48.874Z"},"created_at":{"$date":"2021-11-04T02:11:48.874Z"}}
+{"_id":{"$oid":"61834170551c00002b0031cb"},"ten":"ống lihan","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:12:00.303Z"},"created_at":{"$date":"2021-11-04T02:12:00.303Z"}}
+{"_id":{"$oid":"61834181551c00002b0031cd"},"ten":"ống nano","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:12:17.352Z"},"created_at":{"$date":"2021-11-04T02:12:17.352Z"}}
+{"_id":{"$oid":"6183418e551c00002b0031cf"},"ten":"Phích Cắm","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:12:30.917Z"},"created_at":{"$date":"2021-11-04T02:12:30.917Z"}}
+{"_id":{"$oid":"6183419a551c00002b0031d1"},"ten":"Phụ kiện Quạt","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:12:42.905Z"},"created_at":{"$date":"2021-11-04T02:12:42.905Z"}}
+{"_id":{"$oid":"618341a6551c00002b0031d3"},"ten":"Pin","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:12:54.870Z"},"created_at":{"$date":"2021-11-04T02:12:54.870Z"}}
+{"_id":{"$oid":"618341bd551c00002b0031d6"},"ten":"Quạt","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:13:17.010Z"},"created_at":{"$date":"2021-11-04T02:13:17.010Z"}}
+{"_id":{"$oid":"618341c7551c00002b0031d8"},"ten":"Quat sạc điện","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:13:27.061Z"},"created_at":{"$date":"2021-11-04T02:13:27.061Z"}}
+{"_id":{"$oid":"618341d2551c00002b0031da"},"ten":"Robot","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:13:38.919Z"},"created_at":{"$date":"2021-11-04T02:13:38.919Z"}}
+{"_id":{"$oid":"618341e1551c00002b0031dc"},"ten":"RZ","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:13:53.242Z"},"created_at":{"$date":"2021-11-04T02:13:53.242Z"}}
+{"_id":{"$oid":"618341f1551c00002b0031de"},"ten":"Sạt bình","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:14:09.309Z"},"created_at":{"$date":"2021-11-04T02:14:09.309Z"}}
+{"_id":{"$oid":"618341fa551c00002b0031e0"},"ten":"Siêu","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:14:18.204Z"},"created_at":{"$date":"2021-11-04T02:14:18.204Z"}}
+{"_id":{"$oid":"61834204551c00002b0031e2"},"ten":"Sopoka","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:14:28.008Z"},"created_at":{"$date":"2021-11-04T02:14:28.008Z"}}
+{"_id":{"$oid":"61834216551c00002b0031e4"},"ten":"Tắc kê","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:14:46.353Z"},"created_at":{"$date":"2021-11-04T02:14:46.353Z"}}
+{"_id":{"$oid":"61834223551c00002b0031e6"},"ten":"Thái Lan","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:14:59.434Z"},"created_at":{"$date":"2021-11-04T02:14:59.434Z"}}
+{"_id":{"$oid":"61834228551c00002b0031e8"},"ten":"Thăng Long","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:15:04.231Z"},"created_at":{"$date":"2021-11-04T02:15:04.231Z"}}
+{"_id":{"$oid":"6183422b551c00002b0031ea"},"ten":"Vina","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2021-11-04T02:15:07.640Z"},"created_at":{"$date":"2021-11-04T02:15:07.640Z"}}

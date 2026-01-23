@@ -1,0 +1,1 @@
+{"result":{"text":"x squared equals fraction numerator x plus y over denominator x minus y end fraction"},"status":"ok"}

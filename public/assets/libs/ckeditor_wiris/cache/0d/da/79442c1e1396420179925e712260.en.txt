@@ -1,0 +1,1 @@
+{"result":{"text":"x equals square root of 1 minus 5 end root plus"},"status":"ok"}

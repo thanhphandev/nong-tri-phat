@@ -1,0 +1,9 @@
+mongoexport --db mitashop --collection dm_diachi --out dm_diachi.json
+mongoexport --db mitashop --collection don_hang --out don_hang.json
+mongoexport --db mitashop --collection hang_hoa --out hang_hoa.json
+mongoexport --db mitashop --collection khach_hang --out khach_hang.json
+mongoexport --db mitashop --collection loai_hang --out loai_hang.json
+mongoexport --db mitashop --collection logs --out logs.json
+mongoexport --db mitashop --collection nhap_hang --out nhap_hang.json
+mongoexport --db mitashop --collection nhom_hang --out nhom_hang.json
+mongoexport --db mitashop --collection users --out users.json

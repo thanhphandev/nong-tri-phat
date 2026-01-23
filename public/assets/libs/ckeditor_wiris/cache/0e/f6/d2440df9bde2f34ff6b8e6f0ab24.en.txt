@@ -1,0 +1,1 @@
+{"result":{"text":"b squared over blank"},"status":"ok"}

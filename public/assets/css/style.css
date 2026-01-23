@@ -1,0 +1,34 @@
+.col-form-label {
+    font-weight: bold;
+}
+
+table thead th {
+    font-weight: bold !important;
+    text-align:center !important;
+}
+
+.full-width {
+	width: 100% !important;
+	min-width: 900px !important;
+}
+
+.font-15 {
+    font-size: 15px;
+}
+
+.font-17 {
+    font-size: 17px;
+}
+
+.tooltipster {
+    cursor: pointer;
+}
+
+.control-label {
+    font-weight: bold !important;
+    line-height: 40px;
+}
+
+.bold {
+    font-weight: bold;
+}

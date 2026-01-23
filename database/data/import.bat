@@ -1,0 +1,9 @@
+mongoimport --db mitashop --collection dm_diachi --file dm_diachi.json
+mongoimport --db mitashop --collection don_hang --file don_hang.json
+mongoimport --db mitashop --collection hang_hoa --file hang_hoa.json
+mongoimport --db mitashop --collection khach_hang --file khach_hang.json
+mongoimport --db mitashop --collection loai_hang --file loai_hang.json
+mongoimport --db mitashop --collection logs --file logs.json
+mongoimport --db mitashop --collection nhap_hang --file nhap_hang.json
+mongoimport --db mitashop --collection nhom_hang --file nhom_hang.json
+mongoimport --db mitashop --collection users --file users.json

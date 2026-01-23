@@ -1,0 +1,21 @@
+{"_id":{"$oid":"695f12287d3b000068002893"},"ten":"Gói 1Kg","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:10:48.126Z"},"created_at":{"$date":"2026-01-08T02:10:48.126Z"}}
+{"_id":{"$oid":"695f12f87d3b000068002895"},"ten":"Gói 20 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:14:16.924Z"},"created_at":{"$date":"2026-01-08T02:14:16.924Z"}}
+{"_id":{"$oid":"695f13067d3b000068002897"},"ten":"Gói 30 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:14:30.138Z"},"created_at":{"$date":"2026-01-08T02:14:30.138Z"}}
+{"_id":{"$oid":"695f135c7d3b000068002899"},"ten":"Chai 450 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:15:56.787Z"},"created_at":{"$date":"2026-01-08T02:15:56.787Z"}}
+{"_id":{"$oid":"695f13697d3b00006800289b"},"ten":"Gói 50 gr","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:16:09.836Z"},"created_at":{"$date":"2026-01-08T02:16:09.836Z"}}
+{"_id":{"$oid":"695f13727d3b00006800289d"},"ten":"Chai 100 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:16:18.543Z"},"created_at":{"$date":"2026-01-08T02:16:18.543Z"}}
+{"_id":{"$oid":"695f137b7d3b00006800289f"},"ten":"Chai 240 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:16:27.982Z"},"created_at":{"$date":"2026-01-08T02:16:27.982Z"}}
+{"_id":{"$oid":"695f13897d3b0000680028a1"},"ten":"Chai 250 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:21:37.356Z"},"created_at":{"$date":"2026-01-08T02:16:41.037Z"}}
+{"_id":{"$oid":"695f13de7d3b0000680028a3"},"ten":"Bao 20 Kg","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:18:06.964Z"},"created_at":{"$date":"2026-01-08T02:18:06.964Z"}}
+{"_id":{"$oid":"695f13e77d3b0000680028a5"},"ten":"Bao 50 Kg","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:18:15.659Z"},"created_at":{"$date":"2026-01-08T02:18:15.659Z"}}
+{"_id":{"$oid":"695f13f37d3b0000680028a7"},"ten":"Cái","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:18:27.144Z"},"created_at":{"$date":"2026-01-08T02:18:27.144Z"}}
+{"_id":{"$oid":"695f14017d3b0000680028a9"},"ten":"Chai","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:18:41.748Z"},"created_at":{"$date":"2026-01-08T02:18:41.748Z"}}
+{"_id":{"$oid":"695f140d7d3b0000680028ab"},"ten":"Chai 1 lít","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:18:53.193Z"},"created_at":{"$date":"2026-01-08T02:18:53.193Z"}}
+{"_id":{"$oid":"695f14247d3b0000680028ad"},"ten":"Chai 200 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:19:16.806Z"},"created_at":{"$date":"2026-01-08T02:19:16.806Z"}}
+{"_id":{"$oid":"695f14c17d3b0000680028b0"},"ten":"Chai 500 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:21:53.404Z"},"created_at":{"$date":"2026-01-08T02:21:53.404Z"}}
+{"_id":{"$oid":"695f14cb7d3b0000680028b2"},"ten":"Chai 900 ml","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:22:03.412Z"},"created_at":{"$date":"2026-01-08T02:22:03.412Z"}}
+{"_id":{"$oid":"695f14d17d3b0000680028b4"},"ten":"Gói","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:22:09.924Z"},"created_at":{"$date":"2026-01-08T02:22:09.924Z"}}
+{"_id":{"$oid":"695f14f27d3b0000680028b6"},"ten":"Gói 100 gr","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:22:42.841Z"},"created_at":{"$date":"2026-01-08T02:22:42.841Z"}}
+{"_id":{"$oid":"695f15e87d3b0000680028b8"},"ten":"Gói 30 gr","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:26:48.8Z"},"created_at":{"$date":"2026-01-08T02:26:48.8Z"}}
+{"_id":{"$oid":"695f15f37d3b0000680028ba"},"ten":"Gói 35 gr","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:26:59.796Z"},"created_at":{"$date":"2026-01-08T02:26:59.796Z"}}
+{"_id":{"$oid":"695f16007d3b0000680028bc"},"ten":"Xô","thu_tu":0,"ghi_chu":null,"updated_at":{"$date":"2026-01-08T02:27:12.886Z"},"created_at":{"$date":"2026-01-08T02:27:12.886Z"}}

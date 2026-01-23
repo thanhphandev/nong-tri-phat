@@ -1,0 +1,9 @@
+mongoexport --db NongTriPhat --collection dm_diachi --out dm_diachi.json
+mongoexport --db NongTriPhat --collection don_hang --out don_hang.json
+mongoexport --db NongTriPhat --collection hang_hoa --out hang_hoa.json
+mongoexport --db NongTriPhat --collection khach_hang --out khach_hang.json
+mongoexport --db NongTriPhat --collection loai_hang --out loai_hang.json
+mongoexport --db NongTriPhat --collection logs --out logs.json
+mongoexport --db NongTriPhat --collection nhap_hang --out nhap_hang.json
+mongoexport --db NongTriPhat --collection don_vi_tinh --out don_vi_tinh.json
+mongoexport --db NongTriPhat --collection users --out users.json

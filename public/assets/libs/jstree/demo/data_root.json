@@ -1,0 +1,40 @@
+[
+    {
+        "id": "demo_root_1",
+        "text": "AUN.H1",
+        "children": true,
+        "type": "root",
+        "file": "data_children_root_1.json",
+        "state": {
+            "opened": false
+        }
+    },{
+        "id": "demo_root_2",
+        "text": "AUN.H2",
+        "children": true,
+        "type": "root",
+        "file": "data_children_root_2.json",
+        "state" : {
+            "opened" : false
+        }
+    },{
+        "id": "demo_root_3",
+        "text": "Root #3",
+        "children": true,
+        "type": "root",
+        "file": "data_children_root_3.json"
+    },{
+        "id": "demo_root_4",
+        "text": "Root #4",
+        "children": true,
+        "type": "root",
+        "file": "data_children_root_4.json"
+    },
+    {
+        "id": "demo_root_5",
+        "text": "Root #5",
+        "children": true,
+        "type": "root",
+        "file": "data_children_root_5.json"
+    }
+]
