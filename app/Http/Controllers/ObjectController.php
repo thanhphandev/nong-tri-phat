@@ -108,6 +108,9 @@ class ObjectController extends Controller
 
     public static function getDate($date, $format){
         $tz = 'Asia/Ho_Chi_minh'; //Change your timezone
+        if($date instanceof \MongoDB\BSON\UTCDateTime){
+            return Carbon::instance($date->toDateTime())->setTimezone($tz)->format($format);
+        }
         return Carbon::parse($date, $tz)->format($format);
     }
 

@@ -8,6 +8,7 @@ use App\Models\NhapHang;
 use App\Models\HangHoa;
 use App\Models\NhaCungCap;
 use App\Models\CongNoNCC;
+use App\Models\DonViTinh;
 use Validator;use Session;
 class NhapHangController extends Controller
 {
@@ -43,7 +44,11 @@ class NhapHangController extends Controller
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
                 $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
-                $ngay_het_han = isset($data['ngay_het_han_cart'][$key]) ? ObjectController::convertDateTime($data['ngay_het_han_cart'][$key]) : null;
+                $ngay_het_han = null;
+                if(isset($data['ngay_het_han_cart'][$key])){
+                    $date_convert = ObjectController::convertDateTime($data['ngay_het_han_cart'][$key]);
+                    $ngay_het_han = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
+                }
 
                 $id_hanghoa = ObjectController::ObjectId($value);
                 array_push($arr_hanghoa, array('id_hanghoa' => $id_hanghoa, 'ma' => $hh['ma'], 'don_vi_tinh' => $hh['don_vi_tinh'] , 'ten' => $hh['ten'], 'so_luong' => $so_luong, 'don_gia' => $don_gia, 'so_thang_het_han' => $so_thang, 'ngay_het_han' => $ngay_het_han, 'thanh_tien' => $tt));

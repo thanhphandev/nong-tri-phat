@@ -17,7 +17,17 @@
                 <div class="col-12 col-md-12">
                     <form method="GET" action="{{ env('APP_URL') }}admin/hang-hoa" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-md-3">
+                                <select name="id_loaihang" id="id_loaihang" class="form-control select2">
+                                    <option value="">Tất cả Loại hàng</option>
+                                    @if($loaihang)
+                                        @foreach($loaihang as $lh)
+                                            <option value="{{ $lh['_id'] }}" @if($lh['_id'] == $id_loaihang) selected @endif>{{ $lh['ten'] }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
                                 <select name="id_donvitinh" id="id_donvitinh" class="form-control select2">
                                     <option value="">Tất cả Đơn vị tính</option>
                                     @if($donvitinh)
@@ -43,7 +53,6 @@
         		<thead>
         			<tr>
         				<th>#</th>
-                        <th>Mã vạch</th>
                         <th>Mã hàng</th>
         				<th>Tên hàng hóa</th>
                         <th>Giá vốn</th>
@@ -59,7 +68,6 @@
         			@foreach($danhsach as $key => $ds)
         			<tr>
         				<td class="text-center">{{ $key+1 }}</td>
-                        <td class="text-center">{{ isset($ds['ma_vach']) ? $ds['ma_vach'] : '' }}</td>
                         <td>{{ $ds['ma'] }}</td>
         				<td>{{ $ds['ten'] }}</td>
                         <td class="text-right">{{ number_format($ds['gia_von'], 0,",",".") }}</td>
@@ -78,7 +86,11 @@
         		@endif
         		</tbody>
         	</table>
-            {{-- $danhsach->withPath(env('APP_URL').'admin/hang-hoa?' . $_SERVER['QUERY_STRING']) --}}
+            <div class="row">
+                <div class="col-12">
+                    {{ $danhsach->appends(request()->all())->links() }}
+                </div>
+            </div>
     	</div>
     </div>
 </div>
@@ -106,8 +118,11 @@
                 loaderBg:"#3b98b5",icon:"info", hideAfter:3e3,stack:1,position:"top-right"
             });
         @endif
-        $("#keywords").keyup(function(){
-            $("#searchForm").submit();
+        $("#keywords").keyup(function(e){
+            if(e.keyCode == 13) $("#SearchForm").submit();
+        });
+        $(".select2").change(function(){
+            $("#SearchForm").submit();
         });
     });
 </script>

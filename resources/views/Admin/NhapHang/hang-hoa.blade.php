@@ -18,7 +18,7 @@
             <td class="text-right">{{ $hh['so_luong'] }}</td>
             <td class="text-right">{{ number_format($hh['don_gia'],0,",",".") }}</td>
             <td class="text-center">{{ isset($hh['so_thang_het_han']) ? $hh['so_thang_het_han'] : 0 }}</td>
-            <td class="text-center">{{ isset($hh['ngay_het_han']) ? (is_string($hh['ngay_het_han']) ? $hh['ngay_het_han'] : $hh['ngay_het_han']->format('d/m/Y')) : '' }}</td>
+            <td class="text-center">{{ isset($hh['ngay_het_han']) ? App\Http\Controllers\ObjectController::getDate($hh['ngay_het_han'], "d/m/Y") : '' }}</td>
             <td class="text-right">{{ number_format($hh['thanh_tien'],0,",",".") }}</td>
         </tr>
         @endforeach
