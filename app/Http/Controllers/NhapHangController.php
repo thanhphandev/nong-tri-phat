@@ -41,12 +41,12 @@ class NhapHangController extends Controller
                 $hh = HangHoa::find($value);
                 $so_luong = intval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
-                $ttt = ObjectController::convertStr2Number_1($data['tong_thanh_tien_cart'][$key]);
-                $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
-                $tien_chiet_khau = ObjectController::convertStr2Number_1($data['tien_chiet_khau_cart'][$key]);
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
+                $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
+                $ngay_het_han = isset($data['ngay_het_han_cart'][$key]) ? ObjectController::convertDateTime($data['ngay_het_han_cart'][$key]) : null;
+
                 $id_hanghoa = ObjectController::ObjectId($value);
-                array_push($arr_hanghoa, array('id_hanghoa' => $id_hanghoa, 'ma' => $hh['ma'], 'don_vi_tinh' => $hh['don_vi_tinh'] , 'ten' => $hh['ten'], 'so_luong' => $so_luong, 'don_gia' => $don_gia, 'tong_thanh_tien' => $ttt, 'chiet_khau' => $chiet_khau, 'tien_chiet_khau' => $tien_chiet_khau, 'thanh_tien' => $tt));
+                array_push($arr_hanghoa, array('id_hanghoa' => $id_hanghoa, 'ma' => $hh['ma'], 'don_vi_tinh' => $hh['don_vi_tinh'] , 'ten' => $hh['ten'], 'so_luong' => $so_luong, 'don_gia' => $don_gia, 'so_thang_het_han' => $so_thang, 'ngay_het_han' => $ngay_het_han, 'thanh_tien' => $tt));
                 HangHoa::where('_id', '=', $id_hanghoa)->increment('so_luong_ton', intval($data['so_luong_cart'][$key]));;
             }
         }
@@ -69,9 +69,7 @@ class NhapHangController extends Controller
         $db->email = $ncc['email'];
         $db->hanghoa = $arr_hanghoa;
         $db->ngay_nhap = ObjectController::setDate();
-        $db->tong_thanh_tien = doubleval($data['tong_thanh_tien']);
-        $db->chiet_khau = intval($data['tong_chiet_khau']);
-        $db->tien_chiet_khau = doubleval($data['tong_tien_chiet_khau']);
+        $db->tong_thanh_tien = doubleval($data['thanh_tien']);
         $db->thanh_tien = doubleval($data['thanh_tien']);
         $db->id_user = ObjectController::ObjectId($id_user);
         $db->save();

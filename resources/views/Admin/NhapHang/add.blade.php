@@ -93,33 +93,16 @@
                             <th>Tên Hàng hóa</th>
                             <th>Số lượng</th>
                             <th>Đơn giá</th>
-                            <th>Tổng</th>
-                            <th>%Chiết khấu</th>
-                            <th>Tiền chiết khấu</th>
+                            <th>Số tháng</th>
+                            <th>Hạn sử dụng</th>
                             <th>Thành tiền</th>
                             <th>#</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
-                <div class="row">
-                    <div class="col-12 col-md-12">
-                        <input type="hidden" name="tong_thanh_tien" id="tong-thanh-tien" value="0" placeholder="">
-                        <h4 style="text-align:right;">Tổng: <span id="tong-thanh-tien-show">0</span></h4>
-                    </div>
-                </div>
-                <div class="row" style="margin-top:-18px;">
-                    <div class="col-12 col-md-12">
-                        <input type="hidden" name="tong_chiet_khau" id="tong-chiet-khau" value="0" placeholder="">
-                        <h4 style="text-align:right;">% Chiết khấu: <span id="tong-chiet-khau-show">0</span></h4>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-12 col-md-12" style="margin-top:-18px;">
-                        <input type="hidden" name="tong_tien_chiet_khau" id="tong-tien-chiet-khau" value="0" placeholder="">
-                        <h4 style="text-align:right;">Tiền ciết khấu: <span id="tong-tien-chiet-khau-show">0</span></h4>
-                    </div>
-                </div>
+
+
                 <div class="row">
                     <div class="col-12 col-md-12">
                         <input type="hidden" name="thanh_tien" id="thanh-tien" value="0" placeholder="">
