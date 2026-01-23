@@ -67,11 +67,11 @@
 	                	<div class="col-md-2">
 	                		<input type="text" name="gia_von" id="gia_von" value="{{ old('gia_von') != null ? old('gia_von') : $ds['gia_von'] }}" placeholder="Giá vốn" class="form-control number" required />
 	                	</div>
-	                	<label class="control-label col-md-2 text-right p-t-10">Giá bán sỉ</label>
+	                	<label class="control-label col-md-2 text-right p-t-10">Giá tiền mặt</label>
 	                	<div class="col-md-2">
 	                		<input type="text" name="gia_si" id="gia_si" value="{{ old('gia_si') != null ? old('gia_si') : $ds['gia_si'] }}" placeholder="Giá Sỉ" class="form-control number" required/>
 	                	</div>
-	                	<label class="control-label col-md-2 text-right p-t-10">Giá bán lẻ</label>
+	                	<label class="control-label col-md-2 text-right p-t-10">Giá tiền nợ</label>
 	                	<div class="col-md-2">
 	                		<input type="text" name="gia_le" id="gia_le" value="{{ old('gia_le') != null ? old('gia_le') : $ds['gia_le'] }}" placeholder="Giá Lẻ" class="form-control number" required/>
 	                	</div>

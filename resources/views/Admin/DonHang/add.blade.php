@@ -101,9 +101,23 @@
                 </div>
                 <div class="row form-group">
                     <div class="col-12 col-md-6"></div>
+                    <label class="control-label col-md-2 text-right p-t-10">Hình thức thanh toán</label>
+                    <div class="col-12 col-md-4">
+                        <div class="custom-control custom-radio custom-control-inline">
+                            <input type="radio" id="tien_mat" name="hinh_thuc_thanh_toan" class="custom-control-input" value="tien_mat" checked>
+                            <label class="custom-control-label" for="tien_mat">Tiền mặt</label>
+                        </div>
+                        <div class="custom-control custom-radio custom-control-inline">
+                            <input type="radio" id="ban_thieu" name="hinh_thuc_thanh_toan" class="custom-control-input" value="ban_thieu">
+                            <label class="custom-control-label" for="ban_thieu">Bán thiếu</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row form-group">
+                    <div class="col-12 col-md-6"></div>
                     <label class="control-label col-md-2 text-right p-t-10">Thanh toán</label>
                     <div class="col-12 col-md-4">
-                        <input type="text" name="thanh-toan" id="thanh-toan" value="0" placeholder="Khách hàng thanh toán" class="number form-control form-control-sm" style="text-align:right">
+                        <input type="text" name="thanh-toan" id="thanh-toan" value="0" placeholder="Khách hàng thanh toán" class="number form-control form-control-sm" style="text-align:right" readonly>
                     </div>
                 </div>
                 <div class="row form-group">

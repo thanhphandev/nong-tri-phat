@@ -80,7 +80,7 @@ class KhachHangController extends Controller
         $db->email = trim($data['email']);
         $db->loai_khach_hang = $data['loai_khach_hang'];
         $db->save();
-        Session::flash('msg', 'Chỉnh sửa khách hàn thành công');
+        Session::flash('msg', 'Chỉnh sửa khách hàng thành công');
         return redirect(env('APP_URL'). 'admin/khach-hang');
     }
 

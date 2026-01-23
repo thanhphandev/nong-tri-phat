@@ -56,8 +56,8 @@
                         <th>Mã hàng</th>
         				<th>Tên hàng hóa</th>
                         <th>Giá vốn</th>
-                        <th>Giá bán sỉ</th>
-                        <th>Giá bán lẻ</th>
+                        <th>Giá tiền mặt</th>
+                        <th>Giá tiền nợ</th>
                         <th>Tồn kho</th>
                         {{-- <th>KH Đặt</th> --}}
         				<th>#</th>

@@ -14,7 +14,7 @@ use Session;
 use Config;
 class NhaCungCapController extends Controller
 {
-    //
+    
     function list(){
         $danhsach = NhaCungcap::paginate(30);
         return view('Admin.NhaCungcap.list')->with(compact('danhsach'));

@@ -12,7 +12,7 @@
 			<input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="Số lượng" class="so-luong cart-change form-control form-control-sm" min="1" max="{{ $hh['so_luong_ton'] }}" style="width:80px;">
 		</td>
 		<td class="text-right" style="width:130px;">
-			<input type="text" class="don-gia cart-change number form-control form-control-sm" name="don_gia_cart[]" value="{{ $hh[$kh['loai_khach_hang']] }}" placeholder="" style="width:100px;"/>
+			<input type="text" class="don-gia cart-change number form-control form-control-sm" name="don_gia_cart[]" value="{{ $hh[$kh['loai_khach_hang']] }}" placeholder="" style="width:100px;" data-gia-si="{{ $hh['gia_si'] }}" data-gia-le="{{ $hh['gia_le'] }}"/>
 		</td>
 		<td class="text-center" align="center" style="width:80px;max-width:80px;">
 			<input type="number" name="chiet_khau_cart[]" value="0" placeholder="" class="chiet-khau cart-change form-control form-control-sm float-right" style="max-width:70px;">

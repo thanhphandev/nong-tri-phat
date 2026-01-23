@@ -175,14 +175,55 @@ class HangHoaController extends Controller
     function get_cart(Request $request, $mahanghoa = ''){
         $hh = HangHoa::where('ma', '=', $mahanghoa)->first();
         if($hh){
+            // Logic FEFO: Tìm ngày hết hạn gần nhất
+            $id_hanghoa =  ObjectController::ObjectId($hh['_id']);
+            $nhaphang = NhapHang::where('hanghoa.id_hanghoa', '=', $id_hanghoa)
+                ->where('hanghoa.so_luong_ton', '>', 0) // Chỉ lấy lô còn hàng (nếu có tracking lô - hiện tại hệ thống chưa track lô chuẩn nên lấy tất cả phiếu nhập có date)
+                ->get();
+            
+            $ngay_het_han_gan_nhat = null;
+            $str_hsd = "";
+
+            // Tìm trong các phiếu nhập
+            $today = time();
+            $min_diff = -1;
+
+            foreach($nhaphang as $nh){
+                if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])){
+                    foreach($nh['hanghoa'] as $item){
+                        if(isset($item['id_hanghoa']) && (string)$item['id_hanghoa'] == (string)$id_hanghoa){
+                            if(isset($item['ngay_het_han']) && $item['ngay_het_han']){
+                                $date = $item['ngay_het_han']->toDateTime();
+                                $timestamp = $date->getTimestamp();
+                                if($timestamp >= $today){
+                                    $diff = $timestamp - $today;
+                                    if($min_diff == -1 || $diff < $min_diff){
+                                        $min_diff = $diff;
+                                        $ngay_het_han_gan_nhat = $date;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if($ngay_het_han_gan_nhat){
+                $str_hsd = '<span class="badge badge-warning">HSD Gần nhất: ' . $ngay_het_han_gan_nhat->format('d/m/Y') . '</span>';
+            }
+
             $arr = array(
                 'id_hanghoa' => $hh['_id'],
-                'thongtinhanghoa' => 'Tên hàng: ' . $hh['ten'] . ' -- [SL Tồn: '.$hh['so_luong_ton'].']'
+                'thongtinhanghoa' => 'Tên hàng: ' . $hh['ten'] . ' -- [SL Tồn: '.$hh['so_luong_ton'].'] ' . $str_hsd,
+                'gia_si' => $hh['gia_si'],
+                'gia_le' => $hh['gia_le']
             );
         } else {
             $arr = array(
                 'id_hanghoa' => "",
-                'thongtinhanghoa' => ""
+                'thongtinhanghoa' => "",
+                'gia_si' => 0,
+                'gia_le' => 0
             );
         }
         echo json_encode($arr);

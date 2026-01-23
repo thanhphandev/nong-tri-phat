@@ -45,7 +45,7 @@
                                 <th>Số lượng</th>
                                 <th>Đơn vị tính</th>
                                 <th class="text-right">Đơn giá</th>
-                                <th class="text-right">%</th>
+                                <th class="text-right">Chiết khấu %</th>
                                 <th class="text-right">Thành tiền</th>
                             </tr></thead>
                             <tbody>
