@@ -121,6 +121,13 @@
                     </div>
                 </div>
                 <div class="row form-group">
+                    <div class="col-12 col-md-6"></div>
+                    <label class="control-label col-md-2 text-right p-t-10">Ghi chú</label>
+                    <div class="col-12 col-md-4">
+                        <textarea name="ghi_chu" id="ghi_chu" class="form-control form-control-sm" rows="3" placeholder="Nhập ghi chú cho đơn hàng"></textarea>
+                    </div>
+                </div>
+                <div class="row form-group">
                     <div class="col-12 col-6">
                         <div class="custom-control custom-checkbox">
                             <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">

@@ -4,11 +4,17 @@ function addCart(path) {
         var id_hanghoa = $("#id_hanghoa").val();
         var so_luong = $("#so_luong").val();
         if (id_nhacungcap && id_hanghoa && so_luong) {
-            var path_get = path + "admin/nhap-hang/get-add-cart?id_nhacungcap=" + id_nhacungcap + "&id_hanghoa=" + id_hanghoa + "&so_luong=" + so_luong;
-            $.get(path_get, function (hanghoa) {
-                if (jQuery.trim(hanghoa) == 'Số lượng tồn kho không đủ') {
-                    alert('Số lượng tồn kho không đủ');
-                } else {
+            var existingItem = $("input[name='id_hanghoa_cart[]'][value='" + id_hanghoa + "']");
+            if (existingItem.length > 0) {
+                var row = existingItem.closest('.item');
+                var inputSoLuong = row.find('.so-luong');
+                var currentSoLuong = parseFloat(inputSoLuong.val());
+                var newSoLuong = currentSoLuong + parseFloat(so_luong);
+                inputSoLuong.val(newSoLuong);
+                inputSoLuong.trigger('change');
+            } else {
+                var path_get = path + "admin/nhap-hang/get-add-cart?id_nhacungcap=" + id_nhacungcap + "&id_hanghoa=" + id_hanghoa + "&so_luong=" + so_luong;
+                $.get(path_get, function (hanghoa) {
                     $("#HangHoaList tbody").prepend(hanghoa); delete_cart();
                     tong_thanh_tien();
                     $("#id_nhacungcap").prop('disabled', true);
@@ -16,8 +22,8 @@ function addCart(path) {
                     $("#id_nhacungcap_cart").val(id_nhacungcap);
                     change_so_luong(); jQuery(".number").number(true, 0, ',', '.');
                     jQuery(".datepicker").datepicker({ autoclose: !0, orientation: "bottom", todayHighlight: !0, format: "dd/mm/yyyy" });
-                }
-            });
+                });
+            }
         } else {
             alert('Vui lòng chọn Nhà cung cấp, Hàng hóa và Số lượng');
         }

@@ -53,8 +53,18 @@ class DonHangController extends Controller
                 $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $id_hanghoa = ObjectController::ObjectId($value);
-                array_push($arr_hanghoa, array('id_hanghoa' => $id_hanghoa, 'ma' => $hh['ma'], 'don_vi_tinh' => $hh['don_vi_tinh'] , 'ten' => $hh['ten'], 'so_luong' => $so_luong, 'don_gia' => $don_gia, 'chiet_khau' => $chiet_khau, 'thanh_tien' => $thanh_tien));
-                HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $data['so_luong_cart'][$key]);;
+                
+                array_push($arr_hanghoa, array(
+                    'id_hanghoa' => $id_hanghoa, 
+                    'ma' => $hh['ma'], 
+                    'id_donvitinh' => $hh['id_donvitinh'],
+                    'ten' => $hh['ten'], 
+                    'so_luong' => $so_luong, 
+                    'don_gia' => $don_gia, 
+                    'chiet_khau' => $chiet_khau, 
+                    'thanh_tien' => $thanh_tien
+                ));
+                HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $data['so_luong_cart'][$key]);
             }
         }
         $db = new DonHang();

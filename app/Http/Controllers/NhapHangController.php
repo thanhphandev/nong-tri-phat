@@ -51,7 +51,17 @@ class NhapHangController extends Controller
                 }
 
                 $id_hanghoa = ObjectController::ObjectId($value);
-                array_push($arr_hanghoa, array('id_hanghoa' => $id_hanghoa, 'ma' => $hh['ma'], 'don_vi_tinh' => $hh['don_vi_tinh'] , 'ten' => $hh['ten'], 'so_luong' => $so_luong, 'don_gia' => $don_gia, 'so_thang_het_han' => $so_thang, 'ngay_het_han' => $ngay_het_han, 'thanh_tien' => $tt));
+                array_push($arr_hanghoa, array(
+                    'id_hanghoa' => $id_hanghoa, 
+                    'ma' => $hh['ma'], 
+                    'id_donvitinh' => $hh['id_donvitinh'],
+                    'ten' => $hh['ten'], 
+                    'so_luong' => $so_luong, 
+                    'don_gia' => $don_gia, 
+                    'so_thang_het_han' => $so_thang, 
+                    'ngay_het_han' => $ngay_het_han, 
+                    'thanh_tien' => $tt
+                ));
                 HangHoa::where('_id', '=', $id_hanghoa)->increment('so_luong_ton', intval($data['so_luong_cart'][$key]));;
             }
         }
