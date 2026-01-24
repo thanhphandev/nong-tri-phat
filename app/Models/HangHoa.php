@@ -12,5 +12,5 @@ class HangHoa extends Eloquent
     protected $connection = 'mongodb';
     protected $collection = 'hang_hoa';
 
-    //_id, ma, ten, id_loaihang, gia_von, gia_si, gia_le, so_luong_ton, ghi_chu
+    //_id, ma, ten, id_loaihang, id_donvitinh, gia_von, gia_si, gia_le, so_luong_ton, ghi_chu
 }

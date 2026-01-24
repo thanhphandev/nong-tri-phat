@@ -9,6 +9,7 @@ use App\Models\DonHang;
 use App\Models\KhachHang;
 use App\Models\HangHoa;
 use App\Models\CongNo;
+use App\Models\DonViTinh;
 use Validator;use Session;
 use Config;
 class DonHangController extends Controller
@@ -57,7 +58,7 @@ class DonHangController extends Controller
                 array_push($arr_hanghoa, array(
                     'id_hanghoa' => $id_hanghoa, 
                     'ma' => $hh['ma'], 
-                    'id_donvitinh' => $hh['id_donvitinh'],
+                    'id_donvitinh' => isset($hh['id_donvitinh']) ? $hh['id_donvitinh'] : null,
                     'ten' => $hh['ten'], 
                     'so_luong' => $so_luong, 
                     'don_gia' => $don_gia, 
@@ -84,6 +85,7 @@ class DonHangController extends Controller
         $db->hanghoa = $arr_hanghoa;
         $db->tong_thanh_tien = $tong_thanh_tien;
         $db->thanh_toan = 0;
+        $db->ghi_chu = isset($data['ghi_chu']) ? $data['ghi_chu'] : '';
         $db->id_user = ObjectController::ObjectId($id_user);
         $db->save();
 
@@ -189,12 +191,37 @@ class DonHangController extends Controller
         }
     }
 
-    function in_phieu_giao_hang(Request $request, $id = ''){
-        $dh = DonHang::find($id);
-        $id_khachhang = ObjectController::ObjectId($dh['id_khachhang']);
-        $congno_sum = CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-        $thanhtoan_sum = CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-        return view('Admin.DonHang.in-phieu-giao-hang')->with(compact('dh', 'congno_sum', 'thanhtoan_sum'));
+    function in_phieu_giao_hang(Request $request, $id = '') {
+        $dh = DonHang::findOrFail($id);
+
+        // 1. Map thông tin Hàng hóa & Đơn vị tính
+        $id_hh = collect($dh->hanghoa)->pluck('id_hanghoa')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+        $id_dvt = collect($dh->hanghoa)->pluck('id_donvitinh')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+
+        $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(fn($i) => (string)$i->_id);
+        $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
+
+        $dh->hanghoa = collect($dh->hanghoa)->map(function($hh) use ($products, $units) {
+            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            return $hh;
+        });
+
+        // 2. Tính toán công nợ khách hàng
+        $id_kh = ObjectController::ObjectId($dh->id_khachhang);
+        $id_dh = ObjectController::ObjectId($dh->_id);
+
+        // Nợ cũ = (Tổng nợ phát sinh khác đơn này) - (Tổng đã trả khác đơn này)
+        $no_cu_tang = CongNo::where('id_khachhang', $id_kh)->where('id_donhang', '!=', $id_dh)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+        $no_cu_giam = CongNo::where('id_khachhang', $id_kh)->where('id_donhang', '!=', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        
+        $no_cu = $no_cu_tang - $no_cu_giam;
+        $tong_tien_don_nay = $dh->tong_thanh_tien;
+        $thanh_toan_don_nay = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        
+        $no_moi = $no_cu + $tong_tien_don_nay - $thanh_toan_don_nay;
+
+        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'no_cu', 'tong_tien_don_nay', 'thanh_toan_don_nay', 'no_moi'));
     }
 
     static function check_HangHoa($id = ''){

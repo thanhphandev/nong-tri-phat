@@ -113,7 +113,22 @@
                     <div class="col-12 col-md-6"></div>
                     <label class="control-label col-md-2 text-right p-t-10">Thanh toán</label>
                     <div class="col-12 col-md-4">
-                        <input type="text" name="thanh_toan" id="thanh-toan" value="0" placeholder="thanh toán" class="number form-control form-control-sm" style="text-align:right">
+                        <input type="text" name="thanh_toan" id="thanh-toan" value="0" placeholder="Thanh toán" class="number form-control form-control-sm" style="text-align:right">
+                    </div>
+                </div>
+                <div class="row form-group">
+                    <div class="col-12 col-md-6"></div>
+                    <label class="control-label col-md-2 text-right p-t-10">Ghi chú</label>
+                    <div class="col-12 col-md-4">
+                        <textarea name="ghi_chu" id="ghi_chu" class="form-control form-control-sm" rows="3" placeholder="Nhập ghi chú cho đơn nhập hàng"></textarea>
+                    </div>
+                </div>
+                <div class="row form-group">
+                    <div class="col-12 col-6">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
+                            <label class="custom-control-label" for="InHoaDonCheck">In phiếu nhập hàng</label>
+                        </div>
                     </div>
                 </div>
                 <div class="form-actions">

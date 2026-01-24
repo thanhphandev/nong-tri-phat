@@ -1,7 +1,7 @@
 @php
 	$gia_von = $hh['gia_von'];
 	$thanhtien = $so_luong * $gia_von;
-    $so_thang = isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 0;
+    $so_thang = isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 12;
     $ngay_het_han = "";
     if($so_thang >= 0) {
         $ngay_het_han = date('d/m/Y', strtotime("+$so_thang months"));

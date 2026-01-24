@@ -19,6 +19,7 @@
 							<th>Nhà cung cấp</th>
 							<th>Số lượng hàng hóa</th>
                             <th>Thành tiền</th>
+                            <th>Ghi chú</th>
 							<th>#</th>
 						</tr>
 					</thead>
@@ -39,7 +40,9 @@
                                 <a href="{{ env('APP_URL') }}admin/nhap-hang/xem-hang-hoa/{{ $ds['_id'] }}" class="xem-hang-hoa" data-toggle="modal" data-target="#modalHangHoa">{{ $so_luong }}</a>
                             </td>
                             <td class="text-right">{{ number_format($ds['thanh_tien'],0,",",".") }}</td>
+                            <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 							<td class="text-center">
+                                <a href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank" class="mr-2"><i class="fa fa-print text-success"></i></a>
                                 <a href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
                             </td>
 						</tr>

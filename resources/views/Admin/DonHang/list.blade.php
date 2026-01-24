@@ -36,6 +36,7 @@
 							<th>Số lượng hàng hóa</th>
 							<th>Tổng thành tiền</th>
 							<th>Tình trạng</th>
+                            <th>Ghi chú</th>
 							<th>#</th>
 						</tr>
 					</thead>
@@ -75,10 +76,11 @@
                                             {{ $tinhtrang[$ds['tinh_trang']] }}
                                         @endif
                                     </span>
+                                    <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 								</td>
 								<td class="text-center">
-                                    <a href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
                                     <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print"></i></a>
+                                    <a href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
                                 </td>
 							</tr>
 						@endforeach
