@@ -29,6 +29,6 @@
 </table>
 @else 
 <div class="alert alert-warning">
-	<h3>Không có hàng hóa theo nhóm hàng này</h3>
+    <h3>Không có hàng hóa theo nhóm hàng này</h3>
 </div>
 @endif

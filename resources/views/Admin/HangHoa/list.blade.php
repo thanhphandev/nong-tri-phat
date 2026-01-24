@@ -55,6 +55,7 @@
         				<th>#</th>
                         <th>Mã hàng</th>
         				<th>Tên hàng hóa</th>
+                        <th>ĐVT</th>
                         <th>Giá vốn</th>
                         <th>Giá tiền mặt</th>
                         <th>Giá tiền nợ</th>
@@ -70,6 +71,12 @@
         				<td class="text-center">{{ $key+1 }}</td>
                         <td>{{ $ds['ma'] }}</td>
         				<td>{{ $ds['ten'] }}</td>
+                        <td class="text-center">
+                            @php
+                                $dvt = App\Models\DonViTinh::find($ds['id_donvitinh']);
+                            @endphp
+                            {{ $dvt ? $dvt['ten'] : '' }}
+                        </td>
                         <td class="text-right">{{ number_format($ds['gia_von'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_si'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_le'], 0,",",".") }}</td>

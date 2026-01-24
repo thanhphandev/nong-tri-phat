@@ -1,5 +1,5 @@
 @extends('Admin.layout')
-@section('title', 'Danh mục Nhóm hàng')
+@section('title', 'Danh mục Đơn Vị Tính')
 @section('css')
   <link href="{{ env('APP_URL') }}assets/libs/datatables/dataTables.bootstrap4.css" rel="stylesheet" type="text/css" />
   <link href="{{ env('APP_URL') }}assets/libs/datatables/responsive.bootstrap4.css" rel="stylesheet" type="text/css" />
@@ -8,14 +8,14 @@
 <div class="row">
     <div class="col-12">
         <div class="card-box table-responsive">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/don-vi-tinh/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Nhóm hàng</h3>
+            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/don-vi-tinh/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Đơn vị tính</h3>
             @if($danhsach)
             <table id="responsive-datatable" class="table table-bordered table-bordered table-sm table-striped table-bordered dt-responsive nowrap" cellspacing="0" width="100%">
                 <thead>
                     <tr>
                         <th>STT</th>
                         <th>Tên</th>
-                        {{-- <th>Thứ tự</th> --}}
+                        <th>Thứ tự</th>
                         <th>Số lượng hàng hóa</th>
                         <th class="text-center">#</th>
                     </tr>
@@ -29,7 +29,7 @@
                     <tr>
                         <td class="text-center">{{ $key+1 }}</td>
                         <td><a href="{{ env('APP_URL') }}admin/don-vi-tinh/xem-hang-hoa/{{ $ds['_id'] }}" data-toggle="modal" data-target="#modalHangHoa" class="xem-hang-hoa">{{ $ds['ten'] }}</a></td>
-                        {{--   <td class="text-center">{{ $ds['thu_tu'] }}</td> --}}
+                        <td class="text-center">{{ $ds['thu_tu'] }}</td>
                         <td class="text-center">{{ $count }}</td>
                         <td class="text-center">
                             @if(!App\Http\Controllers\HangHoaController::check_DonViTinh($ds['_id']))

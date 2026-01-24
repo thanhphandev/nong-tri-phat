@@ -33,20 +33,7 @@
                         </div>
                     </div>
 	                <div class="row form-group">
-	                	<label class="control-label col-md-2 text-right p-t-10">Nhóm hàng</label>
-	                	<div class="col-md-4">
-	                		@php
-	                			$id_nhomhang = old('id_nhomhang') != null ? old('id_nhomhang') : $ds['id_nhomhang'];
-	                		@endphp
-	                		<select name="id_nhomhang" id="id_nhomhang" class="form-control select2" data-placeholder="Nhóm hàng">
-	                			<option value=""></option>
-	                			@if($nhomhang)
-	                				@foreach($nhomhang as $nh)
-	                					<option value="{{ $nh['_id'] }}" @if($nh['_id'] == $id_nhomhang) selected @endif>{{ $nh['ten'] }}</option>
-	                				@endforeach
-	                			@endif
-	                		</select>
-	                	</div>
+
 	                	<label class="control-label col-md-2 text-right p-t-10">Loại hàng</label>
 	                	@php
 	                		$id_loaihang = old('id_loaihang') != null ? old('id_loaihang') : $ds['id_loaihang'];
@@ -79,12 +66,22 @@
 	                <div class="row form-group">
 	                	<label class="control-label col-md-2 text-right p-t-10">Đơn vị tính</label>
 	                	<div class="col-md-4">
-	                		<input type="text" name="don_vi_tinh" id="don_vi_tinh" value="{{ old('don_vi_tinh') != null ? old('don_vi_tinh') : $ds['don_vi_tinh'] }}" placeholder="Đơn vị tính" class="form-control" />
+                            @php
+                                $id_donvitinh = old('id_donvitinh') != null ? old('id_donvitinh') : $ds['id_donvitinh'];
+                            @endphp
+                            <select name="id_donvitinh" id="id_donvitinh" class="form-control select2" data-placeholder="Đơn vị tính">
+                                <option value=""></option>
+                                @if($donvitinh)
+                                    @foreach($donvitinh as $nh)
+                                        <option value="{{ $nh['_id'] }}" @if($nh['_id'] == $id_donvitinh) selected @endif>{{ $nh['ten'] }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
 	                	</div>
 	                	<label class="control-label col-md-2 text-right p-t-10">Ghi chú</label>
 	                	<div class="col-md-4">
 	                		<input type="text" name="ghi_chu" id="ghi_chu" value="{{ old('ghi_chu') != null ? old('ghi_chu') : $ds['ghi_chu'] }}" placeholder="Ghi chú" class="form-control" />
-	                	                        </div>
+	                	</div>
 	                </div>
 				</div>
 				<div class="form-actions">

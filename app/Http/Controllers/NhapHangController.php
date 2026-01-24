@@ -27,7 +27,7 @@ class NhapHangController extends Controller
     function create(Request $request){
         $data = $request->all();
     	$validator = Validator::make($request->all(), [
-            'so_chung_tu' => 'required:nhap_hang',
+            'so_chung_tu' => 'required|unique:nhap_hang,so_chung_tu',
             'id_nhacungcap_cart' => 'required',
             'id_hanghoa_cart' => 'required',
             'so_luong_cart' => 'required'

@@ -43,7 +43,7 @@ class LoaiHangController extends Controller
         );
         LogController::addLog($querLog);
         if(isset($data['url']) && $data['url']){
-            return redirect($data['url'] . '?id_loaihang='.$id .'&id_nhomhang='.$data['id_nhomhang']);
+            return redirect($data['url'] . '?id_loaihang='.$id);
         } else {
             return redirect()->intended(env('APP_URL') . 'admin/loai-hang');    
         }

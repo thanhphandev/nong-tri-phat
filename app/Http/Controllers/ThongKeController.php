@@ -7,7 +7,7 @@ use App\Http\Controllers\ObjectController;
 use App\Models\KhachHang;
 use App\Models\DonHang;
 use App\Models\CongNo;
-use App\Models\NhomHang;
+
 use App\Models\LoaiHang;
 use App\Models\HangHoa;
 use Session;use Validator;
@@ -17,14 +17,12 @@ class ThongKeController extends Controller
 {
     //
     function so_luong_hang_hoa(Request $requset) {
-        $count_nhomhang = Nhomhang::count();
         $count_loaihang = LoaiHang::count();
         $count_hanghoa = HangHoa::count();
 
         $loaihang = LoaiHang::All();
-        $nhomhang = NhomHang::All();
         $hanghoa = HangHoa::All();
-        return view('Admin.ThongKe.so-luong-hang-hoa')->with(compact('count_nhomhang', 'count_loaihang', 'count_hanghoa','loaihang', 'nhomhang','hanghoa'));
+        return view('Admin.ThongKe.so-luong-hang-hoa')->with(compact('count_loaihang', 'count_hanghoa','loaihang','hanghoa'));
     }
 
     function ton_kho(Request $request){
