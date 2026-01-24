@@ -50,22 +50,8 @@
                 <div class="row form-group">
                     <label class="control-label col-md-2 text-right p-t-10">Hàng hóa</label>
                     <div class="col-12 col-md-6">
-                        <div class="input-group">
-                            <input type="text" name="mahanghoa" id="mahanghoa" value="" placeholder="Tìm mặt hàng (F3)" class="form-control">
-                            <input type="hidden" name="id_hanghoa" id="id_hanghoa" value="" placeholder="">
-                            <div class="input-group-append">
-                                <button id="TimHangHoa" class="btn btn-success waves-effect waves-light" type="button"><i class="mdi mdi-qrcode-scan"></i></button>
-                            </div>
-                        </div>
-                        {{-- <select name="id_hanghoa" id="id_hanghoa" class="form-control select2" data-placeholder="Chọn Hàng hóa">
-                            <option value=""></option>
-                            @if($hanghoa)
-                                @foreach($hanghoa as $hh)
-                                    <option value="{{ $hh['_id'] }}">{{ $hh['ma'] }} - {{ $hh['ten'] }} [ SL Tồn: {{ $hh['so_luong_ton'] }}]</option>
-                                @endforeach
-                            @endif
-                        </select> --}}
-                        <span id="thongtinhanghoa" class="badge badge-danger" style="padding:5px 10px 5px 10px;font-size: 13px;">Thông tin hàng hóa:</span>
+                        <select name="id_hanghoa" id="id_hanghoa" class="form-control" data-placeholder="Tìm mặt hàng (F3, Mã, Tên...)"></select>
+                        <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px 5px 10px;font-size: 13px;margin-top:5px;">Thông tin hàng hóa:</span>
                     </div>
                     <label class="control-label col-md-1 text-right p-t-10">Số lượng</label>
                     <div class="col-12 col-md-2">
@@ -210,12 +196,12 @@
                 evt = evt || window.event;
             }
             if(evt.keyCode == 114) {
-                $("#mahanghoa").select();
+                $('#id_hanghoa').select2('open');
                 return false;
             }
         };
         $(document).ready(function(){
-        	$(".select2").select2();$("#mahanghoa").select();
+        	$(".select2").select2();
             $("#updateCart").prop("disabled", true);
             jQuery(".number").number(true, 0, ',', '.');
             addCart("{{ env('APP_URL') }}");
@@ -227,17 +213,7 @@
                 });
             @endif
             $("#thongtinhanghoa").hide();
-            $("#mahanghoa").keyup(function(){
-                var mahanghoa = $("#mahanghoa").val();
-                var path = "{{ env('APP_URL') }}admin/hang-hoa/get-cart/" + mahanghoa;
-                tim_hang_hoa(path);
-            });
-            $("#TimHangHoa").click(function(){
-                var mahanghoa = $("#mahanghoa").val();
-                var path = "{{ env('APP_URL') }}admin/hang-hoa/get-cart/" + mahanghoa;
-                tim_hang_hoa(path);
-            });
-            autocomplete_mahang("{{ env('APP_URL') }}admin/hang-hoa/autocomplete");
+            initializeProductSearch("{{ env('APP_URL') }}");
         });
     </script>
 @endsection

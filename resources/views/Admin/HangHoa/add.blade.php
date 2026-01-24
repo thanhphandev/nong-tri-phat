@@ -217,6 +217,20 @@
         $(document).ready(function(){
         	$(".select2").select2();
         	jQuery(".number").number(true, 0);
+
+            $("#ma").on('blur', function() {
+                var ma = $(this).val();
+                if(ma) {
+                    $.getJSON("{{ env('APP_URL') }}admin/hang-hoa/get-cart/" + ma, function(hh) {
+                        if(hh.id_hanghoa) {
+                            alert("Mã hàng [" + ma + "] đã tồn tại: " + hh.thongtinhanghoa);
+                            $("#ma").addClass('is-invalid').focus();
+                        } else {
+                            $("#ma").removeClass('is-invalid');
+                        }
+                    });
+                }
+            });
         });
     </script>
 @endsection

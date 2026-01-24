@@ -4,12 +4,12 @@
 
 table thead th {
     font-weight: bold !important;
-    text-align:center !important;
+    text-align: center !important;
 }
 
 .full-width {
-	width: 100% !important;
-	min-width: 900px !important;
+    width: 100% !important;
+    min-width: 900px !important;
 }
 
 .font-15 {
@@ -31,4 +31,84 @@ table thead th {
 
 .bold {
     font-weight: bold;
+}
+
+/* Custom Product Search Results (Clean Light Theme) */
+.product-result {
+    padding: 10px 15px;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.product-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.product-ma {
+    color: #3498db;
+    background: #ebf5fb;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.product-info {
+    font-size: 12.5px;
+    color: #7f8c8d;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.product-info span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.product-price {
+    font-weight: 700;
+    color: #27ae60;
+}
+
+.product-stock {
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+.stock-in {
+    color: #2ecc71;
+    background: #e8f8f5;
+}
+
+.stock-out {
+    color: #e74c3c;
+    background: #fdedec;
+}
+
+.product-unit {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Override Select2 default highlight highlight - fix the "too red" issue */
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #f1f4f7 !important;
+    color: #333 !important;
+}
+
+.select2-results__option--highlighted .product-result {
+    background-color: #f1f4f7 !important;
+}
+
+.select2-results__option--highlighted .product-title {
+    color: #2980b9 !important;
 }

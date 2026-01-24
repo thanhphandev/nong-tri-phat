@@ -123,28 +123,79 @@ function change_so_luong() {
     });
 }
 
-function tim_hang_hoa(path) {
-    //$id_hanghoa, thongtinhanghoa
-    $.getJSON(path, function (hh) {
-        if (hh.id_hanghoa) {
-            $("#id_hanghoa").val(hh.id_hanghoa);
-            $("#thongtinhanghoa").html(hh.thongtinhanghoa);
-        } else {
-            $("#id_hanghoa").val("");
-            $("#thongtinhanghoa").html("Không tim thấy mặt hàng.");
-        }
-        $("#thongtinhanghoa").show();
+function initializeProductSearch(path) {
+    if (path.length > 0 && path.substr(-1) !== '/') {
+        path += '/';
+    }
+    $('#id_hanghoa').select2({
+        ajax: {
+            url: path + 'admin/hang-hoa/autocomplete',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    search: params.term
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data
+                };
+            },
+            cache: true
+        },
+        placeholder: 'Tìm mặt hàng (Phím tắt F3, Mã, Tên, Mã vạch...)',
+        minimumInputLength: 1,
+        templateResult: formatRepo,
+        templateSelection: formatRepoSelection,
+        escapeMarkup: function (markup) { return markup; }
+    });
+
+    function formatRepo(repo) {
+        if (repo.loading) return repo.text;
+
+        var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
+        var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+
+        var markup = "<div class='product-result'>" +
+            "<div class='product-title'>" +
+            "<span>" + repo.ten + "</span>" +
+            "<span class='product-ma'>" + repo.ma + "</span>" +
+            "</div>" +
+            "<div class='product-info'>" +
+            "<span><i class='fa fa-tag'></i> <span class='product-unit'>" + (repo.don_vi_tinh || 'N/A') + "</span></span>" +
+            "<span><i class='fa fa-money-bill-wave'></i> Sỉ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si)) + "</span></span>" +
+            "<span><i class='fa fa-hand-holding-usd'></i> Lẻ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le)) + "</span></span>" +
+            "<span><i class='fa fa-boxes'></i> Tồn: <span class='product-stock " + stockClass + "'>" + stockText + "</span></span>" +
+            "</div>" +
+            "</div>";
+
+        return markup;
+    }
+
+    function formatRepoSelection(repo) {
+        return repo.ma ? (repo.ma + " - " + repo.ten) : repo.text;
+    }
+
+    $('#id_hanghoa').on('select2:select', function (e) {
+        var data = e.params.data;
+        var mahanghoa = data.ma;
+        var get_cart_path = path + "admin/hang-hoa/get-cart/" + mahanghoa;
+
+        // Cập nhật thông tin chi tiết (bao gồm cả HSD từ get-cart)
+        $.getJSON(get_cart_path, function (hh) {
+            $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
+        });
+
+        // Focus vào ô số lượng sau khi chọn
+        $("#so_luong").select().focus();
     });
 }
 
+function tim_hang_hoa(path) {
+    // Để lại hàm này để tránh lỗi nếu có chỗ nào khác gọi, nhưng logic thực tế đã nằm trong Select2
+}
+
 function autocomplete_mahang(path) {
-    $('#mahanghoa').autocomplete({
-        serviceUrl: path,
-        dataType: 'json',
-        paramName: 'search',
-        type: "GET",
-        onSelect: function (suggestion) {
-            $(this).val(suggestion.data);
-        }
-    });
+    // Để lại hàm này để tránh lỗi nếu có chỗ nào khác gọi
 }
