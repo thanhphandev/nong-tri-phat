@@ -8,7 +8,7 @@ use App\Http\Controllers\LogController;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use App\Models\NhaCungcap;
+use App\Models\NhaCungCap;
 use Validator;
 use Session;
 use Config;
@@ -16,8 +16,8 @@ class NhaCungCapController extends Controller
 {
     
     function list(){
-        $danhsach = NhaCungcap::paginate(30);
-        return view('Admin.NhaCungcap.list')->with(compact('danhsach'));
+        $danhsach = NhaCungCap::paginate(30);
+        return view('Admin.NhaCungCap.list')->with(compact('danhsach'));
     }
 
     function add() {
