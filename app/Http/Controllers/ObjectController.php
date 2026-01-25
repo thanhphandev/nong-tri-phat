@@ -190,4 +190,60 @@ class ObjectController extends Controller
       }
       return $number;
     }
+
+    public static function numberToWords($number) {
+        if ($number == 0) return "Không đồng";
+        if ($number < 0) return "Âm " . self::numberToWords(abs($number));
+
+        $words = array(
+            '0' => 'không', '1' => 'một', '2' => 'hai', '3' => 'ba', '4' => 'bốn', '5' => 'năm',
+            '6' => 'sáu', '7' => 'bảy', '8' => 'tám', '9' => 'chín'
+        );
+        $units = array('', 'ngàn', 'triệu', 'tỷ', 'ngàn tỷ', 'triệu tỷ');
+
+        $res = "";
+        $number = (string) number_format($number, 0, '', '');
+        $groups = array();
+        
+        while (strlen($number) > 0) {
+            $groups[] = substr($number, -3);
+            $number = substr($number, 0, -3);
+        }
+
+        for ($i = count($groups) - 1; $i >= 0; $i--) {
+            $g = str_pad($groups[$i], 3, '0', STR_PAD_LEFT);
+            $h = (int) $g[0];
+            $t = (int) $g[1];
+            $u = (int) $g[2];
+
+            if ($h > 0 || ($res != "" && ($t > 0 || $u > 0))) {
+                $res .= " " . $words[$h] . " trăm";
+            }
+
+            if ($t > 1) {
+                $res .= " " . $words[$t] . " mươi";
+            } elseif ($t == 1) {
+                $res .= " mười";
+            } elseif ($res != "" && $u > 0) {
+                $res .= " lẻ";
+            }
+
+            if ($u > 0) {
+                if ($u == 1 && $t > 1) {
+                    $res .= " mốt";
+                } elseif ($u == 5 && $t > 0) {
+                    $res .= " lăm";
+                } else {
+                    $res .= " " . $words[$u];
+                }
+            }
+
+            if (($h > 0 || $t > 0 || $u > 0) && isset($units[$i])) {
+                $res .= " " . $units[$i];
+            }
+        }
+
+        $res = trim($res);
+        return ucfirst($res) . " đồng";
+    }
 }

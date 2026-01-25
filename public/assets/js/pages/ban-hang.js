@@ -164,8 +164,8 @@ function initializeProductSearch(path) {
             "</div>" +
             "<div class='product-info'>" +
             "<span><i class='fa fa-tag'></i> <span class='product-unit'>" + (repo.don_vi_tinh || 'N/A') + "</span></span>" +
-            "<span><i class='fa fa-money-bill-wave'></i> Sỉ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si)) + "</span></span>" +
-            "<span><i class='fa fa-hand-holding-usd'></i> Lẻ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le)) + "</span></span>" +
+            "<span><i class='fa fa-money-bill-wave'></i> Bán tiền mặt: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si)) + "</span></span>" +
+            "<span><i class='fa fa-hand-holding-usd'></i> Bán bán nợ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le)) + "</span></span>" +
             "<span><i class='fa fa-boxes'></i> Tồn: <span class='product-stock " + stockClass + "'>" + stockText + "</span></span>" +
             "</div>" +
             "</div>";
@@ -190,12 +190,4 @@ function initializeProductSearch(path) {
         // Focus vào ô số lượng sau khi chọn
         $("#so_luong").select().focus();
     });
-}
-
-function tim_hang_hoa(path) {
-    // Để lại hàm này để tránh lỗi nếu có chỗ nào khác gọi, nhưng logic thực tế đã nằm trong Select2
-}
-
-function autocomplete_mahang(path) {
-    // Để lại hàm này để tránh lỗi nếu có chỗ nào khác gọi
 }

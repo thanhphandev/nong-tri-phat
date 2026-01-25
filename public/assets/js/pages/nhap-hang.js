@@ -78,8 +78,8 @@ function initializeProductSearch(path) {
             "</div>" +
             "<div class='product-info'>" +
             "<span><i class='fa fa-tag'></i> <span class='product-unit'>" + (repo.don_vi_tinh || 'N/A') + "</span></span>" +
-            "<span><i class='fa fa-money-bill-wave'></i> Sỉ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si)) + "</span></span>" +
-            "<span><i class='fa fa-hand-holding-usd'></i> Lẻ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le)) + "</span></span>" +
+            "<span><i class='fa fa-money-bill-wave'></i> Mặt: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si)) + "</span></span>" +
+            "<span><i class='fa fa-hand-holding-usd'></i> Nợ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le)) + "</span></span>" +
             "<span><i class='fa fa-boxes'></i> Tồn: <span class='product-stock " + stockClass + "'>" + stockText + "</span></span>" +
             "</div>" +
             "</div>";
@@ -102,10 +102,6 @@ function initializeProductSearch(path) {
 
         $("#so_luong").select().focus();
     });
-}
-
-function tim_hang_hoa(path) {
-    //
 }
 
 function currencyFormat(num) {

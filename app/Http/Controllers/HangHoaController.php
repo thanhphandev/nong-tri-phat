@@ -262,10 +262,9 @@ class HangHoaController extends Controller
 
         $dbs = HangHoa::where(function($query) use ($searchQuery) {
             $query->where('ma', 'regexp', '/'.$searchQuery.'/i')
-                  ->orWhere('ten', 'regexp', '/'.$searchQuery.'/i')
-                  ->orWhere('ma_vach', 'regexp', '/'.$searchQuery.'/i');
+                  ->orWhere('ten', 'regexp', '/'.$searchQuery.'/i');
         })
-        ->limit(20)
+        ->limit(15)
         ->get();
                       
         $hang_hoa = array();
