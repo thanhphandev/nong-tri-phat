@@ -86,11 +86,11 @@
                 <img src="{{ asset('assets/images/logo.png') }}" width="110px" alt="Logo">
             </td>
             <td class="company-info">
-                <div class="company-name">CÔNG TY TNHH VẬT TƯ NÔNG NGHIỆP NÔNG TRÍ PHÁT</div>
+                <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
                 <div class="slogan">Đồng hành cùng nhà nông - Phát triển bền vững</div>
-                <p><strong>Địa chỉ:</strong> TP. Long Xuyên, Tỉnh An Giang</p>
-                <p><strong>Điện thoại:</strong> 09xx.xxx.xxx - 0296.x.xxx.xxx</p>
-                <p><strong>Email:</strong> nongtriphat.ag@gmail.com | <strong>Website:</strong> www.nongtriphat.vn</p>
+                <p><strong>Địa chỉ:</strong> Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang</p>
+                <p><strong>Điện thoại:</strong> 0916.160.509</p>
+                <p><strong>Email:</strong> luuvinhtri79@gmail.com</p>
             </td>
         </tr>
     </table>
@@ -174,6 +174,9 @@
                 </td>
             </tr>
         </table>
+        <div style="text-align: right; margin-top: 10px; font-style: italic; font-size: 13px;">
+            Bằng chữ: <strong>{{ App\Http\Controllers\ObjectController::numberToWords($no_moi) }}</strong>
+        </div>
     </div>
     </div>
 

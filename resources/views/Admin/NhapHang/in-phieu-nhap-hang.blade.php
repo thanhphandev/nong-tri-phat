@@ -86,11 +86,11 @@
                 <img src="{{ asset('assets/images/logo.png') }}" width="110px" alt="Logo">
             </td>
             <td class="company-info">
-                <div class="company-name">CÔNG TY TNHH VẬT TƯ NÔNG NGHIỆP NÔNG TRÍ PHÁT</div>
+                <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
                 <div class="slogan">Đồng hành cùng nhà nông - Phát triển bền vững</div>
-                <p><strong>Địa chỉ:</strong> TP. Long Xuyên, Tỉnh An Giang</p>
-                <p><strong>Điện thoại:</strong> 09xx.xxx.xxx - 0296.x.xxx.xxx</p>
-                <p><strong>Email:</strong> nongtriphat.ag@gmail.com | <strong>Website:</strong> www.nongtriphat.vn</p>
+                <p><strong>Địa chỉ:</strong> Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang</p>
+                <p><strong>Điện thoại:</strong> 0916.160.509</p>
+                <p><strong>Email:</strong> luuvinhtri79@gmail.com</p>
             </td>
         </tr>
     </table>
@@ -149,42 +149,45 @@
     </table>
 
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px;">
-        <div style="width: 50%;">
+        <div style="width: 55%;">
             @if(isset($nh['ghi_chu']) && $nh['ghi_chu'])
                 <div class="note-box">
                     <strong>Ghi chú:</strong> {{ $nh['ghi_chu'] }}
                 </div>
             @endif
-            <p style="font-size: 12px; margin-top: 10px;"><i>* Lưu ý: Kiểm tra kỹ số lượng và chất lượng hàng hóa khi nhập kho.</i></p>
+            <p style="font-size: 12px; margin-top: 15px;"><i>* Lưu ý: Kiểm tra kỹ số lượng và chất lượng hàng hóa khi nhập kho.</i></p>
         </div>
 
-        <div style="width: 50%; margin-left: auto; font-family: 'DejaVu Sans', sans-serif; font-size: 13px;">
-        <table style="width: 100%; border-collapse: collapse;">
-            @if($no_cu != 0)
+        <div style="width: 45%; margin-left: auto; font-family: 'DejaVu Sans', sans-serif;">
+            <table class="summary-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                @if($no_cu != 0)
+                    <tr>
+                        <td style="padding: 5px 0;">Nợ cũ (trước đơn này):</td>
+                        <td align="right" style="font-weight: bold;">{{ number_format($no_cu, 0, ",", ".") }} đ</td>
+                    </tr>
+                @endif
+                
                 <tr>
-                    <td style="padding: 5px 0;">Nợ cũ (trước đơn này):</td>
-                    <td align="right" style="font-weight: bold;">{{ number_format($no_cu, 0, ",", ".") }} đ</td>
+                    <td style="padding: 4px 0;">Giá trị đơn hàng:</td>
+                    <td align="right" style="border-bottom: 1px solid #ddd;">+ {{ number_format($gia_tri_lo_nay, 0, ",", ".") }} đ</td>
                 </tr>
-            @endif
-            
-            <tr>
-                <td style="padding: 4px 0;">Giá trị đơn hàng:</td>
-                <td align="right" style="border-bottom: 1px solid #ddd;">+ {{ number_format($gia_tri_lo_nay, 0, ",", ".") }} đ</td>
-            </tr>
 
-            <tr>
-                <td style="padding: 4px 0;">Đã thanh toán:</td>
-                <td align="right" style="color: #d9534f;">- {{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }} đ</td>
-            </tr>
+                <tr>
+                    <td style="padding: 4px 0;">Đã thanh toán:</td>
+                    <td align="right" style="color: #d9534f;">- {{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }} đ</td>
+                </tr>
 
-            <tr style="font-size: 1.1em;">
-                <td style="padding: 10px 0; font-weight: bold;">TỔNG NỢ HIỆN TẠI:</td>
-                <td align="right" style="font-weight: bold; border-top: 2px solid #333; font-size: 1.2em;">
-                    {{ number_format($tong_no_moi, 0, ",", ".") }} đ
-                </td>
-            </tr>
-        </table>
-    </div>
+                <tr style="font-size: 1.15em;">
+                    <td style="padding: 10px 0; font-weight: bold; color: #000;">TỔNG NỢ HIỆN TẠI:</td>
+                    <td align="right" style="font-weight: bold; border-top: 2px solid #333; padding-top: 10px;">
+                        {{ number_format($tong_no_moi, 0, ",", ".") }} đ
+                    </td>
+                </tr>
+            </table>
+            <div style="text-align: right; margin-top: 10px; font-style: italic; font-size: 13px;">
+                Bằng chữ: <strong>{{ App\Http\Controllers\ObjectController::numberToWords($tong_no_moi) }}</strong>
+            </div>
+        </div>
     </div>
 
     <table class="signature-section">

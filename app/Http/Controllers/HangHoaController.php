@@ -255,14 +255,42 @@ class HangHoaController extends Controller
 
     function autocomplete(Request $request) {
         $search = $request->input('search');
-        $dbs = HangHoa::where('ma_vach','regexp','^'.$search.'/i')->orWhere('ma', 'regexp', '^'.$search.'/i')->get()->toArray();
+        if(!$search) return response()->json([]);
+
+        // Escape ký tự đặc biệt để tránh lỗi Regex
+        $searchQuery = preg_quote($search);
+
+        $dbs = HangHoa::where(function($query) use ($searchQuery) {
+            $query->where('ma', 'regexp', '/'.$searchQuery.'/i')
+                  ->orWhere('ten', 'regexp', '/'.$searchQuery.'/i');
+        })
+        ->limit(15)
+        ->get();
+                      
         $hang_hoa = array();
         if($dbs){
+            // Lấy danh sách DVT một lần để tối ưu
+            $dvt_ids = $dbs->pluck('id_donvitinh')->unique()->filter()->toArray();
+            $dvts = DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) {
+                return (string)$item->_id;
+            });
+
             foreach($dbs as $db){
-                $hang_hoa[] = array('value' => $db['ma_vach'] . ' - ' . $db['ma'] . ' - ' . $db['ten'] . ' [SL Tồn: '.$db['so_luong_ton'].']' , 'data' => $db['ma_vach']);
+                $id_dvt = (string)$db['id_donvitinh'];
+                $ten_dvt = isset($dvts[$id_dvt]) ? $dvts[$id_dvt]['ten'] : '';
+                
+                $hang_hoa[] = array(
+                    'id' => (string)$db['_id'],
+                    'text' => $db['ma'] . ' - ' . $db['ten'],
+                    'ma' => $db['ma'],
+                    'ten' => $db['ten'],
+                    'gia_si' => $db['gia_si'],
+                    'gia_le' => $db['gia_le'],
+                    'so_luong_ton' => $db['so_luong_ton'],
+                    'don_vi_tinh' => $ten_dvt
+                );
             }
         }
-        $hang_hoa = array('query' => $search, 'suggestions' => $hang_hoa);
         return response()->json($hang_hoa);
     }
 }
