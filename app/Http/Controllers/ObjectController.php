@@ -193,41 +193,50 @@ class ObjectController extends Controller
 
     public static function numberToWords($number) {
         if ($number == 0) return "Không đồng";
+        
+        // Xử lý số âm
         if ($number < 0) return "Âm " . self::numberToWords(abs($number));
 
         $words = array(
-            '0' => 'không', '1' => 'một', '2' => 'hai', '3' => 'ba', '4' => 'bốn', '5' => 'năm',
-            '6' => 'sáu', '7' => 'bảy', '8' => 'tám', '9' => 'chín'
+            '0' => 'không', '1' => 'một', '2' => 'hai', '3' => 'ba', '4' => 'bốn', 
+            '5' => 'năm', '6' => 'sáu', '7' => 'bảy', '8' => 'tám', '9' => 'chín'
         );
         $units = array('', 'ngàn', 'triệu', 'tỷ', 'ngàn tỷ', 'triệu tỷ');
 
         $res = "";
-        $number = (string) number_format($number, 0, '', '');
+        // Ép kiểu chuỗi để không bị giới hạn bởi integer hệ thống
+        $str_number = (string) number_format($number, 0, '', '');
         $groups = array();
         
-        while (strlen($number) > 0) {
-            $groups[] = substr($number, -3);
-            $number = substr($number, 0, -3);
+        // Chia nhóm 3 chữ số
+        while (strlen($str_number) > 0) {
+            $groups[] = substr($str_number, -3);
+            $str_number = substr($str_number, 0, -3);
         }
 
         for ($i = count($groups) - 1; $i >= 0; $i--) {
             $g = str_pad($groups[$i], 3, '0', STR_PAD_LEFT);
-            $h = (int) $g[0];
-            $t = (int) $g[1];
-            $u = (int) $g[2];
+            $h = (int) $g[0]; // Trăm
+            $t = (int) $g[1]; // Chục
+            $u = (int) $g[2]; // Đơn vị
 
+            // 1. Xử lý hàng TRĂM
+            // Chỉ đọc "không trăm" nếu không phải nhóm đầu tiên và nhóm có số
             if ($h > 0 || ($res != "" && ($t > 0 || $u > 0))) {
                 $res .= " " . $words[$h] . " trăm";
             }
 
+            // 2. Xử lý hàng CHỤC
             if ($t > 1) {
                 $res .= " " . $words[$t] . " mươi";
             } elseif ($t == 1) {
                 $res .= " mười";
-            } elseif ($res != "" && $u > 0) {
-                $res .= " lẻ";
+            } elseif ($t == 0 && $u > 0 && $res != "") {
+                // Trường hợp lẻ: ví dụ 105 đọc là "một trăm lẻ năm"
+                $res .= " lẻ"; 
             }
 
+            // 3. Xử lý hàng ĐƠN VỊ
             if ($u > 0) {
                 if ($u == 1 && $t > 1) {
                     $res .= " mốt";
@@ -238,12 +247,18 @@ class ObjectController extends Controller
                 }
             }
 
+            // 4. Thêm ĐƠN VỊ NHÓM (ngàn, triệu, tỷ...)
             if (($h > 0 || $t > 0 || $u > 0) && isset($units[$i])) {
                 $res .= " " . $units[$i];
             }
         }
 
         $res = trim($res);
-        return ucfirst($res) . " đồng";
-    }
+        
+        // 5. Thêm hậu tố "chẵn" nếu cần (Ví dụ: 100.000 -> Một trăm ngàn đồng chẵn)
+        // Điều kiện: Số tiền chia hết cho 1000 (hoặc tùy quy tắc của bạn)
+        $suffix = ($number % 1000 == 0) ? " chẵn" : "";
+
+        return ucfirst($res) . " đồng" . $suffix;
+  }
 }

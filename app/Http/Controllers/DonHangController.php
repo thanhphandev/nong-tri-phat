@@ -55,6 +55,66 @@ class DonHangController extends Controller
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $id_hanghoa = ObjectController::ObjectId($value);
                 
+                // --- FEFO & Real Cost Calculation ---
+                $hanghoa_db = $hh; // Already found above
+                $sl_can_tru = $so_luong;
+                $tong_gia_von_thuc_te = 0; // Total cost for this line item based on batches
+                $sl_da_tru = 0;
+
+                if($hanghoa_db && isset($hanghoa_db['ds_lo_hang']) && is_array($hanghoa_db['ds_lo_hang'])){
+                    $batches = $hanghoa_db['ds_lo_hang'];
+                    
+                    // Sort batches: Expiry (Asc) -> Import Date (Asc)
+                    usort($batches, function($a, $b) {
+                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
+                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
+                        if ($t1 == $t2) {
+                            $i1 = isset($a['ngay_nhap']) && $a['ngay_nhap'] ? $a['ngay_nhap']->toDateTime()->getTimestamp() : 0;
+                            $i2 = isset($b['ngay_nhap']) && $b['ngay_nhap'] ? $b['ngay_nhap']->toDateTime()->getTimestamp() : 0;
+                            return $i1 - $i2;
+                        }
+                        return $t1 - $t2;
+                    });
+
+                    $new_batches = [];
+                    foreach($batches as $batch){
+                        $qty_deducted_from_batch = 0;
+                        if($sl_can_tru > 0){
+                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                            if($sl_ton_batch > 0){
+                                if($sl_ton_batch >= $sl_can_tru){
+                                    // Take all remaining need from this batch
+                                    $qty_deducted_from_batch = $sl_can_tru;
+                                    $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
+                                    $sl_can_tru = 0;
+                                } else {
+                                    // Take all from this batch
+                                    $qty_deducted_from_batch = $sl_ton_batch;
+                                    $sl_can_tru -= $sl_ton_batch;
+                                    $batch['so_luong_con_lai'] = 0;
+                                }
+                                
+                                // Accumulate Cost
+                                $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
+                                $tong_gia_von_thuc_te += $qty_deducted_from_batch * $batch_cost_price;
+                                $sl_da_tru += $qty_deducted_from_batch;
+                            }
+                        }
+                        $new_batches[] = $batch;
+                    }
+                    
+                    // Update Product
+                    $hanghoa_db->ds_lo_hang = $new_batches;
+                    $current_total_stock = 0;
+                    foreach($new_batches as $b){
+                         $current_total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                    }
+                    $hanghoa_db->so_luong_ton = $current_total_stock;
+                    
+                    $hanghoa_db->save();
+                }
+
+                // Prepare Item for Order with Real Cost Snapshot
                 array_push($arr_hanghoa, array(
                     'id_hanghoa' => $id_hanghoa, 
                     'ma' => $hh['ma'], 
@@ -63,63 +123,10 @@ class DonHangController extends Controller
                     'so_luong' => $so_luong, 
                     'don_gia' => $don_gia, 
                     'chiet_khau' => $chiet_khau, 
-                    'thanh_tien' => $thanh_tien
+                    'thanh_tien' => $thanh_tien,
+                    'gia_von_thuc_te' => $tong_gia_von_thuc_te, // Total Cost for this line
+                    'don_gia_von_thuc_te' => ($so_luong > 0) ? ($tong_gia_von_thuc_te / $so_luong) : 0 // Unit Cost
                 ));
-                // FEFO Logic: Deduct from batches
-                $hanghoa_db = HangHoa::find($value);
-                $sl_can_tru = $so_luong;
-                
-                if($hanghoa_db && isset($hanghoa_db['ds_lo_hang']) && is_array($hanghoa_db['ds_lo_hang'])){
-                    $batches = $hanghoa_db['ds_lo_hang'];
-                    
-                    // Sort batches by Expiry Date (Ascending) - FEFO
-                    // Batches without expiry come last? Or first? usually FEFO implies expiry exists. If not, FIFO (by import date).
-                    // Assuming mix, let's prioritize Expiry Date, then Import Date.
-                     usort($batches, function($a, $b) {
-                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000; // far future if null
-                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
-                        if ($t1 == $t2) {
-                            $i1 = isset($a['ngay_nhap']) && $a['ngay_nhap'] ? $a['ngay_nhap']->toDateTime()->getTimestamp() : 0;
-                            $i2 = isset($b['ngay_nhap']) && $b['ngay_nhap'] ? $b['ngay_nhap']->toDateTime()->getTimestamp() : 0;
-                            return $i1 - $i2; // FIFO if expiry same
-                        }
-                        return $t1 - $t2;
-                    });
-
-                    $new_batches = []; // To reconstruct the array with updated values
-                    foreach($batches as $batch){
-                        if($sl_can_tru > 0){
-                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
-                            if($sl_ton_batch > 0){
-                                if($sl_ton_batch >= $sl_can_tru){
-                                    // This batch can cover the remaining
-                                    $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
-                                    $sl_can_tru = 0;
-                                } else {
-                                    // Take all from this batch and continue
-                                    $sl_can_tru -= $sl_ton_batch;
-                                    $batch['so_luong_con_lai'] = 0;
-                                }
-                            }
-                        }
-                        $new_batches[] = $batch;
-                    }
-                    
-                    // Update the product with new batches and decremented total stock
-                    $hanghoa_db->ds_lo_hang = $new_batches;
-                    
-                    // Recalculate Total Stock from Batches (Safer than manual decrement)
-                    $current_total_stock = 0;
-                    foreach($new_batches as $b){
-                         $current_total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
-                    }
-                    $hanghoa_db->so_luong_ton = $current_total_stock;
-                    
-                    $hanghoa_db->save();
-                } else {
-                     // Fallback for old items without batches: just decrement total
-                     HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $so_luong);
-                }
             }
         }
         $db = new DonHang();

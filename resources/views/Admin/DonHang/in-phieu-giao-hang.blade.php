@@ -1,206 +1,334 @@
-@extends('Admin.layout')
-@section('title', 'IN PHIẾU GIAO HÀNG - NÔNG TRÍ PHÁT')
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHIẾU BÁN HÀNG - {{ $dh['ma_don_hang'] ?? '' }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.4;
+            background: #f0f0f0;
+        }
 
-@section('body')
-<style>
-    /* Tổng thể bản in */
-    .invoice-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 40px;
-        background: #fff;
-        color: #1a1a1a;
-        font-family: 'Times New Roman', Times, serif; /* Font chữ truyền thống, chuyên nghiệp cho chứng từ */
-        line-height: 1.5;
-    }
+        .invoice-wrapper {
+            width: 148mm;
+            min-height: 210mm;
+            margin: 10mm auto;
+            padding: 8mm;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+        }
 
-    /* Header & Logo */
-    .header-table { width: 100%; border-bottom: 3px double #28a745; margin-bottom: 25px; padding-bottom: 10px; }
-    .company-name { color: #d71a21; font-weight: bold; font-size: 22px; text-transform: uppercase; margin-bottom: 2px; }
-    .company-info p { margin: 0; font-size: 13px; color: #444; }
-    .slogan { color: #28a745; font-style: italic; font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+        /* Header */
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 5mm;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 3mm;
+        }
+        .header-left {
+            display: table-cell;
+            width: 22mm;
+            vertical-align: top;
+        }
+        .header-left img { width: 20mm; }
+        .header-right {
+            display: table-cell;
+            vertical-align: top;
+            padding-left: 3mm;
+        }
+        .company-name {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 13pt;
+            text-transform: uppercase;
+        }
+        .company-info {
+            font-size: 9pt;
+            color: #333;
+            margin-top: 1mm;
+        }
 
-    /* Tiêu đề chính */
-    .invoice-title-container { text-align: center; margin-bottom: 30px; }
-    .invoice-title { 
-        display: inline-block;
-        font-size: 26px; 
-        font-weight: bold; 
-        color: #28a745; 
-        border-bottom: 2px solid #28a745;
-        padding-bottom: 5px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
+        /* Title */
+        .title-section {
+            text-align: center;
+            margin: 4mm 0;
+        }
+        .title-main {
+            font-size: 18pt;
+            font-weight: bold;
+            font-style: italic;
+            color: #000;
+        }
+        .title-sub {
+            font-size: 11pt;
+            margin-top: 2mm;
+        }
+        .title-sub .code { color: #d71a21; font-weight: bold; }
 
-    /* Khối thông tin khách hàng & đơn hàng */
-    .info-table { width: 100%; margin-bottom: 20px; }
-    .info-table td { vertical-align: top; width: 50%; }
-    .label { font-weight: bold; color: #555; min-width: 100px; display: inline-block; }
+        /* Info Section */
+        .info-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 4mm;
+            font-size: 10pt;
+        }
+        .info-left, .info-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .info-left { width: 55%; }
+        .info-right { width: 45%; text-align: right; }
+        .info-row { margin-bottom: 1mm; }
+        .info-label { font-weight: bold; }
 
-    /* Bảng hàng hóa */
-    .table-items { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .table-items th { 
-        background-color: #28a745; 
-        color: white; 
-        border: 1px solid #1e7e34; 
-        padding: 12px 8px; 
-        text-transform: uppercase; 
-        font-size: 12px; 
-    }
-    .table-items td { border: 1px solid #ddd; padding: 10px 8px; font-size: 14px; }
-    .table-items tr:nth-child(even) { background-color: #f9f9f9; }
+        /* Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 4mm;
+            font-size: 9pt;
+        }
+        .items-table th {
+            background-color: #28a745;
+            color: white;
+            border: 1px solid #1e7e34;
+            padding: 2mm 1mm;
+            font-weight: bold;
+            text-align: center;
+        }
+        .items-table td {
+            border: 1px solid #ccc;
+            padding: 1.5mm 1mm;
+        }
+        .items-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
+        .items-table tr { page-break-inside: avoid; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-bold { font-weight: bold; }
 
-    /* Phần tổng tiền */
-    .summary-container { margin-top: 20px; display: flex; justify-content: flex-end; }
-    .summary-table { width: 350px; border-collapse: collapse; }
-    .summary-table td { padding: 8px; border-bottom: 1px dashed #ccc; }
-    .summary-table .grand-total-row td { 
-        border-bottom: none; 
-        padding-top: 15px; 
-        color: #d71a21; 
-        font-weight: bold; 
-        font-size: 18px; 
-    }
+        /* Summary */
+        .summary-wrapper {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 3mm;
+        }
+        .summary-table {
+            width: 70%;
+            font-size: 10pt;
+            border-collapse: collapse;
+        }
+        .summary-table td {
+            padding: 1.5mm 2mm;
+        }
+        .summary-label { text-align: right; font-weight: bold; padding-right: 3mm; }
+        .summary-value { text-align: right; width: 35mm; }
+        .summary-total td { 
+            font-size: 11pt; 
+            font-weight: bold; 
+            color: #d71a21;
+            border-top: 1px solid #333;
+            padding-top: 2mm;
+        }
 
-    /* Chữ ký */
-    .signature-section { margin-top: 60px; width: 100%; }
-    .signature-section td { text-align: center; width: 33.33%; padding-bottom: 80px; font-weight: bold; }
-    .signature-name { font-style: italic; font-weight: normal; font-size: 12px; color: #777; }
+        /* Amount Words */
+        .amount-words {
+            font-size: 10pt;
+            font-style: italic;
+            color: #d71a21;
+            margin-bottom: 5mm;
+        }
 
-    /* Tiện ích */
-    .note-box { margin-top: 20px; font-size: 13px; font-style: italic; color: #666; border-left: 3px solid #ccc; padding-left: 10px; }
+        /* Signature */
+        .signature-section {
+            display: table;
+            width: 100%;
+            margin-top: 8mm;
+            text-align: center;
+            font-size: 10pt;
+        }
+        .signature-box {
+            display: table-cell;
+            width: 50%;
+            padding: 0 5mm;
+        }
+        .signature-title { font-weight: bold; margin-bottom: 15mm; }
+        .signature-name { font-weight: bold; }
+        .signature-company { font-weight: bold; color: #28a745; }
 
-    @media print {
-        @page { size: A4; margin: 15mm; }
-        .d-print-none { display: none !important; }
-        .invoice-container { padding: 0; width: 100%; }
-        .table-items th { background-color: #28a745 !important; color: white !important; -webkit-print-color-adjust: exact; }
-    }
-</style>
+        /* Print Button */
+        .print-btn-container {
+            text-align: center;
+            padding: 15px;
+            background: #f0f0f0;
+        }
+        .print-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 14pt;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .print-btn:hover { background: #218838; }
 
-<div class="invoice-container">
-    <table class="header-table">
-        <tr>
-            <td width="120px">
-                <img src="{{ asset('assets/images/logo.png') }}" width="110px" alt="Logo">
-            </td>
-            <td class="company-info">
-                <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
-                <div class="slogan">Đồng hành cùng nhà nông - Phát triển bền vững</div>
-                <p><strong>Địa chỉ:</strong> Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang</p>
-                <p><strong>Điện thoại:</strong> 0916.160.509</p>
-                <p><strong>Email:</strong> luuvinhtri79@gmail.com</p>
-            </td>
-        </tr>
-    </table>
+        /* Print Styles */
+        @media print {
+            @page {
+                size: A5 portrait;
+                margin: 0 !important;
+            }
+            body { 
+                background: white; 
+                margin: 0;
+                padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            header, footer { display: none !important; }
+            .invoice-wrapper {
+                width: 100%;
+                margin: 0;
+                padding: 5mm;
+                box-shadow: none;
+                min-height: auto;
+            }
+            .print-btn-container { display: none !important; }
+            .items-table th {
+                background-color: #28a745 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .items-table tr {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
 
-    <div class="invoice-title-container">
-        <h2 class="invoice-title">PHIẾU GIAO HÀNG & THANH TOÁN</h2>
+<div class="invoice-wrapper">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ asset('assets/images/logo.png') }}" alt="Logo">
+        </div>
+        <div class="header-right">
+            <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
+            <div class="company-info">
+                Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
+                SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
+            </div>
+        </div>
     </div>
 
-    <table class="info-table">
-        <tr>
-            <td>
-                <p><span class="label">Khách hàng:</span> <strong>{{ $dh['ho_ten'] }}</strong></p>
-                <p><span class="label">Điện thoại:</span> {{ $dh['dien_thoai'] }}</p>
-                <p><span class="label">Địa chỉ:</span> {{ $dh['dia_chi'] }}</p>
-            </td>
-            <td style="text-align: right;">
-                <p><span class="label">Mã đơn hàng:</span> <strong style="color: #d71a21;">#{{ $dh['ma_don_hang'] }}</strong></p>
-                <p><span class="label">Ngày lập:</span> {{ App\Http\Controllers\ObjectController::getDate($dh['ngay_ban'], "d/m/Y H:i") }}</p>
-                <p><span class="label">Người lập:</span> {{ Auth::user()->fullname ?? 'Admin1' }}</p>
-            </td>
-        </tr>
-    </table>
+    <!-- Title -->
+    <div class="title-section">
+        <div class="title-main">Phiếu Bán Hàng</div>
+        <div class="title-sub">
+            Số phiếu: <span class="code">{{ $dh['ma_don_hang'] }}</span>
+        </div>
+    </div>
 
-    <table class="table-items">
+    <!-- Info Section -->
+    <div class="info-section">
+        <div class="info-left">
+            @if(!empty($dh['id_khachhang']))
+                <div class="info-row"><span class="info-label">MÃ KH:</span> {{ $dh['id_khachhang'] }}</div>
+            @endif
+            <div class="info-row"><span class="info-label">KHÁCH HÀNG:</span> {{ $dh['ho_ten'] }}</div>
+            @if(!empty($dh['dia_chi']))
+                <div class="info-row"><span class="info-label">ĐỊA CHỈ:</span> {{ $dh['dia_chi'] }}</div>
+            @endif
+            @if(!empty($dh['dien_thoai']))
+                <div class="info-row"><span class="info-label">SĐT:</span> {{ $dh['dien_thoai'] }}</div>
+            @endif
+        </div>
+        <div class="info-right">
+            <div class="info-row">
+                <span class="info-label">Ngày Bán:</span>
+                {{ App\Http\Controllers\ObjectController::getDate($dh['ngay_ban'], "d/m/Y") }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="items-table">
         <thead>
             <tr>
-                <th width="5%">STT</th>
-                <th>Tên sản phẩm</th>
-                <th width="8%">SL</th>
-                <th width="10%">ĐVT</th>
-                <th width="15%">Đơn giá</th>
-                <th width="10%">CK</th>
-                <th width="18%">Thành tiền</th>
+                <th style="width: 5%;">STT</th>
+                <th>SẢN PHẨM</th>
+                <th style="width: 12%;">ĐVT</th>
+                <th style="width: 12%;">SL</th>
+                <th style="width: 18%;">ĐƠN GIÁ</th>
+                <th style="width: 20%;">THÀNH TIỀN</th>
             </tr>
         </thead>
         <tbody>
             @foreach($dh['hanghoa'] as $key => $hh)
             <tr>
-                <td align="center">{{ $key+1 }}</td>
-                <td><strong>{{ $hh['ten'] }}</strong></td>
-                <td align="center">{{ $hh['so_luong'] }}</td>
-                <td align="center">{{ $hh['don_vi_tinh'] ?? '-' }}</td>
-                <td align="right">{{ number_format($hh['don_gia'],0,",",".") }}</td>
-                <td align="center">{{ $hh['chiet_khau'] }}%</td>
-                <td align="right"><strong>{{ number_format($hh['thanh_tien'],0,",",".") }}</strong></td>
+                <td class="text-center">{{ $key + 1 }}</td>
+                <td style="font-weight: 500;">{{ $hh['ten'] }}</td>
+                <td class="text-center">{{ $hh['don_vi_tinh'] ?? '-' }}</td>
+                <td class="text-center">{{ number_format($hh['so_luong'], 0) }}</td>
+                <td class="text-right">{{ number_format($hh['don_gia'], 0, ",", ".") }}</td>
+                <td class="text-right text-bold">{{ number_format($hh['thanh_tien'], 0, ",", ".") }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
 
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px;">
-        <div style="width: 55%;">
-            @if(isset($dh['ghi_chu']) && $dh['ghi_chu'])
-                <div class="note-box">
-                    <strong>Ghi chú:</strong> {{ $dh['ghi_chu'] }}
-                </div>
-            @endif
-            <p style="font-size: 12px; margin-top: 10px;"><i>* Vui lòng kiểm tra kỹ hàng hóa trước khi ký nhận.</i></p>
-        </div>
-
-        <div style="width: 45%; margin-left: auto; font-family: 'DejaVu Sans', sans-serif;">
-        <table class="summary-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
-           @if($no_cu != 0)
-                <tr>
-                    <td style="padding: 5px 0;">Nợ cũ (trước đơn này):</td>
-                    <td align="right" style="font-weight: bold;">{{ number_format($no_cu, 0, ",", ".") }} đ</td>
-                </tr>
-            @endif
+    <!-- Summary -->
+    <div class="summary-wrapper">
+        <table class="summary-table">
             <tr>
-                <td style="padding: 5px 0;">Tiền hàng đơn này:</td>
-                <td align="right" style="border-bottom: 1px solid #eee;">+ {{ number_format($tong_tien_don_nay, 0, ",", ".") }} đ</td>
+                <td class="summary-label">Tổng cộng:</td>
+                <td class="summary-value text-bold">{{ number_format($tong_tien_don_nay, 0, ",", ".") }}</td>
             </tr>
+            @if($thanh_toan_don_nay > 0)
             <tr>
-                <td style="padding: 5px 0;">Đã thanh toán:</td>
-                <td align="right" style="color: #d9534f;">- {{ number_format($thanh_toan_don_nay, 0, ",", ".") }} đ</td>
+                <td class="summary-label">Đã thanh toán:</td>
+                <td class="summary-value">{{ number_format($thanh_toan_don_nay, 0, ",", ".") }}</td>
             </tr>
-            <tr style="font-size: 1.15em;">
-                <td style="padding: 10px 0; font-weight: bold; color: #000;">CÒN LẠI PHẢI TRẢ:</td>
-                <td align="right" style="font-weight: bold; border-top: 2px solid #333; padding-top: 10px;">
-                    {{ number_format($no_moi, 0, ",", ".") }} đ
-                </td>
+            @endif
+            <tr class="summary-total">
+                <td class="summary-label">Dư nợ hiện tại:</td>
+                <td class="summary-value">{{ number_format($no_moi, 0, ",", ".") }}</td>
             </tr>
         </table>
-        <div style="text-align: right; margin-top: 10px; font-style: italic; font-size: 13px;">
-            Bằng chữ: <strong>{{ App\Http\Controllers\ObjectController::numberToWords($no_moi) }}</strong>
+    </div>
+
+    <!-- Amount Words -->
+    <div class="amount-words">
+        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($no_moi) }}.</em>
+    </div>
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+        <div class="signature-box">
+            <div class="signature-title">Người mua hàng</div>
+            <div class="signature-name">{{ $dh['ho_ten'] }}</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-title">Người bán hàng</div>
+            <div class="signature-company">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
         </div>
     </div>
-    </div>
-
-    <table class="signature-section">
-        <tr>
-            <td>
-                Người lập phiếu<br>
-                <span class="signature-name">(Ký và ghi rõ họ tên)</span>
-            </td>
-            <td>
-                Người giao hàng<br>
-                <span class="signature-name">(Ký và ghi rõ họ tên)</span>
-            </td>
-            <td>
-                Khách hàng nhận<br>
-                <span class="signature-name">(Ký và ghi rõ họ tên)</span>
-            </td>
-        </tr>
-    </table>
-
-    <div class="hidden-print mt-5 d-print-none" style="text-align: right; border-top: 1px solid #eee; padding-top: 20px;">
-        <button onclick="window.print()" class="btn btn-success btn-lg" style="padding: 12px 30px; font-weight: bold; border-radius: 30px;">
-            <i class="fa fa-print"></i> XÁC NHẬN & IN PHIẾU
-        </button>
-    </div>
 </div>
-@endsection
+
+<div class="print-btn-container">
+    <button class="print-btn" onclick="window.print()">
+        <i class="fa fa-print"></i> IN PHIẾU (A5)
+    </button>
+</div>
+
+</body>
+</html>

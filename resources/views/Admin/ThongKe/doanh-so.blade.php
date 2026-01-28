@@ -53,6 +53,41 @@
                             </ul>
                             <div class="tab-content">
                                 <div class="tab-pane show active" id="home">
+                                    <!-- Profit Statistics Row -->
+                                    <h5 class="mb-3 text-muted"><i class="fas fa-chart-line"></i> Thống kê Lợi nhuận ({{ $so_don_hang }} đơn hàng)</h5>
+                                    <div class="row">
+                                        <div class="col-md-6 col-xl-3">
+                                            <div class="card-box widget-flat border-success bg-success text-white">
+                                                <i class="fas fa-money-bill-wave"></i>
+                                                <h3 class="text-white">{{ number_format($doanh_thu,0,",",".") }}</h3>
+                                                <p class="text-uppercase font-13 font-weight-bold">Doanh thu</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-xl-3">
+                                            <div class="card-box bg-warning widget-flat border-warning text-white">
+                                                <i class="fas fa-boxes"></i>
+                                                <h3 class="text-white">{{ number_format($gia_von,0,",",".") }}</h3>
+                                                <p class="text-uppercase font-13 font-weight-bold">Giá vốn</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-xl-3">
+                                            <div class="card-box widget-flat border-info bg-info text-white">
+                                                <i class="fas fa-hand-holding-usd"></i>
+                                                <h3 class="text-white">{{ number_format($loi_nhuan,0,",",".") }}</h3>
+                                                <p class="text-uppercase font-13 font-weight-bold">Lợi nhuận</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-xl-3">
+                                            <div class="card-box widget-flat {{ $ty_le_loi_nhuan >= 0 ? 'border-purple bg-purple' : 'border-danger bg-danger' }} text-white">
+                                                <i class="fas fa-percent"></i>
+                                                <h3 class="text-white">{{ $ty_le_loi_nhuan }}%</h3>
+                                                <p class="text-uppercase font-13 font-weight-bold">Tỷ lệ LN</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    <h5 class="mb-3 text-muted"><i class="fas fa-file-invoice-dollar"></i> Thống kê Công nợ</h5>
                                     <div class="row">
                                         <div class="col-md-6 col-xl-3">
                                             <div class="card-box widget-flat border-blue bg-blue text-white">

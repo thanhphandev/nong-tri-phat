@@ -43,10 +43,45 @@ class ThongKeController extends Controller
             $congno_sum = CongNo::where('ngay_gio', '>=', $start_date)->where('ngay_gio', '<=', $end_date)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
             $thanhtoan_sum = CongNo::where('ngay_gio', '>=', $start_date)->where('ngay_gio', '<=', $end_date)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
             $danhsach = CongNo::where('ngay_gio', '>=', $start_date)->where('ngay_gio', '<=', $end_date)->orderBy('updated_at', 'desc')->get();
+            
+            // Calculate profit from orders
+            $donhang_list = DonHang::where('ngay_ban', '>=', $start_date)
+                ->where('ngay_ban', '<=', $end_date)
+                ->where('tinh_trang', '!=', 2) // Exclude cancelled orders
+                ->get();
+            
+            $doanh_thu = 0;  // Revenue (selling price)
+            $gia_von = 0;    // Cost of goods sold
+            $so_don_hang = count($donhang_list);
+            
+            foreach($donhang_list as $dh) {
+                $doanh_thu += isset($dh['tong_thanh_tien']) ? $dh['tong_thanh_tien'] : 0;
+                
+                // Calculate cost from each item in the order
+                if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+                    foreach($dh['hanghoa'] as $hh) {
+                        $so_luong = isset($hh['so_luong']) ? $hh['so_luong'] : 0;
+                        
+                        // PRIORITY 1: Use Snapshotted Real Cost (if available from new logic)
+                        if(isset($hh['gia_von_thuc_te'])) {
+                             $gia_von += doubleval($hh['gia_von_thuc_te']);
+                        } 
+                    }
+                }
+            }
+            
+            $loi_nhuan = $doanh_thu - $gia_von;
+            $ty_le_loi_nhuan = $doanh_thu > 0 ? round(($loi_nhuan / $doanh_thu) * 100, 2) : 0;
+            
         } else {
             $start_date = Carbon::now(); $end_date = Carbon::now();
             $danhsach = '';$congno='';$thanhtoan='';$congno_sum=0;$thanhtoan_sum=0;
+            $doanh_thu = 0; $gia_von = 0; $loi_nhuan = 0; $ty_le_loi_nhuan = 0; $so_don_hang = 0;
         }
-        return view('Admin.ThongKe.doanh-so')->with(compact('tu_ngay', 'den_ngay', 'danhsach', 'start_date', 'end_date', 'congno', 'thanhtoan', 'congno_sum', 'thanhtoan_sum'));
+        return view('Admin.ThongKe.doanh-so')->with(compact(
+            'tu_ngay', 'den_ngay', 'danhsach', 'start_date', 'end_date', 
+            'congno', 'thanhtoan', 'congno_sum', 'thanhtoan_sum',
+            'doanh_thu', 'gia_von', 'loi_nhuan', 'ty_le_loi_nhuan', 'so_don_hang'
+        ));
     }
 }

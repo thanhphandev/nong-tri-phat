@@ -187,9 +187,37 @@ class NhapHangController extends Controller
             'data' => $data
         );
         LogController::addLog($querLog);
-        $id_hanghoa = ObjectController::ObjectId($data['id_hanghoa']);
-        $so_luong = intval($data['so_luong']);
-        HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $so_luong);
+        if(isset($data['hanghoa']) && is_array($data['hanghoa'])){
+            foreach($data['hanghoa'] as $item){
+                $id_hanghoa = isset($item['id_hanghoa']) ? $item['id_hanghoa'] : '';
+                if($id_hanghoa){
+                     $hh = HangHoa::find($id_hanghoa);
+                     if($hh && isset($hh['ds_lo_hang']) && is_array($hh['ds_lo_hang'])){
+                         $batches = $hh['ds_lo_hang'];
+                         $new_batches = [];
+                         foreach($batches as $b){
+                             // Keep batches that DO NOT match this Import ID
+                             if(isset($b['id_nhap_hang']) && (string)$b['id_nhap_hang'] !== (string)$id){
+                                 $new_batches[] = $b;
+                             }
+                         }
+                         $hh->ds_lo_hang = $new_batches;
+                         
+                         // Recalculate Stock
+                         $total_stock = 0;
+                         foreach($new_batches as $b){
+                             $total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                         }
+                         $hh->so_luong_ton = $total_stock;
+                         $hh->save();
+                     }
+                }
+            }
+        }
+        // Legacy fallback support removed as requested
+        // $id_hanghoa = ObjectController::ObjectId($data['id_hanghoa']);
+        // $so_luong = intval($data['so_luong']);
+        // HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $so_luong);
         NhapHang::destroy($id);
         Session::flash('msg', 'XÓA Nhập hàng thành công');
         return redirect()->intended(env('APP_URL') . 'admin/nhap-hang');
