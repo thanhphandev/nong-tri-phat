@@ -105,13 +105,11 @@
                             <li class="has-submenu">
                                 <a href="#"><i class="icon-chart"></i>Thống kê <div class="arrow-down"></div></a>
                                 <ul class="submenu">
-                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/so-luong-hang-hoa">Số lượng hàng hóa</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/ton-kho">Tồn kho</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/doanh-so">Doanh số</a></li>
-                                    {{-- <li><a href="{{ env('APP_URL') }}admin/thong-ke/khach-hang">Khách hàng</a></li> --}}
-                                    {{-- <li><a href="{{ env('APP_URL') }}admin/thong-ke/nhom-hang">Nhóm hàng</a></li> --}}
-                                    {{-- <li><a href="{{ env('APP_URL') }}admin/thong-ke/loai-hang">Loại hàng</a></li> --}}
-                                    {{-- <li><a href="{{ env('APP_URL') }}admin/logs">Logs</a></li> --}}
+                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang"><i class="fas fa-shopping-cart text-success"></i> Thống kê Bán hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/nhap-hang"><i class="fas fa-truck text-info"></i> Thống kê Nhập hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/doanh-so"><i class="fas fa-chart-line text-primary"></i> Doanh số</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/ton-kho"><i class="fas fa-boxes text-warning"></i> Tồn kho</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/so-luong-hang-hoa"><i class="fas fa-list text-secondary"></i> Số lượng hàng hóa</a></li>
                                 </ul>
                             </li>
                             {{--@endif--}}

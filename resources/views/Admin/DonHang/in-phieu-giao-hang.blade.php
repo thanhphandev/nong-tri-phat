@@ -176,8 +176,23 @@
             font-weight: bold;
             border-radius: 25px;
             cursor: pointer;
+            margin: 0 5px;
         }
         .print-btn:hover { background: #218838; }
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 14pt;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0 5px;
+        }
+        .back-btn:hover { background: #5a6268; color: white; }
 
         /* Print Styles */
         @media print {
@@ -199,6 +214,8 @@
                 padding: 5mm;
                 box-shadow: none;
                 min-height: auto;
+                visibility: visible !important;
+                display: block !important;
             }
             .print-btn-container { display: none !important; }
             .items-table th {
@@ -325,8 +342,11 @@
 </div>
 
 <div class="print-btn-container">
+    <a href="javascript:history.back()" class="back-btn">
+        ◀ TRỞ VỀ
+    </a>
     <button class="print-btn" onclick="window.print()">
-        <i class="fa fa-print"></i> IN PHIẾU (A5)
+        🖨 IN PHIẾU (A5)
     </button>
 </div>
 

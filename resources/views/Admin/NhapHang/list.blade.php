@@ -8,11 +8,28 @@
 <div class="card-box">
 	<div class="row">
 		<div class="col-12 col-md-12">
-			<h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/nhap-hang/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Nhập Hàng hóa</h3>
+            <div class="row form-group">
+                <div class="col-12 col-md-6">
+		            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/nhap-hang/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Nhập Hàng hóa</h3>
+                </div>
+                <div class="col-12 col-md-6">
+                    <form method="GET" action="{{ env('APP_URL') }}admin/nhap-hang" id="SearchForm">
+                        <div class="row form-group">
+                            <div class="col-12 col-md-9">
+                                <input type="text" name="keywords" id="keywords" value="{{ $keywords ?? '' }}" class="form-control" placeholder="Mã phiếu/số chứng từ/nhà cung cấp" />
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <button type="submit" name="submit" value="Search" class="btn btn-primary"><i class="fa fa-search"></i> Tìm kiếm</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
 			@if($danhsach)
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead>
 						<tr>
+                            <th>Mã phiếu</th>
 							<th>Số chứng từ</th>
                             <th>Ngày chứng từ</th>
                             <th>Ngày giao</th>
@@ -31,7 +48,8 @@
                                 $so_luong += $hh['so_luong'];
                             }
                         @endphp
-						 <tr>
+						 <tr>   
+                            <td class="text-center">{{ $ds['ma_nhap_hang'] }}</td>
 							<td class="text-center bold">{{ isset($ds['so_chung_tu']) ? $ds['so_chung_tu'] : '' }}</td>
                             <td class="text-center">{{ isset($ds['ngay_chung_tu']) ? App\Http\Controllers\ObjectController::getDate($ds['ngay_chung_tu'],"d/m/Y H:i") : '' }}</td>
                             <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_giao'],"d/m/Y H:i") }}</td>

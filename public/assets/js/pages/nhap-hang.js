@@ -51,7 +51,17 @@ function addCart(path) {
                     $("#id_nhacungcap_cart").val(id_nhacungcap);
                     change_so_luong(); jQuery(".number").number(true, 0, ',', '.');
                     jQuery(".datepicker").datepicker({ autoclose: !0, orientation: "bottom", todayHighlight: !0, format: "dd/mm/yyyy" });
+
+                    // Reset input fields for next entry
+                    $("#id_hanghoa").val(null).trigger('change');
+                    $("#so_luong").val(1);
+                    $("#thongtinhanghoa").html("Thông tin hàng hóa:");
                 });
+            } else {
+                // Also reset after incrementing existing item
+                $("#id_hanghoa").val(null).trigger('change');
+                $("#so_luong").val(1);
+                $("#thongtinhanghoa").html("Thông tin hàng hóa:");
             }
         } else {
             alert('Vui lòng chọn Nhà cung cấp, Hàng hóa, Số lượng và Ngày sản xuất');

@@ -14,6 +14,10 @@ function addCart(path) {
                 if (newSoLuong <= maxSoLuong) {
                     inputSoLuong.val(newSoLuong);
                     inputSoLuong.trigger('change');
+                    // Reset input fields for next entry
+                    $("#id_hanghoa").val(null).trigger('change');
+                    $("#so_luong").val(1);
+                    $("#thongtinhanghoa").html("Thông tin hàng hóa:");
                 } else {
                     alert('Số lượng tồn kho không đủ');
                 }
@@ -30,6 +34,10 @@ function addCart(path) {
                         $("#id_khachhang_cart").val(id_khachhang);
                         change_so_luong(); jQuery(".number").number(true, 0, ',', '.');
                         update_prices_by_mode();
+                        // Reset input fields for next entry
+                        $("#id_hanghoa").val(null).trigger('change');
+                        $("#so_luong").val(1);
+                        $("#thongtinhanghoa").html("Thông tin hàng hóa:");
                     }
                 });
             }

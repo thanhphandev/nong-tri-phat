@@ -84,4 +84,151 @@ class ThongKeController extends Controller
             'doanh_thu', 'gia_von', 'loi_nhuan', 'ty_le_loi_nhuan', 'so_don_hang'
         ));
     }
+
+    /**
+     * Thống kê Bán hàng - Chi tiết với bộ lọc
+     */
+    function thong_ke_ban_hang(Request $request) {
+        $tu_ngay = $request->input('tu_ngay');
+        $den_ngay = $request->input('den_ngay');
+        $id_khachhang = $request->input('id_khachhang');
+        $tinh_trang = $request->input('tinh_trang');
+        
+        // Get list of customers for filter dropdown
+        $khachhang_list = KhachHang::orderBy('ho_ten', 'asc')->get();
+        $tinhtrang = [0 => 'Đang xử lý', 1 => 'Thành công', 2 => 'Đã hủy - Nhập kho lại', 3 => 'Đã hủy'];
+        
+        // Initialize statistics
+        $danhsach = collect();
+        $tong_doanh_thu = 0;
+        $tong_gia_von = 0;
+        $tong_loi_nhuan = 0;
+        $tong_da_thanh_toan = 0;
+        $tong_con_no = 0;
+        $so_don_hang = 0;
+        $so_san_pham = 0;
+        
+        if($tu_ngay && $den_ngay) {
+            $start_date = ObjectController::convertDateTime_max($tu_ngay);
+            $end_date = ObjectController::convertDateTime_max($den_ngay);
+            
+            // Build query with filters
+            $query = DonHang::where('ngay_ban', '>=', $start_date)
+                ->where('ngay_ban', '<=', $end_date);
+            
+            if($id_khachhang) {
+                $query->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
+            }
+            if($tinh_trang !== null && $tinh_trang !== '') {
+                $query->where('tinh_trang', intval($tinh_trang));
+            }
+            
+            $danhsach = $query->orderBy('ngay_ban', 'desc')->get();
+            $so_don_hang = count($danhsach);
+            
+            foreach($danhsach as $dh) {
+                // Revenue
+                $tong_doanh_thu += isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
+                
+                // Cost and Product Count
+                if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+                    foreach($dh['hanghoa'] as $hh) {
+                        $so_san_pham += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                        if(isset($hh['gia_von_thuc_te'])) {
+                            $tong_gia_von += doubleval($hh['gia_von_thuc_te']);
+                        }
+                    }
+                }
+            }
+            
+            // Calculate profit
+            $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von;
+            
+            // Calculate debt from CongNo
+            $congno_query = CongNo::where('ngay_gio', '>=', $start_date)
+                ->where('ngay_gio', '<=', $end_date);
+            if($id_khachhang) {
+                $congno_query->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
+            }
+            
+            $tong_phat_sinh_no = (clone $congno_query)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $tong_da_thanh_toan = (clone $congno_query)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+            $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
+        }
+        
+        $ty_le_loi_nhuan = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan / $tong_doanh_thu) * 100, 2) : 0;
+        
+        return view('Admin.ThongKe.thong-ke-ban-hang')->with(compact(
+            'tu_ngay', 'den_ngay', 'id_khachhang', 'tinh_trang',
+            'khachhang_list', 'tinhtrang', 'danhsach',
+            'tong_doanh_thu', 'tong_gia_von', 'tong_loi_nhuan', 'ty_le_loi_nhuan',
+            'tong_da_thanh_toan', 'tong_con_no', 'so_don_hang', 'so_san_pham'
+        ));
+    }
+
+    /**
+     * Thống kê Nhập hàng - Chi tiết với bộ lọc
+     */
+    function thong_ke_nhap_hang(Request $request) {
+        $tu_ngay = $request->input('tu_ngay');
+        $den_ngay = $request->input('den_ngay');
+        $id_nhacungcap = $request->input('id_nhacungcap');
+        
+        // Get list of suppliers for filter dropdown
+        $nhacungcap_list = \App\Models\NhaCungCap::orderBy('ten', 'asc')->get();
+        
+        // Initialize statistics
+        $danhsach = collect();
+        $tong_gia_tri_nhap = 0;
+        $tong_da_thanh_toan = 0;
+        $tong_con_no = 0;
+        $so_phieu_nhap = 0;
+        $so_san_pham = 0;
+        
+        if($tu_ngay && $den_ngay) {
+            $start_date = ObjectController::convertDateTime_max($tu_ngay);
+            $end_date = ObjectController::convertDateTime_max($den_ngay);
+            
+            // Build query with filters
+            $query = \App\Models\NhapHang::where('ngay_nhap', '>=', $start_date)
+                ->where('ngay_nhap', '<=', $end_date);
+            
+            if($id_nhacungcap) {
+                $query->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
+            }
+            
+            $danhsach = $query->orderBy('ngay_nhap', 'desc')->get();
+            $so_phieu_nhap = count($danhsach);
+            
+            foreach($danhsach as $nh) {
+                // Total import value
+                $tong_gia_tri_nhap += isset($nh['tong_thanh_tien']) ? doubleval($nh['tong_thanh_tien']) : 0;
+                
+                // Product count
+                if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
+                    foreach($nh['hanghoa'] as $hh) {
+                        $so_san_pham += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                    }
+                }
+            }
+            
+            // Calculate debt from CongNoNCC
+            $congno_query = \App\Models\CongNoNCC::where('ngay_gio', '>=', $start_date)
+                ->where('ngay_gio', '<=', $end_date);
+            if($id_nhacungcap) {
+                $congno_query->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
+            }
+            
+            $tong_phat_sinh_no = (clone $congno_query)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $tong_da_thanh_toan = (clone $congno_query)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+            $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
+        }
+        
+        return view('Admin.ThongKe.thong-ke-nhap-hang')->with(compact(
+            'tu_ngay', 'den_ngay', 'id_nhacungcap',
+            'nhacungcap_list', 'danhsach',
+            'tong_gia_tri_nhap', 'tong_da_thanh_toan', 'tong_con_no',
+            'so_phieu_nhap', 'so_san_pham'
+        ));
+    }
 }

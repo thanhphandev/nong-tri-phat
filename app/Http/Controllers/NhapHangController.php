@@ -14,9 +14,17 @@ class NhapHangController extends Controller
 {
     //
     function list(Request $request){
-    	$danhsach = NhapHang::orderBy('ngay_nhap', 'desc')->paginate(30);
+        $keywords = $request->input('keywords');
+        if($keywords){
+            $danhsach = NhapHang::where('ma_nhap_hang', 'regexp', '/.*'.$keywords.'/i')
+            ->orWhere('so_chung_tu', 'regexp', '/.*'.$keywords.'/i')
+            ->orWhere('ten_ncc', 'regexp', '/.*'.$keywords.'/i')
+            ->orderBy('ngay_nhap', 'desc')->paginate(30);
+        } else {
+            $danhsach = NhapHang::orderBy('ngay_nhap', 'desc')->paginate(30);
+        }
     	$hanghoa = HangHoa::All();
-    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa'));
+    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords'));
     }
 
     function add(){

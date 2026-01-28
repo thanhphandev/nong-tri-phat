@@ -108,6 +108,8 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('thong-ke/so-luong-hang-hoa', 'ThongKeController@so_luong_hang_hoa')->middleware('role:Admin,Manager');
     Route::get('thong-ke/ton-kho', 'ThongKeController@ton_kho')->middleware('role:Admin,Manager');
     Route::get('thong-ke/doanh-so', 'ThongKeController@doanh_so')->middleware('role:Admin,Manager');
+    Route::get('thong-ke/ban-hang', 'ThongKeController@thong_ke_ban_hang')->middleware('role:Admin,Manager');
+    Route::get('thong-ke/nhap-hang', 'ThongKeController@thong_ke_nhap_hang')->middleware('role:Admin,Manager');
 
     Route::get('user', 'UserController@list')->middleware('role:Admin');
     Route::get('user/change-password', 'UserController@change_password')->middleware('role:Admin');
