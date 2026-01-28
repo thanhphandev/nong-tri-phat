@@ -81,9 +81,7 @@
                         <td class="text-right">{{ number_format($ds['gia_si'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_le'], 0,",",".") }}</td>
                         <td class="text-right">
-                            <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $ds['id'] }}" class="xem-ton-kho" data-toggle="modal" data-target="#modalTonKho">
-                                {{ number_format($ds['so_luong_ton'],0,",",".") }}
-                            </a>
+                             {{ number_format($ds['so_luong_ton'],0,",",".") }}
                         </td>
 
                         {{-- <td class="text-right">0</td> --}}
@@ -107,24 +105,7 @@
     </div>
 </div>
 <!-- Modal Ton Kho -->
-<div class="modal fade" id="modalTonKho" tabindex="-1" role="dialog" aria-labelledby="modalTonKhoLabel" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-lg" style="min-width: 80%;">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h4 class="modal-title" id="modalTonKhoLabel" style="color:white;">Chi tiết Tồn kho (Theo lô nhập)</h4>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="ListTonKho">
-                <!-- Content will be loaded here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 @endsection
 @section('js')
 <script src="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.js"></script>
@@ -156,18 +137,6 @@
             $("#SearchForm").submit();
         });
 
-        $(".xem-ton-kho").click(function(e){
-            e.preventDefault(); // Prevent default link behavior
-            var _link = $(this).attr("href");
-            
-            // Clear previous content
-            $("#ListTonKho").html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x text-primary"></i><br>Đang tải dữ liệu...</div>');
-            
-            // Fetch new content
-            $.get(_link, function(data){
-                $("#ListTonKho").html(data);
-            });
-        });
     });
 
 </script>

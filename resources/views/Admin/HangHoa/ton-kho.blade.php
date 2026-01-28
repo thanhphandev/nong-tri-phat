@@ -4,19 +4,23 @@
         <thead class="thead-light">
             <tr>
                 <th scope="col">Ngày nhập</th>
-                <th scope="col">Số CT</th>
-                <th scope="col">Nhà cung cấp</th>
+                <th scope="col">Mã phiếu</th>
+                <th scope="col">Giá vốn</th>
                 <th scope="col">SL Nhập</th>
+                <th scope="col">SL Tồn</th>
+                <th scope="col">Ngày SX</th>
                 <th scope="col">HSD</th>
             </tr>
         </thead>
         <tbody>
             @foreach($batches as $batch)
             <tr>
-                <td>{{ isset($batch['ngay_chung_tu']) ? App\Http\Controllers\ObjectController::getDate($batch['ngay_chung_tu'], "d/m/Y") : '' }}</td>
-                <td class="font-weight-bold text-primary">{{ $batch['so_chung_tu'] }}</td>
-                <td class="text-left">{{ $batch['ten_ncc'] }}</td>
-                <td class="text-right font-weight-bold">{{ number_format($batch['so_luong'],0,",",".") }}</td>
+                <td>{{ isset($batch['ngay_nhap']) ? App\Http\Controllers\ObjectController::getDate($batch['ngay_nhap'], "d/m/Y") : '' }}</td>
+                <td class="font-weight-bold text-primary">{{ isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '' }}</td>
+                <td class="text-right">{{ isset($batch['gia_von']) ? number_format($batch['gia_von'],0,",",".") : 0 }}</td>
+                <td class="text-right">{{ isset($batch['so_luong_nhap']) ? number_format($batch['so_luong_nhap'],0,",",".") : 0 }}</td>
+                <td class="text-right font-weight-bold text-success">{{ isset($batch['so_luong_con_lai']) ? number_format($batch['so_luong_con_lai'],0,",",".") : 0 }}</td>
+                <td>{{ isset($batch['ngay_san_xuat']) ? App\Http\Controllers\ObjectController::getDate($batch['ngay_san_xuat'], "d/m/Y") : '' }}</td>
                 <td>
                     @if(isset($batch['ngay_het_han']) && $batch['ngay_het_han'])
                         @php

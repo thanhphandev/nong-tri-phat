@@ -3,17 +3,46 @@ function addCart(path) {
         var id_nhacungcap = $("#id_nhacungcap").val();
         var id_hanghoa = $("#id_hanghoa").val();
         var so_luong = $("#so_luong").val();
-        if (id_nhacungcap && id_hanghoa && so_luong) {
-            var existingItem = $("input[name='id_hanghoa_cart[]'][value='" + id_hanghoa + "']");
-            if (existingItem.length > 0) {
-                var row = existingItem.closest('.item');
-                var inputSoLuong = row.find('.so-luong');
-                var currentSoLuong = parseFloat(inputSoLuong.val());
-                var newSoLuong = currentSoLuong + parseFloat(so_luong);
-                inputSoLuong.val(newSoLuong);
-                inputSoLuong.trigger('change');
+        var ngay_san_xuat = $("#ngay_san_xuat_item").val();
+        var so_thang = $("#so_thang_item").val();
+        if (id_nhacungcap && id_hanghoa && so_luong && ngay_san_xuat) {
+            // Validate NSX not in future
+            var parts = ngay_san_xuat.split("/");
+            if (parts.length === 3) {
+                var nsxDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (nsxDate > today) {
+                    alert("Ngày sản xuất không được lớn hơn ngày hiện tại!");
+                    return false;
+                }
             } else {
-                var path_get = path + "admin/nhap-hang/get-add-cart?id_nhacungcap=" + id_nhacungcap + "&id_hanghoa=" + id_hanghoa + "&so_luong=" + so_luong;
+                alert("Định dạng ngày không hợp lệ (dd/mm/yyyy)");
+                return false;
+            }
+
+            var foundExactMatch = false;
+            var existingItems = $("input[name='id_hanghoa_cart[]'][value='" + id_hanghoa + "']");
+
+            if (existingItems.length > 0) {
+                existingItems.each(function () {
+                    var row = $(this).closest('.item');
+                    var currentRowNsx = row.find('.ngay-san-xuat').val();
+
+                    if (currentRowNsx === ngay_san_xuat) {
+                        foundExactMatch = true;
+                        var inputSoLuong = row.find('.so-luong');
+                        var currentSoLuong = parseFloat(inputSoLuong.val());
+                        var newSoLuong = currentSoLuong + parseFloat(so_luong);
+                        inputSoLuong.val(newSoLuong);
+                        inputSoLuong.trigger('change');
+                        return false; // break loop
+                    }
+                });
+            }
+
+            if (!foundExactMatch) {
+                var path_get = path + "admin/nhap-hang/get-add-cart?id_nhacungcap=" + id_nhacungcap + "&id_hanghoa=" + id_hanghoa + "&so_luong=" + so_luong + "&ngay_san_xuat=" + ngay_san_xuat + "&so_thang=" + so_thang;
                 $.get(path_get, function (hanghoa) {
                     $("#HangHoaList tbody").prepend(hanghoa); delete_cart();
                     tong_thanh_tien();
@@ -25,7 +54,7 @@ function addCart(path) {
                 });
             }
         } else {
-            alert('Vui lòng chọn Nhà cung cấp, Hàng hóa và Số lượng');
+            alert('Vui lòng chọn Nhà cung cấp, Hàng hóa, Số lượng và Ngày sản xuất');
         }
     });
 }
@@ -98,6 +127,7 @@ function initializeProductSearch(path) {
 
         $.getJSON(get_cart_path, function (hh) {
             $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
+            if (hh.so_thang) $("#so_thang_item").val(hh.so_thang);
         });
 
         $("#so_luong").select().focus();
@@ -134,9 +164,40 @@ function change_so_luong() {
         parent.find(".thanh-tien").val(tt);
         parent.find(".thanh-tien-show").html(currencyFormat(tt));
 
-        if ($(this).hasClass('so-thang')) {
-            var so_thang = parseInt($(this).val());
-            if (!isNaN(so_thang) && so_thang > 0) {
+        if ($(this).hasClass('so-thang') || $(this).hasClass('ngay-san-xuat')) {
+            var so_thang = parseInt(parent.find(".so-thang").val());
+            var ngay_san_xuat = parent.find(".ngay-san-xuat").val();
+
+            if (ngay_san_xuat) {
+                var parts = ngay_san_xuat.split('/');
+                if (parts.length === 3) {
+                    var nsxDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                    var today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (nsxDate > today) {
+                        alert("Ngày sản xuất không được lớn hơn ngày hiện tại!");
+                        parent.find(".ngay-san-xuat").val("");
+                        parent.find(".ngay-het-han").val("");
+                        return;
+                    }
+                }
+            }
+
+            if (!isNaN(so_thang) && so_thang > 0 && ngay_san_xuat) {
+                var parts = ngay_san_xuat.split('/');
+                if (parts.length === 3) {
+                    var startDate = new Date(parts[2], parts[1] - 1, parts[0]); // yyyy, mm-1, dd
+                    var targetDate = new Date(startDate.setMonth(startDate.getMonth() + so_thang));
+                    var dd = targetDate.getDate();
+                    var mm = targetDate.getMonth() + 1;
+                    var yyyy = targetDate.getFullYear();
+                    if (dd < 10) { dd = '0' + dd }
+                    if (mm < 10) { mm = '0' + mm }
+                    var formattedDate = dd + '/' + mm + '/' + yyyy;
+                    parent.find(".ngay-het-han").val(formattedDate);
+                    parent.find(".ngay-het-han").datepicker('update', formattedDate);
+                }
+            } else if (!isNaN(so_thang) && so_thang > 0 && !ngay_san_xuat) {
                 var today = new Date();
                 var targetDate = new Date(today.setMonth(today.getMonth() + so_thang));
                 var dd = targetDate.getDate();

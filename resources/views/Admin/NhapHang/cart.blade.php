@@ -1,9 +1,18 @@
 @php
 	$gia_von = $hh['gia_von'];
 	$thanhtien = $so_luong * $gia_von;
-    $so_thang = isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 12;
+    $so_thang = isset($so_thang) && $so_thang ? $so_thang : (isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 12);
     $ngay_het_han = "";
-    if($so_thang >= 0) {
+    $ngay_san_xuat = isset($ngay_san_xuat) ? $ngay_san_xuat : "";
+    
+    if($ngay_san_xuat && $so_thang >= 0) {
+         $parts = explode('/', $ngay_san_xuat);
+         if(count($parts) == 3) {
+             // d/m/y
+             $time = strtotime($parts[2] . '-' . $parts[1] . '-' . $parts[0]);
+             $ngay_het_han = date('d/m/Y', strtotime("+$so_thang months", $time));
+         }
+    } elseif($so_thang >= 0) {
         $ngay_het_han = date('d/m/Y', strtotime("+$so_thang months"));
     }
 @endphp
@@ -21,6 +30,9 @@
 	</td>
 	<td class="text-center" align="center" style="width:80px;max-width:80px;">
 		<input type="number" name="so_thang_cart[]" value="{{ $so_thang }}" placeholder="" class="so-thang cart-change form-control form-control-sm float-right" style="max-width:70px;">
+	</td>
+    <td class="text-center" align="center" style="width:120px;max-width:120px;">
+		<input type="text" name="ngay_san_xuat_cart[]" value="{{ $ngay_san_xuat }}" placeholder="__/__/____" class="ngay-san-xuat datepicker form-control form-control-sm float-right cart-change" style="max-width:110px;">
 	</td>
 	<td class="text-center" align="center" style="width:120px;max-width:120px;">
 		<input type="text" name="ngay_het_han_cart[]" value="{{ $ngay_het_han }}" placeholder="__/__/____" class="ngay-het-han datepicker form-control form-control-sm float-right" style="max-width:110px;">

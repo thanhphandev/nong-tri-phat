@@ -51,22 +51,33 @@
                 <div class="row form-group">
                     <label class="control-label col-md-2 text-right p-t-10">Số CT</label>
                     <div class="col-12 col-md-2">
-                        <input type="text" name="so_chung_tu" id="so_chung_tu" value="" placeholder="Số chứng từ" required class="form-control">
+                        <input type="text" name="so_chung_tu" id="so_chung_tu" value="" placeholder="Số chứng từ" class="form-control">
                     </div>
                     <label class="control-label col-md-2 text-right p-t-10">Ngày CT</label>
                     <div class="col-12 col-md-2">
-                        <input type="text" name="ngay_chung_tu" id="ngay_chung_tu" value="" placeholder="__/__/____" required class="datepicker form-control" autocomplete="off">
+                        <input type="text" name="ngay_chung_tu" id="ngay_chung_tu" value="" placeholder="__/__/____" class="datepicker form-control" autocomplete="off">
                     </div>
                     <label class="control-label col-md-1 text-right p-t-10">Ngày giao</label>
                     <div class="col-12 col-md-2">
-                        <input type="text" name="ngay_giao" id="ngay_giao" value="" placeholder="__/__/____" required class="datepicker form-control" autocomplete="off">
+                        <input type="text" name="ngay_giao" id="ngay_giao" value="{{ date('d/m/Y') }}" placeholder="__/__/____" required class="datepicker form-control" autocomplete="off">
                     </div>
                 </div>
                 <div class="row form-group">
                     <label class="control-label col-md-2 text-right p-t-10">Hàng hóa</label>
-                    <div class="col-12 col-md-6">
+                    <div class="col-12 col-md-4">
                         <select name="id_hanghoa" id="id_hanghoa" class="form-control" data-placeholder="Tìm mặt hàng (F3, Mã, Tên...)"></select>
                         <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px 5px 10px;font-size: 13px;margin-top:5px;">Thông tin hàng hóa:</span>
+                    </div>
+                    <label class="control-label col-md-1 text-right p-t-10">Ngày SX</label>
+                    <div class="col-12 col-md-2">
+                        <input type="text" name="ngay_san_xuat_item" id="ngay_san_xuat_item" value="{{ date('d/m/Y') }}" placeholder="__/__/____" class="datepicker form-control" autocomplete="off">
+                    </div>
+                </div>
+                <div class="row form-group">
+                    <div class="col-12 col-md-6"></div>
+                    <label class="control-label col-md-1 text-right p-t-10">Số tháng</label>
+                    <div class="col-12 col-md-2">
+                        <input type="number" name="so_thang_item" id="so_thang_item" value="12" placeholder="Số tháng" class="form-control">
                     </div>
                     <label class="control-label col-md-1 text-right p-t-10">Số lượng</label>
                     <div class="col-12 col-md-2">
@@ -88,6 +99,7 @@
                             <th>Số lượng</th>
                             <th>Đơn giá</th>
                             <th>Số tháng</th>
+                            <th>Ngày sản xuất</th>
                             <th>Hạn sử dụng</th>
                             <th>Thành tiền</th>
                             <th>#</th>

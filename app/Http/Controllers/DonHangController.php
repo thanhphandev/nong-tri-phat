@@ -65,7 +65,61 @@ class DonHangController extends Controller
                     'chiet_khau' => $chiet_khau, 
                     'thanh_tien' => $thanh_tien
                 ));
-                HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $data['so_luong_cart'][$key]);
+                // FEFO Logic: Deduct from batches
+                $hanghoa_db = HangHoa::find($value);
+                $sl_can_tru = $so_luong;
+                
+                if($hanghoa_db && isset($hanghoa_db['ds_lo_hang']) && is_array($hanghoa_db['ds_lo_hang'])){
+                    $batches = $hanghoa_db['ds_lo_hang'];
+                    
+                    // Sort batches by Expiry Date (Ascending) - FEFO
+                    // Batches without expiry come last? Or first? usually FEFO implies expiry exists. If not, FIFO (by import date).
+                    // Assuming mix, let's prioritize Expiry Date, then Import Date.
+                     usort($batches, function($a, $b) {
+                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000; // far future if null
+                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
+                        if ($t1 == $t2) {
+                            $i1 = isset($a['ngay_nhap']) && $a['ngay_nhap'] ? $a['ngay_nhap']->toDateTime()->getTimestamp() : 0;
+                            $i2 = isset($b['ngay_nhap']) && $b['ngay_nhap'] ? $b['ngay_nhap']->toDateTime()->getTimestamp() : 0;
+                            return $i1 - $i2; // FIFO if expiry same
+                        }
+                        return $t1 - $t2;
+                    });
+
+                    $new_batches = []; // To reconstruct the array with updated values
+                    foreach($batches as $batch){
+                        if($sl_can_tru > 0){
+                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                            if($sl_ton_batch > 0){
+                                if($sl_ton_batch >= $sl_can_tru){
+                                    // This batch can cover the remaining
+                                    $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
+                                    $sl_can_tru = 0;
+                                } else {
+                                    // Take all from this batch and continue
+                                    $sl_can_tru -= $sl_ton_batch;
+                                    $batch['so_luong_con_lai'] = 0;
+                                }
+                            }
+                        }
+                        $new_batches[] = $batch;
+                    }
+                    
+                    // Update the product with new batches and decremented total stock
+                    $hanghoa_db->ds_lo_hang = $new_batches;
+                    
+                    // Recalculate Total Stock from Batches (Safer than manual decrement)
+                    $current_total_stock = 0;
+                    foreach($new_batches as $b){
+                         $current_total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                    }
+                    $hanghoa_db->so_luong_ton = $current_total_stock;
+                    
+                    $hanghoa_db->save();
+                } else {
+                     // Fallback for old items without batches: just decrement total
+                     HangHoa::where('_id', '=', $id_hanghoa)->decrement('so_luong_ton', $so_luong);
+                }
             }
         }
         $db = new DonHang();
@@ -122,8 +176,9 @@ class DonHangController extends Controller
             $thanhtoan->id_user = ObjectController::ObjectId($id_user);
             $thanhtoan->save();
         }
+        $loai_gia_text = (isset($data['hinh_thuc_thanh_toan']) && $data['hinh_thuc_thanh_toan'] == 'tien_mat') ? 'Giá tiền mặt' : 'Giá nợ';
         $querLog = array(
-            'action' => 'Tạo đơn hàng thành công ['.$ma_don_hang.']',
+            'action' => 'Tạo đơn hàng thành công ['.$ma_don_hang.'] - ' . $loai_gia_text,
             'id_collection' => $id,
             'collection' => 'don_hang',
             'data' => $data

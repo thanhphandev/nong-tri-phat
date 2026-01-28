@@ -216,7 +216,8 @@ class HangHoaController extends Controller
                 'id_hanghoa' => $hh['_id'],
                 'thongtinhanghoa' => 'Tên hàng: ' . $hh['ten'] . ' -- [SL Tồn: '.$hh['so_luong_ton'].'] ' . $str_hsd,
                 'gia_si' => $hh['gia_si'],
-                'gia_le' => $hh['gia_le']
+                'gia_le' => $hh['gia_le'],
+                'so_thang' => isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 12
             );
         } else {
             $arr = array(
@@ -232,23 +233,16 @@ class HangHoaController extends Controller
 
 
     function xem_ton_kho(Request $request, $id = ''){
-        $id = ObjectController::ObjectId($id);
-        $nhaphang = NhapHang::where('hanghoa.id_hanghoa', '=', $id)->orderBy('ngay_nhap', 'desc')->get();
+        $hh = HangHoa::find($id);
         $batches = [];
-        foreach($nhaphang as $nh){
-            if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])){
-                foreach($nh['hanghoa'] as $item){
-                    if(isset($item['id_hanghoa']) && (string)$item['id_hanghoa'] == (string)$id){
-                        $batches[] = [
-                            'ngay_chung_tu' => $nh['ngay_chung_tu'],
-                            'so_chung_tu' => $nh['so_chung_tu'],
-                            'ten_ncc' => isset($nh['ten_ncc']) ? $nh['ten_ncc'] : 'N/A',
-                            'so_luong' => $item['so_luong'],
-                            'ngay_het_han' => isset($item['ngay_het_han']) ? $item['ngay_het_han'] : null
-                        ];
-                    }
-                }
-            }
+        if($hh && isset($hh['ds_lo_hang'])){
+            $batches = $hh['ds_lo_hang'];
+            // Optional: Sort by Expiry Date or Import Date
+             usort($batches, function($a, $b) {
+                $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 0;
+                $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 0;
+                return $t1 - $t2;
+            });
         }
         return view('Admin.HangHoa.ton-kho', compact('batches'));
     }

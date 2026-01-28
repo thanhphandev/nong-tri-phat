@@ -107,8 +107,19 @@
                 <p><span class="label">Địa chỉ:</span> {{ $nh['dia_chi'] }}</p>
             </td>
             <td style="text-align: right;">
-                <p><span class="label">Số chứng từ:</span> <strong style="color: #d71a21;">{{ $nh['so_chung_tu'] }}</strong></p>
-                <p><span class="label">Ngày chứng từ:</span> {{ App\Http\Controllers\ObjectController::getDate($nh['ngay_chung_tu'], "d/m/Y H:i") }}</p>
+                @if(!empty($nh['so_chung_tu']))
+                    <p>
+                        <span class="label">Số chứng từ:</span> 
+                        <strong style="color: #d71a21;">{{ $nh['so_chung_tu'] }}</strong>
+                    </p>
+                @endif
+
+                @if(!empty($nh['ngay_chung_tu']))
+                    <p>
+                        <span class="label">Ngày chứng từ:</span> 
+                        {{ App\Http\Controllers\ObjectController::getDate($nh['ngay_chung_tu'], "d/m/Y H:i") }}
+                    </p>
+                @endif
                 <p><span class="label">Ngày giao:</span> {{ App\Http\Controllers\ObjectController::getDate($nh['ngay_giao'], "d/m/Y H:i") }}</p>
                 <p><span class="label">Người lập:</span> {{ Auth::user()->fullname ?? 'Admin' }}</p>
             </td>

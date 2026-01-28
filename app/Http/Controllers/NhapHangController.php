@@ -27,7 +27,7 @@ class NhapHangController extends Controller
     function create(Request $request){
         $data = $request->all();
     	$validator = Validator::make($request->all(), [
-            'so_chung_tu' => 'required|unique:nhap_hang,so_chung_tu',
+            'so_chung_tu' => 'nullable',
             'id_nhacungcap_cart' => 'required',
             'id_hanghoa_cart' => 'required',
             'so_luong_cart' => 'required'
@@ -37,6 +37,10 @@ class NhapHangController extends Controller
             return redirect(env('APP_URL') .'admin/nhap-hang/add')->withErrors($validator)->withInput();
         }
         $arr_hanghoa = array();
+        $id = ObjectController::Id();
+        $ma_nhap_hang = strtoupper(uniqid());
+        $ngay_nhap = ObjectController::setDate();
+
         if($data['id_hanghoa_cart']){
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
@@ -45,9 +49,14 @@ class NhapHangController extends Controller
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
                 $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
                 $ngay_het_han = null;
-                if(isset($data['ngay_het_han_cart'][$key])){
+                if(isset($data['ngay_het_han_cart'][$key]) && $data['ngay_het_han_cart'][$key]){
                     $date_convert = ObjectController::convertDateTime($data['ngay_het_han_cart'][$key]);
                     $ngay_het_han = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
+                }
+                $ngay_san_xuat = null;
+                if(isset($data['ngay_san_xuat_cart'][$key]) && $data['ngay_san_xuat_cart'][$key]){
+                    $date_convert = ObjectController::convertDateTime($data['ngay_san_xuat_cart'][$key]);
+                    $ngay_san_xuat = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
                 }
 
                 $id_hanghoa = ObjectController::ObjectId($value);
@@ -60,21 +69,48 @@ class NhapHangController extends Controller
                     'don_gia' => $don_gia, 
                     'so_thang_het_han' => $so_thang, 
                     'ngay_het_han' => $ngay_het_han, 
+                    'ngay_san_xuat' => $ngay_san_xuat,
                     'thanh_tien' => $tt
                 ));
-                HangHoa::where('_id', '=', $id_hanghoa)->increment('so_luong_ton', intval($data['so_luong_cart'][$key]));;
+                $lo_hang = array(
+                    'id_nhap_hang' => $id,
+                    'ma_nhap_hang' => $ma_nhap_hang,
+                    'so_luong_nhap' => $so_luong,
+                    'so_luong_con_lai' => $so_luong,
+                    'ngay_san_xuat' => $ngay_san_xuat,
+                    'ngay_het_han' => $ngay_het_han,
+                    'gia_von' => $don_gia,
+                    'ngay_nhap' => $ngay_nhap
+                );
+                
+                $hanghoa_update = HangHoa::find($value);
+                if($hanghoa_update){
+                    $current_batches = isset($hanghoa_update['ds_lo_hang']) ? $hanghoa_update['ds_lo_hang'] : [];
+                    $current_batches[] = $lo_hang;
+                    
+                    $hanghoa_update->ds_lo_hang = $current_batches;
+                    
+                    // Recalculate Total Stock from Batches
+                    $total_stock = 0;
+                    foreach($current_batches as $b){
+                         $total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                    }
+                    $hanghoa_update->so_luong_ton = $total_stock;
+                    $hanghoa_update->save();
+                }
             }
         }
 
-        $id = ObjectController::Id();
+        
         $id_user = $request->session()->get('user._id');
-        $ma_nhap_hang = strtoupper(uniqid());
         $ncc = NhaCungCap::find($data['id_nhacungcap_cart']);
         $db = new NhapHang();
         $db->_id = $id;
         $db->ma_nhap_hang = $ma_nhap_hang;
         $db->so_chung_tu = $data['so_chung_tu'];
-        $db->ngay_chung_tu = ObjectController::convertDateTime($data['ngay_chung_tu']);
+        if(isset($data['ngay_chung_tu']) && $data['ngay_chung_tu']) {
+            $db->ngay_chung_tu = ObjectController::convertDateTime($data['ngay_chung_tu']);
+        }
         $db->ngay_giao = ObjectController::convertDateTime($data['ngay_giao']);
         $db->id_nhacungcap = ObjectController::ObjectId($data['id_nhacungcap_cart']);
         $db->ma_ncc = $ncc['ma'];
@@ -83,7 +119,7 @@ class NhapHangController extends Controller
         $db->dia_chi = $ncc['dia_chi'];
         $db->email = $ncc['email'];
         $db->hanghoa = $arr_hanghoa;
-        $db->ngay_nhap = ObjectController::setDate();
+        $db->ngay_nhap = $ngay_nhap;
         $db->tong_thanh_tien = doubleval($data['thanh_tien']);
         $db->thanh_tien = doubleval($data['thanh_tien']);
         $db->id_user = ObjectController::ObjectId($id_user);
@@ -163,9 +199,11 @@ class NhapHangController extends Controller
         $id_nhacungcap = $request->input('id_nhacungcap');
         $id_hanghoa = $request->input('id_hanghoa');
         $so_luong = $request->input('so_luong');
+        $ngay_san_xuat = $request->input('ngay_san_xuat');
+        $so_thang = $request->input('so_thang');
         $ncc = NhaCungCap::find($id_nhacungcap);
         $hh = HangHoa::find($id_hanghoa);
-        return view('Admin.NhapHang.cart')->with(compact('ncc','hh','so_luong'));
+        return view('Admin.NhapHang.cart')->with(compact('ncc','hh','so_luong', 'ngay_san_xuat', 'so_thang'));
     }
 
     static function check_HangHoa($id = '') {
