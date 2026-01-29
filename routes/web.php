@@ -86,6 +86,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('don-hang/get-add-cart', 'DonHangController@add_cart')->middleware('role:Admin,Manager');
     Route::get('don-hang/hang-hoa/{id}', 'DonHangController@hang_hoa')->middleware('role:Admin,Manager');
     Route::post('don-hang/tinh-trang', 'DonHangController@tinh_trang')->middleware('role:Admin,Manager');
+    Route::post('don-hang/tra-no', 'DonHangController@tra_no')->middleware('role:Admin,Manager');
     Route::get('don-hang/in-phieu-giao-hang/{id}', 'DonHangController@in_phieu_giao_hang')->middleware('role:Admin,Manager');
     Route::get('don-hang/{ma}', 'DonHangController@list')->middleware('role:Admin,Manager');
 

@@ -145,7 +145,7 @@ class DonHangController extends Controller
         $db->tinh_trang = 0;
         $db->hanghoa = $arr_hanghoa;
         $db->tong_thanh_tien = $tong_thanh_tien;
-        $db->thanh_toan = 0;
+        $db->thanh_toan = $thanh_toan; // Store initial payment amount
         $db->ghi_chu = isset($data['ghi_chu']) ? $data['ghi_chu'] : '';
         $db->id_user = ObjectController::ObjectId($id_user);
         $db->save();
@@ -251,6 +251,91 @@ class DonHangController extends Controller
         } else {
             return redirect(env('APP_URL').'admin/don-hang?keywords='.$db['ma_don_hang']);
         }
+    }
+
+
+    function tra_no(Request $request) {
+        $data = $request->all();
+        
+        // Validation
+        $validator = Validator::make($request->all(), [
+            'id_donhang' => 'required',
+            'so_tien' => 'required',
+        ]);
+        
+        if ($validator->fails()) {
+            Session::flash('msg', 'Vui lòng nhập đầy đủ thông tin');
+            return redirect($data['url']);
+        }
+        
+        // Get order info
+        $donhang = DonHang::find($data['id_donhang']);
+        if (!$donhang) {
+            Session::flash('msg', 'Không tìm thấy đơn hàng');
+            return redirect($data['url']);
+        }
+        
+        // Calculate current debt
+        $id_dh = ObjectController::ObjectId($donhang['_id']);
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $con_no = $donhang['tong_thanh_tien'] - $da_thanh_toan;
+        
+        // Parse payment amount
+        $so_tien = ObjectController::convertStr2Number($data['so_tien']);
+        
+        // Validate payment amount
+        if ($so_tien <= 0) {
+            Session::flash('msg', 'Số tiền trả phải lớn hơn 0');
+            return redirect($data['url']);
+        }
+        
+        if ($so_tien > $con_no) {
+            Session::flash('msg', 'Số tiền trả không được lớn hơn số nợ hiện tại (' . number_format($con_no, 0, ',', '.') . ' VND)');
+            return redirect($data['url']);
+        }
+        
+        // Create payment record
+        $id_user = $request->session()->get('user._id');
+        $congno = new CongNo();
+        $congno->id_khachhang = $donhang['id_khachhang'];
+        $congno->id_donhang = $id_dh;
+        $congno->ma_don_hang = $donhang['ma_don_hang'];
+        $congno->ho_ten = $donhang['ho_ten'];
+        $congno->dien_thoai = $donhang['dien_thoai'];
+        $congno->dia_chi = $donhang['dia_chi'] ?? '';
+        $congno->email = $donhang['email'] ?? '';
+        $congno->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
+        $congno->tong_thanh_tien = $so_tien;
+        $congno->ngay_gio = ObjectController::setDate();
+        $congno->loai_cong_no = 1; // 1 = THANH TOAN
+        $congno->ghi_chu = $data['ghi_chu'] ?? 'Trả nợ đơn hàng ' . $donhang['ma_don_hang'];
+        $congno->id_user = ObjectController::ObjectId($id_user);
+        $congno->save();
+    
+    // Update thanh_toan field in DonHang
+    $new_thanh_toan = $da_thanh_toan + $so_tien;
+    $donhang->thanh_toan = $new_thanh_toan;
+    $donhang->save();
+    
+    // Log the payment
+    $querLog = array(
+        'action' => 'Trả nợ đơn hàng [' . $donhang['ma_don_hang'] . '] - Số tiền: ' . number_format($so_tien, 0, ',', '.') . ' VND',
+        'id_collection' => $congno->_id,
+        'collection' => 'cong_no',
+        'data' => $data
+    );
+    LogController::addLog($querLog);
+        
+        $con_no_sau = $con_no - $so_tien;
+        $msg = 'Thanh toán thành công ' . number_format($so_tien, 0, ',', '.') . ' VND';
+        if ($con_no_sau > 0) {
+            $msg .= '. Còn nợ: ' . number_format($con_no_sau, 0, ',', '.') . ' VND';
+        } else {
+            $msg .= '. Đã thanh toán hết nợ!';
+        }
+        
+        Session::flash('msg', $msg);
+        return redirect($data['url']);
     }
 
     function in_phieu_giao_hang(Request $request, $id = '') {
