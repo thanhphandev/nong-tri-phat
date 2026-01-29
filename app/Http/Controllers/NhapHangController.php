@@ -88,7 +88,6 @@ class NhapHangController extends Controller
                     'ngay_san_xuat' => $ngay_san_xuat,
                     'ngay_het_han' => $ngay_het_han,
                     'gia_von' => $don_gia,
-                    'ngay_nhap' => $ngay_nhap
                 );
                 
                 $hanghoa_update = HangHoa::find($value);

@@ -1,7 +1,7 @@
 @php
 	$gia_von = $hh['gia_von'];
 	$thanhtien = $so_luong * $gia_von;
-    $so_thang = isset($so_thang) && $so_thang ? $so_thang : (isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 12);
+    $so_thang = isset($so_thang) && $so_thang ? $so_thang : 12;
     $ngay_het_han = "";
     $ngay_san_xuat = isset($ngay_san_xuat) ? $ngay_san_xuat : "";
     

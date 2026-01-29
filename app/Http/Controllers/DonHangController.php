@@ -66,20 +66,27 @@ class DonHangController extends Controller
                     
                     // Sort batches: Expiry (Asc) -> Import Date (Asc)
                     usort($batches, function($a, $b) {
-                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
-                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
-                        if ($t1 == $t2) {
-                            $i1 = isset($a['ngay_nhap']) && $a['ngay_nhap'] ? $a['ngay_nhap']->toDateTime()->getTimestamp() : 0;
-                            $i2 = isset($b['ngay_nhap']) && $b['ngay_nhap'] ? $b['ngay_nhap']->toDateTime()->getTimestamp() : 0;
-                            return $i1 - $i2;
-                        }
+                        // Priority 1: Expiry Date
+                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                        
                         return $t1 - $t2;
                     });
 
                     $new_batches = [];
                     foreach($batches as $batch){
                         $qty_deducted_from_batch = 0;
-                        if($sl_can_tru > 0){
+                        
+                        // Check if batch is expired
+                        $is_expired = false;
+                        if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                            $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                            if($expiry_timestamp < time()) {
+                                $is_expired = true;
+                            }
+                        }
+
+                        if($sl_can_tru > 0 && !$is_expired){
                             $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
                             if($sl_ton_batch > 0){
                                 if($sl_ton_batch >= $sl_can_tru){
