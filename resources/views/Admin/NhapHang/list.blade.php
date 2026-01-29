@@ -60,8 +60,9 @@
                             <td class="text-right">{{ number_format($ds['thanh_tien'],0,",",".") }}</td>
                             <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 							<td class="text-center">
-                                <a href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank" class="mr-2"><i class="fa fa-print text-success"></i></a>
-                                <a href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
+                                <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}" title="Trả hàng NCC"><i class="fas fa-undo text-warning"></i></a>
+                                <a href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank" class="mr-2" title="In phiếu"><i class="fa fa-print text-success"></i></a>
+                                <a href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');" title="Xóa"><i class="fa fa-trash text-danger"></i></a>
                             </td>
 						</tr>
 						@endforeach

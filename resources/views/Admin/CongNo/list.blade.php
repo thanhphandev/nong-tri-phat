@@ -56,6 +56,9 @@
                     </div>
                 </div>
             </form>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> <strong>Lưu ý:</strong> Để trả nợ cho đơn hàng, vui lòng vào <a href="{{ env('APP_URL') }}admin/don-hang" class="alert-link"><strong>Danh sách Đơn hàng</strong></a> và sử dụng nút <i class="fas fa-money-bill-wave text-success"></i> bên cạnh mỗi đơn hàng còn nợ.
+            </div>
             <div class="row">
                 <div class="col-12 col-md-12">
                     <div class="card-box">

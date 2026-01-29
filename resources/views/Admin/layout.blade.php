@@ -95,6 +95,13 @@
 
                                 </ul>
                             </li>
+                            <li class="has-submenu">
+                                <a href="#"><i class="fas fa-undo text-warning"></i> Trả hàng <div class="arrow-down"></div></a>
+                                <ul class="submenu">
+                                    <li><a href="{{ env('APP_URL') }}admin/tra-hang-khach"><i class="fas fa-user-minus text-primary"></i> Trả hàng Khách</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/tra-hang-ncc"><i class="fas fa-truck-loading text-danger"></i> Trả hàng NCC</a></li>
+                                </ul>
+                            </li>
                             <li  class="has-submenu">
                                 <a href="#"><i class="fas fa-money-check-alt"></i> Công nợ <div class="arrow-down"></div></a>
                                 <ul class="submenu">
