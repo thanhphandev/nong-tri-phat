@@ -297,10 +297,11 @@
             <tr>
                 <th style="width: 5%;">STT</th>
                 <th>SẢN PHẨM</th>
-                <th style="width: 12%;">ĐVT</th>
-                <th style="width: 12%;">SL</th>
-                <th style="width: 18%;">ĐƠN GIÁ</th>
-                <th style="width: 20%;">THÀNH TIỀN</th>
+                <th style="width: 13%;">HSD</th>
+                <th style="width: 10%;">ĐVT</th>
+                <th style="width: 10%;">SL</th>
+                <th style="width: 16%;">ĐƠN GIÁ</th>
+                <th style="width: 18%;">THÀNH TIỀN</th>
             </tr>
         </thead>
         <tbody>
@@ -308,6 +309,7 @@
             <tr>
                 <td class="text-center">{{ $key + 1 }}</td>
                 <td style="font-weight: 500;">{{ $hh['ten'] }}</td>
+                <td class="text-center">{{ !empty($hh['ngay_het_han']) ? App\Http\Controllers\ObjectController::getDate($hh['ngay_het_han'], "d/m/Y") : '-' }}</td>
                 <td class="text-center">{{ $hh['don_vi_tinh'] ?? '-' }}</td>
                 <td class="text-center">{{ number_format($hh['so_luong'], 0) }}</td>
                 <td class="text-right">{{ number_format($hh['don_gia'], 0, ",", ".") }}</td>
@@ -346,7 +348,6 @@
     <div class="signature-section">
         <div class="signature-box">
             <div class="signature-title">Người giao hàng</div>
-            <div class="signature-name">{{ $nh['ten_ncc'] }}</div>
         </div>
         <div class="signature-box">
             <div class="signature-title">Người nhận hàng</div>

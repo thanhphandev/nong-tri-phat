@@ -214,6 +214,79 @@
             @endif
             $("#thongtinhanghoa").hide();
             initializeProductSearch("{{ env('APP_URL') }}");
+            
+            function initializeProductSearch(path) {
+                if (path.length > 0 && path.substr(-1) !== '/') {
+                    path += '/';
+                }
+                $('#id_hanghoa').select2({
+                    ajax: {
+                        url: path + 'admin/hang-hoa/autocomplete',
+                        dataType: 'json',
+                        delay: 300,
+                        data: function (params) {
+                            return {
+                                term: params.term
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.results
+                            };
+                        },
+                        cache: true
+                    },
+                    placeholder: 'Tìm mặt hàng (Phím tắt F3, Mã, Tên, Mã vạch...)',
+                    minimumInputLength: 3, 
+                    templateResult: formatRepo,
+                    templateSelection: formatRepoSelection,
+                    escapeMarkup: function (markup) { return markup; }
+                });
+
+                function formatRepo(repo) {
+                    if (repo.loading) return repo.text;
+
+                    var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
+                    var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+
+                    var markup = "<div class='product-result'>" +
+                        "<div class='product-title'>" +
+                        "<span>" + repo.ten + "</span>" +
+                        "<span class='product-ma'>" + repo.ma + "</span>" +
+                        "</div>" +
+                        "<div class='product-info'>" +
+                        "<span><i class='fa fa-tag'></i> <span class='product-unit'>" + (repo.don_vi_tinh || 'N/A') + "</span></span>" +
+                        "<span><i class='fa fa-money-bill-wave'></i> Mặt: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si || 0)) + "</span></span>" +
+                        "<span><i class='fa fa-hand-holding-usd'></i> Nợ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le || 0)) + "</span></span>" +
+                        "<span><i class='fa fa-boxes'></i> Tồn: <span class='product-stock " + stockClass + "'>" + stockText + "</span></span>" +
+                        "</div>" +
+                        "</div>";
+
+                    return markup;
+                }
+
+                function formatRepoSelection(repo) {
+                    return repo.ma ? (repo.ma + " - " + repo.ten) : repo.text;
+                }
+
+                $('#id_hanghoa').on('select2:select', function (e) {
+                    var data = e.params.data;
+                    var mahanghoa = data.ma;
+                    var get_cart_path = path + "admin/hang-hoa/get-cart/" + mahanghoa;
+
+                    // Cập nhật thông tin chi tiết (bao gồm cả HSD từ get-cart)
+                    $.getJSON(get_cart_path, function (hh) {
+                        $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
+                    });
+
+                    // Focus vào ô số lượng sau khi chọn
+                    $("#so_luong").select().focus();
+                });
+                
+                function currencyFormat(num) {
+                    return num.toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.")
+                }
+            }
         });
     </script>
 @endsection

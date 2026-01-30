@@ -117,6 +117,7 @@
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/doanh-so"><i class="fas fa-chart-line text-primary"></i> Doanh số</a></li>
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/ton-kho"><i class="fas fa-boxes text-warning"></i> Tồn kho</a></li>
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/so-luong-hang-hoa"><i class="fas fa-list text-secondary"></i> Số lượng hàng hóa</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/logs"><i class="fas fa-history text-danger"></i> Nhật ký hệ thống</a></li>
                                 </ul>
                             </li>
                             {{--@endif--}}

@@ -66,20 +66,27 @@ class DonHangController extends Controller
                     
                     // Sort batches: Expiry (Asc) -> Import Date (Asc)
                     usort($batches, function($a, $b) {
-                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
-                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 2524608000;
-                        if ($t1 == $t2) {
-                            $i1 = isset($a['ngay_nhap']) && $a['ngay_nhap'] ? $a['ngay_nhap']->toDateTime()->getTimestamp() : 0;
-                            $i2 = isset($b['ngay_nhap']) && $b['ngay_nhap'] ? $b['ngay_nhap']->toDateTime()->getTimestamp() : 0;
-                            return $i1 - $i2;
-                        }
+                        // Priority 1: Expiry Date
+                        $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                        $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                        
                         return $t1 - $t2;
                     });
 
                     $new_batches = [];
                     foreach($batches as $batch){
                         $qty_deducted_from_batch = 0;
-                        if($sl_can_tru > 0){
+                        
+                        // Check if batch is expired
+                        $is_expired = false;
+                        if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                            $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                            if($expiry_timestamp < time()) {
+                                $is_expired = true;
+                            }
+                        }
+
+                        if($sl_can_tru > 0 && !$is_expired){
                             $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
                             if($sl_ton_batch > 0){
                                 if($sl_ton_batch >= $sl_can_tru){
@@ -100,7 +107,9 @@ class DonHangController extends Controller
                                 $sl_da_tru += $qty_deducted_from_batch;
                             }
                         }
-                        $new_batches[] = $batch;
+                        if(isset($batch['so_luong_con_lai']) && intval($batch['so_luong_con_lai']) > 0){
+                            $new_batches[] = $batch;
+                        }
                     }
                     
                     // Update Product
@@ -145,7 +154,7 @@ class DonHangController extends Controller
         $db->tinh_trang = 0;
         $db->hanghoa = $arr_hanghoa;
         $db->tong_thanh_tien = $tong_thanh_tien;
-        $db->thanh_toan = 0;
+        $db->thanh_toan = $thanh_toan; // Store initial payment amount
         $db->ghi_chu = isset($data['ghi_chu']) ? $data['ghi_chu'] : '';
         $db->id_user = ObjectController::ObjectId($id_user);
         $db->save();
@@ -205,7 +214,43 @@ class DonHangController extends Controller
         $so_luong = $request->input('so_luong');
         $kh = KhachHang::find($id_khachhang);
         $hh = HangHoa::find($id_hanghoa);
-        return view('Admin.DonHang.cart')->with(compact('kh','hh','so_luong'));
+
+        // FEFO Simulation
+        $warning_info = "";
+        $batches_used = $this->resolveBatches($hh, $so_luong);
+        if(count($batches_used) > 1){
+            $warning_info = "Sử dụng từ nhiều lô: ";
+            foreach($batches_used as $b){
+                $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . "): " . $b['so_luong'];
+            }
+        } elseif(count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
+             // Case where total stock is less than requested, but handled by validator elsewhere usually.
+             // But if we want to show what is available:
+             $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];
+        }
+
+        return view('Admin.DonHang.cart')->with(compact('kh','hh','so_luong', 'warning_info'));
+    }
+
+    function check_batch_usage(Request $request){
+        $id_hanghoa = $request->input('id_hanghoa');
+        $so_luong = $request->input('so_luong');
+        $hh = HangHoa::find($id_hanghoa);
+        
+        $warning_info = "";
+        if($hh){
+             $batches_used = $this->resolveBatches($hh, $so_luong);
+            if(count($batches_used) > 1){
+                $warning_info = "Sử dụng từ nhiều lô: ";
+                foreach($batches_used as $b){
+                    $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . "): " . $b['so_luong'];
+                }
+            } elseif(count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
+                 $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];
+            }
+        }
+        
+        return response()->json(['warning_info' => $warning_info]);
     }
 
     function hang_hoa(Request $request, $id = ''){
@@ -253,6 +298,91 @@ class DonHangController extends Controller
         }
     }
 
+
+    function tra_no(Request $request) {
+        $data = $request->all();
+        
+        // Validation
+        $validator = Validator::make($request->all(), [
+            'id_donhang' => 'required',
+            'so_tien' => 'required',
+        ]);
+        
+        if ($validator->fails()) {
+            Session::flash('msg', 'Vui lòng nhập đầy đủ thông tin');
+            return redirect($data['url']);
+        }
+        
+        // Get order info
+        $donhang = DonHang::find($data['id_donhang']);
+        if (!$donhang) {
+            Session::flash('msg', 'Không tìm thấy đơn hàng');
+            return redirect($data['url']);
+        }
+        
+        // Calculate current debt
+        $id_dh = ObjectController::ObjectId($donhang['_id']);
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $con_no = $donhang['tong_thanh_tien'] - $da_thanh_toan;
+        
+        // Parse payment amount
+        $so_tien = ObjectController::convertStr2Number($data['so_tien']);
+        
+        // Validate payment amount
+        if ($so_tien <= 0) {
+            Session::flash('msg', 'Số tiền trả phải lớn hơn 0');
+            return redirect($data['url']);
+        }
+        
+        if ($so_tien > $con_no) {
+            Session::flash('msg', 'Số tiền trả không được lớn hơn số nợ hiện tại (' . number_format($con_no, 0, ',', '.') . ' VND)');
+            return redirect($data['url']);
+        }
+        
+        // Create payment record
+        $id_user = $request->session()->get('user._id');
+        $congno = new CongNo();
+        $congno->id_khachhang = $donhang['id_khachhang'];
+        $congno->id_donhang = $id_dh;
+        $congno->ma_don_hang = $donhang['ma_don_hang'];
+        $congno->ho_ten = $donhang['ho_ten'];
+        $congno->dien_thoai = $donhang['dien_thoai'];
+        $congno->dia_chi = $donhang['dia_chi'] ?? '';
+        $congno->email = $donhang['email'] ?? '';
+        $congno->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
+        $congno->tong_thanh_tien = $so_tien;
+        $congno->ngay_gio = ObjectController::setDate();
+        $congno->loai_cong_no = 1; // 1 = THANH TOAN
+        $congno->ghi_chu = $data['ghi_chu'] ?? 'Trả nợ đơn hàng ' . $donhang['ma_don_hang'];
+        $congno->id_user = ObjectController::ObjectId($id_user);
+        $congno->save();
+    
+    // Update thanh_toan field in DonHang
+    $new_thanh_toan = $da_thanh_toan + $so_tien;
+    $donhang->thanh_toan = $new_thanh_toan;
+    $donhang->save();
+    
+    // Log the payment
+    $querLog = array(
+        'action' => 'Trả nợ đơn hàng [' . $donhang['ma_don_hang'] . '] - Số tiền: ' . number_format($so_tien, 0, ',', '.') . ' VND',
+        'id_collection' => $congno->_id,
+        'collection' => 'cong_no',
+        'data' => $data
+    );
+    LogController::addLog($querLog);
+        
+        $con_no_sau = $con_no - $so_tien;
+        $msg = 'Thanh toán thành công ' . number_format($so_tien, 0, ',', '.') . ' VND';
+        if ($con_no_sau > 0) {
+            $msg .= '. Còn nợ: ' . number_format($con_no_sau, 0, ',', '.') . ' VND';
+        } else {
+            $msg .= '. Đã thanh toán hết nợ!';
+        }
+        
+        Session::flash('msg', $msg);
+        return redirect($data['url']);
+    }
+
     function in_phieu_giao_hang(Request $request, $id = '') {
         $dh = DonHang::findOrFail($id);
 
@@ -269,21 +399,7 @@ class DonHangController extends Controller
             return $hh;
         });
 
-        // 2. Tính toán công nợ khách hàng
-        $id_kh = ObjectController::ObjectId($dh->id_khachhang);
-        $id_dh = ObjectController::ObjectId($dh->_id);
-
-        // Nợ cũ = (Tổng nợ phát sinh khác đơn này) - (Tổng đã trả khác đơn này)
-        $no_cu_tang = CongNo::where('id_khachhang', $id_kh)->where('id_donhang', '!=', $id_dh)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
-        $no_cu_giam = CongNo::where('id_khachhang', $id_kh)->where('id_donhang', '!=', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-        
-        $no_cu = $no_cu_tang - $no_cu_giam;
-        $tong_tien_don_nay = $dh->tong_thanh_tien;
-        $thanh_toan_don_nay = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-        
-        $no_moi = $no_cu + $tong_tien_don_nay - $thanh_toan_don_nay;
-
-        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'no_cu', 'tong_tien_don_nay', 'thanh_toan_don_nay', 'no_moi'));
+        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh'));
     }
 
     static function check_HangHoa($id = ''){
@@ -298,5 +414,56 @@ class DonHangController extends Controller
         $check = DonHang::where('id_khachhang', '=', $id)->first();
         if($check) return true;
         return false;
+    }
+
+    private function resolveBatches($hanghoa, $sl_can_tru) {
+        $batches_used = [];
+        $sl_can_tru = intval($sl_can_tru);
+
+        if($hanghoa && isset($hanghoa['ds_lo_hang']) && is_array($hanghoa['ds_lo_hang'])){
+            $batches = $hanghoa['ds_lo_hang'];
+            
+            // Sort batches: Expiry (Asc)
+            usort($batches, function($a, $b) {
+                $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                return $t1 - $t2;
+            });
+
+            foreach($batches as $batch){
+                $is_expired = false;
+                if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                    $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                    if($expiry_timestamp < time()) {
+                        $is_expired = true;
+                    }
+                }
+
+                if($sl_can_tru > 0 && !$is_expired){
+                    $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                    if($sl_ton_batch > 0){
+                        $used = 0;
+                        if($sl_ton_batch >= $sl_can_tru){
+                            $used = $sl_can_tru;
+                            $sl_can_tru = 0;
+                        } else {
+                            $used = $sl_ton_batch;
+                            $sl_can_tru -= $sl_ton_batch;
+                        }
+
+                        $date_display = (isset($batch['ngay_het_han']) && $batch['ngay_het_han'])
+                                        ? date('d/m/Y', $batch['ngay_het_han']->toDateTime()->getTimestamp()) 
+                                        : 'N/A';
+                        
+                        $batches_used[] = [
+                            'ma_lo' => isset($batch['ma_lo']) ? $batch['ma_lo'] : '',
+                            'so_luong' => $used,
+                            'ngay_het_han' => $date_display
+                        ];
+                    }
+                }
+            }
+        }
+        return $batches_used;
     }
 }

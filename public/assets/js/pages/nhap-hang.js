@@ -137,7 +137,6 @@ function initializeProductSearch(path) {
 
         $.getJSON(get_cart_path, function (hh) {
             $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
-            if (hh.so_thang) $("#so_thang_item").val(hh.so_thang);
         });
 
         $("#so_luong").select().focus();

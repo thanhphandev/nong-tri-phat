@@ -28,17 +28,11 @@
                     <label class="control-label col-md-2 text-right p-t-10">Nhà Cung cấp</label>
                     <div class="col-12 col-md-9">
                         <div class="input-group">
-                            <select name="id_nhacungcap" id="id_nhacungcap" class="form-control select2" data-placeholder="Chọn Nhà Cugn cấp" style="max-width:800px;">
+                            <select name="id_nhacungcap" id="id_nhacungcap" class="form-control select2" data-placeholder="Chọn Nhà Cung cấp" style="max-width:800px;">
                                 <option value=""></option>
                                 @if($nhacungcap)
                                     @foreach($nhacungcap as $ncc)
-                                    @php
-                                        $id_nhacungcap = App\Http\Controllers\ObjectController::ObjectId($ncc['_id']);
-                                        $congno_sum = App\Models\CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-                                        $thanhtoan_sum = App\Models\CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-                                        $nocu = $congno_sum - $thanhtoan_sum;
-                                    @endphp
-                                        <option value="{{ $ncc['_id'] }}" @if($ncc['_id'] == $id_nhacungcap) selected @endif>{{ $ncc['ma'] }} - {{ $ncc['ten'] }} @if($nocu > 0)- [Nợ cũ: {{ number_format($nocu,0,",",".") }}] @endif</option>
+                                        <option value="{{ $ncc['_id'] }}" {{ old('id_nhacungcap') == $ncc['_id'] ? 'selected' : '' }}>{{ $ncc['ma'] }} - {{ $ncc['ten'] }} @if($ncc->no_cu > 0)- [Nợ cũ: {{ number_format($ncc->no_cu,0,",",".") }}] @endif</option>
                                     @endforeach
                                 @endif
                             </select>
@@ -224,6 +218,77 @@
             @endif
             $("#thongtinhanghoa").hide();
             initializeProductSearch("{{ env('APP_URL') }}");
+
+            function initializeProductSearch(path) {
+                if (path.length > 0 && path.substr(-1) !== '/') {
+                    path += '/';
+                }
+                $('#id_hanghoa').select2({
+                    ajax: {
+                        url: path + 'admin/hang-hoa/autocomplete',
+                        dataType: 'json',
+                        delay: 300, // Debounce 300ms
+                        data: function (params) {
+                            return {
+                                term: params.term // Send 'term' directly
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.results // Structure from optimized controller
+                            };
+                        },
+                        cache: true
+                    },
+                    placeholder: 'Tìm mặt hàng (Phím tắt F3, Mã, Tên, Mã vạch...)',
+                    minimumInputLength: 3,
+                    templateResult: formatRepo,
+                    templateSelection: formatRepoSelection,
+                    escapeMarkup: function (markup) { return markup; }
+                });
+
+                function formatRepo(repo) {
+                    if (repo.loading) return repo.text;
+
+                    var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
+                    var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+
+                    var markup = "<div class='product-result'>" +
+                        "<div class='product-title'>" +
+                        "<span>" + repo.ten + "</span>" +
+                        "<span class='product-ma'>" + repo.ma + "</span>" +
+                        "</div>" +
+                        "<div class='product-info'>" +
+                        "<span><i class='fa fa-tag'></i> <span class='product-unit'>" + (repo.don_vi_tinh || 'N/A') + "</span></span>" +
+                        "<span><i class='fa fa-money-bill-wave'></i> Giá vốn: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_von || 0)) + "</span></span>" + // Nhap Hang quan tam gia von
+                        "<span><i class='fa fa-boxes'></i> Tồn: <span class='product-stock " + stockClass + "'>" + stockText + "</span></span>" +
+                        "</div>" +
+                        "</div>";
+
+                    return markup;
+                }
+
+                function formatRepoSelection(repo) {
+                    return repo.ma ? (repo.ma + " - " + repo.ten) : repo.text;
+                }
+
+                $('#id_hanghoa').on('select2:select', function (e) {
+                    var data = e.params.data;
+                    var mahanghoa = data.ma;
+                    var get_cart_path = path + "admin/hang-hoa/get-cart/" + mahanghoa;
+
+                    $.getJSON(get_cart_path, function (hh) {
+                        $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
+                        if (hh.so_thang) $("#so_thang_item").val(hh.so_thang);
+                    });
+
+                    $("#so_luong").select().focus();
+                });
+                
+                function currencyFormat(num) {
+                    return num.toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.")
+                }
+            }
         });
     </script>
 @endsection

@@ -33,9 +33,11 @@
 							<th>Mã Đơn hàng</th>
 							<th>Khách hàng</th>
 							<th>Điện thoại</th>
-							<th>Số lượng hàng hóa</th>
-							<th>Tổng thành tiền</th>
-							<th>Tình trạng</th>
+							<th>SL</th>
+							<th>Tổng tiền</th>
+							<th>Đã TT</th>
+							<th>Còn nợ</th>
+							<th>Trạng thái</th>
                             <th>Ghi chú</th>
 							<th>#</th>
 						</tr>
@@ -49,6 +51,9 @@
 									$so_luong += $hh['so_luong'];
                                     $so_luong_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
 								}
+								// Use stored thanh_toan field instead of calculating from CongNo
+								$da_thanh_toan = $ds['thanh_toan'] ?? 0;
+								$con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
 							@endphp
 							<tr>
 								<td class="text-center"><b>{{ $ds['ma_don_hang'] }}</b></td>
@@ -62,8 +67,10 @@
                                         @endif
 									</a>
 								</td>
-								<td class="text-right">
-                                    {{ number_format($ds['tong_thanh_tien'],0,",",".") }}
+								<td class="text-right"><b>
+                                    {{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b></td>
+								<td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
+								<td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}
                                     @php
                                         // Calculate refund value to display "Net Total"
                                         $tien_tra = 0;
@@ -103,9 +110,12 @@
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 								</td>
 								<td class="text-center">
-                                    <a href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}" class="mr-2" title="Trả hàng"><i class="fas fa-undo text-warning"></i></a>
-                                    <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print"></i></a>
-                                    <a href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
+                                    @if($con_no > 0)
+                                        <a href="#" class="btn-tra-no" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo" title="Trả nợ"><i class="fas fa-money-bill-wave text-success"></i></a>
+                                    @endif
+                                    <a href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}" title="Trả hàng"><i class="fas fa-undo text-warning"></i></a>
+                                    <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank" title="In phiếu"><i class="fa fa-print"></i></a>
+                                    <a href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');" title="Xóa"><i class="fa fa-trash text-danger"></i></a>
                                 </td>
 							</tr>
 						@endforeach
@@ -159,6 +169,48 @@
             </div>
         </div>
     </div>
+    </div>
+</div>
+<div class="modal fade" id="modalTraNo" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h4 class="modal-title" id="myModalLabel"><i class="fas fa-money-bill-wave"></i> TRẢ NỢ ĐƠN HÀNG</h4>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ env('APP_URL') }}admin/don-hang/tra-no" id="TraNoForm">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="id_donhang" id="tra_no_id_donhang" value="">
+                    <input type="hidden" name="url" value="{{ Request::fullUrl() }}">
+                    
+                    <div class="alert alert-info">
+                        <strong>Mã đơn:</strong> <span id="tra_no_ma"></span><br>
+                        <strong>Khách hàng:</strong> <span id="tra_no_khach"></span><br>
+                        <strong class="text-danger">Còn nợ:</strong> <span id="tra_no_con_no" class="text-danger font-weight-bold"></span> VND
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="control-label">Số tiền trả <span class="text-danger">*</span></label>
+                        <input type="text" name="so_tien" id="so_tien_tra" class="form-control number" placeholder="Nhập số tiền trả" required style="text-align:right; font-size: 16px; font-weight: bold; color: #28a745;">
+                        <small class="form-text text-muted">Nhập số tiền khách hàng trả (tối đa bằng số nợ hiện tại)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="control-label">Ghi chú</label>
+                        <textarea name="ghi_chu" id="ghi_chu_tra_no" class="form-control" rows="2" placeholder="Nhập ghi chú cho lần trả nợ này"></textarea>
+                    </div>
+                    
+                    <div class="form-actions text-right">
+                        <button type="button" class="btn btn-light" data-dismiss="modal"><i class="fa fa-times"></i> Hủy</button>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> XÁC NHẬN TRẢ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 @section('js')
@@ -178,6 +230,43 @@
                 var _this = $(this);
                 var id_donhang = _this.attr("name");
                 $("#id_donhang").val(id_donhang);
+            });
+            
+            // Handle payment modal
+            $(".btn-tra-no").click(function(){
+                var _this = $(this);
+                var id = _this.data("id");
+                var ma = _this.data("ma");
+                var khach = _this.data("khach");
+                var conno = _this.data("conno");
+                
+                $("#tra_no_id_donhang").val(id);
+                $("#tra_no_ma").text(ma);
+                $("#tra_no_khach").text(khach);
+                $("#tra_no_con_no").text(conno.toLocaleString('vi-VN'));
+                $("#so_tien_tra").val(conno);
+                $("#so_tien_tra").attr('data-max', conno);
+                jQuery(".number").number(true, 0, ',', '.');
+            });
+            
+            // Validate payment amount
+            $("#TraNoForm").submit(function(e){
+                var soTien = parseFloat($("#so_tien_tra").val().replace(/\./g, '').replace(/,/g, '.'));
+                var maxAmount = parseFloat($("#so_tien_tra").attr('data-max'));
+                
+                if(isNaN(soTien) || soTien <= 0){
+                    alert("Vui lòng nhập số tiền hợp lệ!");
+                    e.preventDefault();
+                    return false;
+                }
+                
+                if(soTien > maxAmount){
+                    alert("Số tiền trả không được lớn hơn số nợ hiện tại!");
+                    e.preventDefault();
+                    return false;
+                }
+                
+                return confirm('Xác nhận khách hàng đã trả ' + soTien.toLocaleString('vi-VN') + ' VND?');
             });
         	@if(Session::get('msg') && Session::get('msg'))
 	            $.toast({

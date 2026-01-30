@@ -175,39 +175,29 @@ class HangHoaController extends Controller
     function get_cart(Request $request, $mahanghoa = ''){
         $hh = HangHoa::where('ma', '=', $mahanghoa)->first();
         if($hh){
-            // Logic FEFO: Tìm ngày hết hạn gần nhất
-            $id_hanghoa =  ObjectController::ObjectId($hh['_id']);
-            $nhaphang = NhapHang::where('hanghoa.id_hanghoa', '=', $id_hanghoa)
-                ->where('hanghoa.so_luong_ton', '>', 0) // Chỉ lấy lô còn hàng (nếu có tracking lô - hiện tại hệ thống chưa track lô chuẩn nên lấy tất cả phiếu nhập có date)
-                ->get();
-            
-            $ngay_het_han_gan_nhat = null;
-            $str_hsd = "";
-
-            // Tìm trong các phiếu nhập
+            $ngay_het_han_gan_nhat = null; 
+            $min_timestamp = PHP_INT_MAX;
             $today = time();
-            $min_diff = -1;
 
-            foreach($nhaphang as $nh){
-                if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])){
-                    foreach($nh['hanghoa'] as $item){
-                        if(isset($item['id_hanghoa']) && (string)$item['id_hanghoa'] == (string)$id_hanghoa){
-                            if(isset($item['ngay_het_han']) && $item['ngay_het_han']){
-                                $date = $item['ngay_het_han']->toDateTime();
-                                $timestamp = $date->getTimestamp();
-                                if($timestamp >= $today){
-                                    $diff = $timestamp - $today;
-                                    if($min_diff == -1 || $diff < $min_diff){
-                                        $min_diff = $diff;
-                                        $ngay_het_han_gan_nhat = $date;
-                                    }
-                                }
+            if(isset($hh['ds_lo_hang']) && is_array($hh['ds_lo_hang'])){
+                foreach($hh['ds_lo_hang'] as $batch){
+                    if(isset($batch['so_luong_con_lai']) && $batch['so_luong_con_lai'] > 0){
+                        // Kiểm tra HSD
+                        if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                            $date = $batch['ngay_het_han']->toDateTime();
+                            $ts = $date->getTimestamp();
+                            
+                            // Lấy date gần nhất hợp lệ (>= today)
+                            if($ts >= $today && $ts < $min_timestamp){
+                                $min_timestamp = $ts;
+                                $ngay_het_han_gan_nhat = $date;
                             }
                         }
                     }
                 }
             }
             
+            $str_hsd = "";
             if($ngay_het_han_gan_nhat){
                 $str_hsd = '<span class="badge badge-warning">HSD Gần nhất: ' . $ngay_het_han_gan_nhat->format('d/m/Y') . '</span>';
             }
@@ -217,7 +207,6 @@ class HangHoaController extends Controller
                 'thongtinhanghoa' => 'Tên hàng: ' . $hh['ten'] . ' -- [SL Tồn: '.$hh['so_luong_ton'].'] ' . $str_hsd,
                 'gia_si' => $hh['gia_si'],
                 'gia_le' => $hh['gia_le'],
-                'so_thang' => isset($hh['so_thang_han_dung']) ? $hh['so_thang_han_dung'] : 12
             );
         } else {
             $arr = array(
@@ -229,8 +218,6 @@ class HangHoaController extends Controller
         }
         echo json_encode($arr);
     }
-
-
 
     function xem_ton_kho(Request $request, $id = ''){
         $hh = HangHoa::find($id);
@@ -248,43 +235,61 @@ class HangHoaController extends Controller
     }
 
     function autocomplete(Request $request) {
-        $search = $request->input('search');
-        if(!$search) return response()->json([]);
+        $search = $request->input('term'); // Select2 use 'term' by default, or 'q'
+        if(!$search) $search = $request->input('search'); // Fallback
+        
+        if(!$search) return response()->json(['results' => []]);
 
-        // Escape ký tự đặc biệt để tránh lỗi Regex
-        $searchQuery = preg_quote($search);
+        $searchQuery = trim($search);
+        
+        // 1. Optimize Selection: Only get needed fields
+        $query = HangHoa::select('_id', 'ma', 'ten', 'gia_si', 'gia_le', 'so_luong_ton', 'gia_von', 'id_donvitinh');
 
-        $dbs = HangHoa::where(function($query) use ($searchQuery) {
-            $query->where('ma', 'regexp', '/'.$searchQuery.'/i')
-                  ->orWhere('ten', 'regexp', '/'.$searchQuery.'/i');
-        })
-        ->limit(15)
-        ->get();
-                      
-        $hang_hoa = array();
-        if($dbs){
-            // Lấy danh sách DVT một lần để tối ưu
-            $dvt_ids = $dbs->pluck('id_donvitinh')->unique()->filter()->toArray();
-            $dvts = DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) {
-                return (string)$item->_id;
+        // 2. Search Heuristic for Performance
+        // Case A: Exact Match (Barcode/Code) - Fastest
+        $exactMatch = clone $query;
+        $exact = $exactMatch->where('ma', '=', $searchQuery)->first();
+        
+        if ($exact) {
+             $results = collect([$exact]);
+        } else {
+            // Case B: Prefix Match (start with...) - Fast with Index
+            // Case C: Contain Match (slowest but necessary)
+            $query->where(function($q) use ($searchQuery) {
+                // Prioritize 'ma' (Code) and 'ten' (Name)
+                $q->where('ma', 'regexp', '/^'.preg_quote($searchQuery).'/i')
+                  ->orWhere('ten', 'regexp', '/'.preg_quote($searchQuery).'/i');
             });
+            
+            $results = $query->limit(20)->get();
+        }
 
-            foreach($dbs as $db){
-                $id_dvt = (string)$db['id_donvitinh'];
-                $ten_dvt = isset($dvts[$id_dvt]) ? $dvts[$id_dvt]['ten'] : '';
+        // 3. Optimize Relationship (Avoid N+1)
+        $formatted_results = [];
+        if($results->count() > 0){
+            // Bulk fetch Units
+            $dvt_ids = $results->pluck('id_donvitinh')->unique()->filter()->toArray();
+            $dvts = DonViTinh::whereIn('_id', $dvt_ids)->pluck('ten', '_id')->toArray();
+
+            foreach($results as $item){
+                $id_dvt = (string)$item->id_donvitinh;
+                $ten_dvt = isset($dvts[$id_dvt]) ? $dvts[$id_dvt] : '';
                 
-                $hang_hoa[] = array(
-                    'id' => (string)$db['_id'],
-                    'text' => $db['ma'] . ' - ' . $db['ten'],
-                    'ma' => $db['ma'],
-                    'ten' => $db['ten'],
-                    'gia_si' => $db['gia_si'],
-                    'gia_le' => $db['gia_le'],
-                    'so_luong_ton' => $db['so_luong_ton'],
+                $formatted_results[] = array(
+                    'id' => (string)$item->_id,
+                    'text' => $item->ma . ' - ' . $item->ten,
+                    'ma' => $item->ma,
+                    'ten' => $item->ten,
+                    'gia_von' => $item->gia_von,
+                    'gia_si' => $item->gia_si,
+                    'gia_le' => $item->gia_le,
+                    'so_luong_ton' => $item->so_luong_ton,
                     'don_vi_tinh' => $ten_dvt
                 );
             }
         }
-        return response()->json($hang_hoa);
+        
+        // Return standard Select2 format
+        return response()->json(['results' => $formatted_results]);
     }
 }

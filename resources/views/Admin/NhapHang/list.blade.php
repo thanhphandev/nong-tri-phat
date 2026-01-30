@@ -52,8 +52,8 @@
                         @endphp
 						 <tr>   
                             <td class="text-center">{{ $ds['ma_nhap_hang'] }}</td>
-							<td class="text-center bold">{{ isset($ds['so_chung_tu']) ? $ds['so_chung_tu'] : '' }}</td>
-                            <td class="text-center">{{ isset($ds['ngay_chung_tu']) ? App\Http\Controllers\ObjectController::getDate($ds['ngay_chung_tu'],"d/m/Y H:i") : '' }}</td>
+							<td class="text-center bold">{{ isset($ds['so_chung_tu']) ? $ds['so_chung_tu'] : '-' }}</td>
+                            <td class="text-center">{{ isset($ds['ngay_chung_tu']) ? App\Http\Controllers\ObjectController::getDate($ds['ngay_chung_tu'],"d/m/Y H:i") : '-' }}</td>
                             <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_giao'],"d/m/Y H:i") }}</td>
                             <td class="text-center"><b>{{ $ds['ten_ncc'] }}</b></td>
 							<td class="text-right">
