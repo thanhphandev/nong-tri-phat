@@ -163,57 +163,79 @@ class TraHangNCCController extends Controller
                 if ($hang_hoa) {
                     $so_luong_tra = floatval($hh['so_luong_tra']);
                     
-                    // Use FEFO to deduct from batches
+                    // EXACT BATCH DEDUCTION: Find and deduct from the batch that came from this import
                     $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
-                    
-                    // Sort batches by expiry date (FEFO)
-                    usort($ds_lo_hang, function($a, $b) {
-                        $date_a = isset($a['ngay_san_xuat']) ? ObjectController::convertDate($a['ngay_san_xuat']) : null;
-                        $date_b = isset($b['ngay_san_xuat']) ? ObjectController::convertDate($b['ngay_san_xuat']) : null;
-                        $months_a = isset($a['so_thang']) ? $a['so_thang'] : 0;
-                        $months_b = isset($b['so_thang']) ? $b['so_thang'] : 0;
-                        
-                        if ($date_a && $date_b) {
-                            $exp_a = clone $date_a;
-                            $exp_a->addMonths($months_a);
-                            $exp_b = clone $date_b;
-                            $exp_b->addMonths($months_b);
-                            return $exp_a <=> $exp_b;
-                        }
-                        return 0;
-                    });
-                    
-                    $remaining = $so_luong_tra;
                     $new_batches = [];
+                    $remaining = $so_luong_tra;
+                    $batch_deducted = false;
+                    
+                    // Get original import info
+                    $id_nhaphang_str = (string)$nhaphang['_id'];
+                    $ma_nhaphang = $nhaphang['ma_nhap_hang'];
                     
                     foreach ($ds_lo_hang as $batch) {
-                        if ($remaining <= 0) {
-                            $new_batches[] = $batch;
-                            continue;
-                        }
-
-                        // Handle BSON/Array structure inconsistencies
-                        $batch_qty = 0;
-                        if (isset($batch['so_luong_con_lai'])) {
-                            $batch_qty = floatval($batch['so_luong_con_lai']);
-                        } elseif (isset($batch['so_luong'])) { // Fallback
-                            $batch_qty = floatval($batch['so_luong']);
-                        }
-
-                        if ($batch_qty <= $remaining) {
-                            // Consume entire batch
-                            $remaining -= $batch_qty;
-                            // Do NOT add to new_batches -> Effectively removes it
-                        } else {
-                            // Partial deduction
-                            $batch['so_luong_con_lai'] = $batch_qty - $remaining;
-                            // Ensure consistency
-                            if (isset($batch['so_luong'])) { 
-                                $batch['so_luong'] = $batch['so_luong_con_lai'];
+                        // Check if this batch belongs to the original import
+                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? (string)$batch['id_nhap_hang'] : '';
+                        $batch_ma_nhap = isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '';
+                        
+                        $is_from_this_import = ($batch_id_nhap == $id_nhaphang_str) || ($batch_ma_nhap == $ma_nhaphang);
+                        
+                        if ($is_from_this_import && $remaining > 0) {
+                            // This is the batch from the original import - deduct from here
+                            $batch_qty = isset($batch['so_luong_con_lai']) 
+                                ? floatval($batch['so_luong_con_lai']) 
+                                : (isset($batch['so_luong']) ? floatval($batch['so_luong']) : 0);
+                            
+                            if ($batch_qty <= $remaining) {
+                                // Consume entire batch
+                                $remaining -= $batch_qty;
+                                $batch_deducted = true;
+                                // Don't add to new_batches - effectively removes it
+                            } else {
+                                // Partial deduction
+                                $batch['so_luong_con_lai'] = $batch_qty - $remaining;
+                                $new_batches[] = $batch;
+                                $remaining = 0;
+                                $batch_deducted = true;
                             }
+                        } else {
+                            // Keep other batches unchanged
                             $new_batches[] = $batch;
-                            $remaining = 0;
                         }
+                    }
+                    
+                    // If we couldn't find the exact batch, log warning but still proceed
+                    if (!$batch_deducted && $remaining > 0) {
+                        // Fallback: deduct from FEFO (first expiry first out) - for edge cases
+                        // Sort by ngay_het_han
+                        usort($new_batches, function($a, $b) {
+                            $exp_a = isset($a['ngay_het_han']) ? ObjectController::convertDate($a['ngay_het_han']) : null;
+                            $exp_b = isset($b['ngay_het_han']) ? ObjectController::convertDate($b['ngay_het_han']) : null;
+                            if (!$exp_a) return 1;
+                            if (!$exp_b) return -1;
+                            return $exp_a <=> $exp_b;
+                        });
+                        
+                        $final_batches = [];
+                        foreach ($new_batches as $batch) {
+                            if ($remaining <= 0) {
+                                $final_batches[] = $batch;
+                                continue;
+                            }
+                            
+                            $batch_qty = isset($batch['so_luong_con_lai']) 
+                                ? floatval($batch['so_luong_con_lai']) 
+                                : (isset($batch['so_luong']) ? floatval($batch['so_luong']) : 0);
+                            
+                            if ($batch_qty <= $remaining) {
+                                $remaining -= $batch_qty;
+                            } else {
+                                $batch['so_luong_con_lai'] = $batch_qty - $remaining;
+                                $final_batches[] = $batch;
+                                $remaining = 0;
+                            }
+                        }
+                        $new_batches = $final_batches;
                     }
                     
                     $hang_hoa->ds_lo_hang = $new_batches;
@@ -321,33 +343,70 @@ class TraHangNCCController extends Controller
         }
 
         // 1. Revert Inventory (Add items back to stock)
-        // Note: For supplier return, we removed items. Now we must ADD them back.
-        // However, we don't know the exact original batch details perfectly if we didn't save them.
-        // But in recent logic, we just removed generally or specific batch.
-        // To keep it simple and safe: Add to a new "Hủy trả" batch or just increase quantity if possible.
-        // The safest is to add to a generic batch or "Tồn đầu" type, or fail strict batch tracking.
-        // Let's just add to so_luong_ton and create a "Restored" batch.
+        // Try to restore to the original import batch, or create a standardized new batch
+        $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
         
         foreach ($tra_hang['hanghoa'] as $item) {
             $hang_hoa = HangHoa::find($item['id_hanghoa']);
             if ($hang_hoa) {
                 $hang_hoa->so_luong_ton += $item['so_luong_tra'];
                 
-                // create restored batch
-                $new_batch = [
-                    'ngay_san_xuat' => null,
-                    'so_thang' => 0,
-                    'so_luong_con_lai' => $item['so_luong_tra'],
-                    'so_luong' => $item['so_luong_tra'],
-                    'gia_von' => $item['don_gia'],
-                    'nguon_goc' => 'huy_tra_hang_ncc',
-                    'ma_tra_hang' => $tra_hang['ma_tra_hang'],
-                    'ngay_nhap' => ObjectController::setDate()
-                ];
-                $batches = $hang_hoa->ds_lo_hang ?? [];
-                $batches[] = $new_batch;
-                $hang_hoa->ds_lo_hang = $batches;
+                $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
+                $restored = false;
                 
+                // Try to find the original batch from the import and add back to it
+                if ($nhaphang) {
+                    $id_nhaphang_str = (string)$nhaphang['_id'];
+                    $ma_nhaphang = $nhaphang['ma_nhap_hang'];
+                    
+                    foreach ($ds_lo_hang as &$batch) {
+                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? (string)$batch['id_nhap_hang'] : '';
+                        $batch_ma_nhap = isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '';
+                        
+                        if (($batch_id_nhap == $id_nhaphang_str) || ($batch_ma_nhap == $ma_nhaphang)) {
+                            // Found the original batch - add quantity back
+                            $current_qty = isset($batch['so_luong_con_lai']) 
+                                ? floatval($batch['so_luong_con_lai']) 
+                                : 0;
+                            $batch['so_luong_con_lai'] = $current_qty + $item['so_luong_tra'];
+                            $restored = true;
+                            break;
+                        }
+                    }
+                    unset($batch);
+                }
+                
+                // If we couldn't find and restore to original batch, create a standardized new batch
+                if (!$restored) {
+                    // Get original import info for dates if available
+                    $ngay_san_xuat = null;
+                    $ngay_het_han = null;
+                    
+                    if ($nhaphang) {
+                        foreach ($nhaphang['hanghoa'] as $nh_item) {
+                            if ((string)$nh_item['id_hanghoa'] == (string)$item['id_hanghoa']) {
+                                $ngay_san_xuat = $nh_item['ngay_san_xuat'] ?? null;
+                                $ngay_het_han = $nh_item['ngay_het_han'] ?? null;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Create standardized batch
+                    $new_batch = [
+                        'id_nhap_hang' => $tra_hang['id_nhaphang'],
+                        'ma_nhap_hang' => $tra_hang['ma_nhap_hang'],
+                        'so_luong_nhap' => $item['so_luong_tra'],
+                        'so_luong_con_lai' => $item['so_luong_tra'],
+                        'ngay_san_xuat' => $ngay_san_xuat ?? new \MongoDB\BSON\UTCDateTime(Carbon::now()->getTimestamp() * 1000),
+                        'ngay_het_han' => $ngay_het_han ?? new \MongoDB\BSON\UTCDateTime(Carbon::now()->addYear()->getTimestamp() * 1000),
+                        'gia_von' => $item['don_gia'],
+                        'ghi_chu' => 'Hủy trả hàng NCC: ' . $tra_hang['ma_tra_hang'],
+                    ];
+                    $ds_lo_hang[] = $new_batch;
+                }
+                
+                $hang_hoa->ds_lo_hang = $ds_lo_hang;
                 $hang_hoa->save();
             }
         }

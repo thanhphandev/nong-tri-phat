@@ -178,14 +178,28 @@ class TraHangKhachController extends Controller
                     if ($hang_hoa) {
                         $hang_hoa->so_luong_ton += $so_luong_tra;
                         
-                        // Add to batch with COST PRICE for accurate inventory valuation
+                        // Parse ngay_san_xuat from input (d/m/Y format) or use current date
+                        $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
+                        try {
+                            $nsx_date = Carbon::createFromFormat('d/m/Y', $nsx_input)->startOfDay();
+                        } catch (\Exception $e) {
+                            $nsx_date = Carbon::now()->startOfDay();
+                        }
+                        
+                        // Calculate expiry date from so_thang or default 12 months
+                        $so_thang = isset($hh['so_thang']) && is_numeric($hh['so_thang']) ? intval($hh['so_thang']) : 12;
+                        $hsd_date = (clone $nsx_date)->addMonths($so_thang);
+                        
+                        // STANDARDIZED batch structure - same as NhapHang
                         $new_batch = [
-                            'ngay_san_xuat' => $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y'),
-                            'so_thang' => $hh['so_thang'] ?? 12,
-                            'so_luong' => $so_luong_tra,
-                            'gia_von' => $gia_von, // IMPORTANT: Cost price, not selling price
-                            'nguon_goc' => 'tra_hang_khach',
-                            'ma_tra_hang' => $ma_tra_hang,
+                            'id_nhap_hang' => null, // No import reference for returns
+                            'ma_nhap_hang' => $ma_tra_hang, // Use return code as reference
+                            'so_luong_nhap' => $so_luong_tra,
+                            'so_luong_con_lai' => $so_luong_tra,
+                            'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->getTimestamp() * 1000),
+                            'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->getTimestamp() * 1000),
+                            'gia_von' => $gia_von,
+                            'ghi_chu' => 'Trả hàng khách: ' . $ma_tra_hang,
                         ];
                         
                         $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
@@ -359,11 +373,18 @@ class TraHangKhachController extends Controller
                 // Reduce stock
                 $hang_hoa->so_luong_ton -= $item['so_luong_tra'];
                 
-                // Remove batch
+                // Remove batch by matching ghi_chu or ma_nhap_hang (return code)
+                $return_identifier = 'Trả hàng khách: ' . $tra_hang['ma_tra_hang'];
                 $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
                 $ds_lo_hang_new = [];
                 foreach ($ds_lo_hang as $batch) {
-                    if (!(isset($batch['ma_tra_hang']) && $batch['ma_tra_hang'] == $tra_hang['ma_tra_hang'])) {
+                    // Match by new ghi_chu field OR old ma_tra_hang field OR ma_nhap_hang
+                    $is_return_batch = 
+                        (isset($batch['ghi_chu']) && $batch['ghi_chu'] == $return_identifier) ||
+                        (isset($batch['ma_tra_hang']) && $batch['ma_tra_hang'] == $tra_hang['ma_tra_hang']) ||
+                        (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $tra_hang['ma_tra_hang']);
+                    
+                    if (!$is_return_batch) {
                         $ds_lo_hang_new[] = $batch;
                     }
                 }
