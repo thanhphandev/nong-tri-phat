@@ -78,49 +78,57 @@
                             <li class="has-submenu">
                                 <a href="#"><i class="icon-layers"></i> Danh mục<div class="arrow-down"></div></a>
                                 <ul class="submenu">
-                                    <li><a href="{{ env('APP_URL') }}admin/loai-hang">Loại hàng</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/don-vi-tinh">Đơn vị tính</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/loai-hang"><i class="fas fa-th-large text-purple"></i> Loại hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/don-vi-tinh"><i class="fas fa-ruler text-info"></i> Đơn vị tính</a></li>
                                     {{-- --<li><a href="{{ env('APP_URL') }}admin/nhom-hang">Nhóm hàng</a></li> --}}
-                                    <li><a href="{{ env('APP_URL') }}admin/hang-hoa">Hàng hóa</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/khach-hang">Khách hàng</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/nha-cung-cap">Nhà Cung cấp</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/hang-hoa"><i class="fas fa-box-open text-success"></i> Hàng hóa</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/khach-hang"><i class="fas fa-user-tie text-primary"></i> Khách hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/nha-cung-cap"><i class="fas fa-industry text-warning"></i> Nhà Cung cấp</a></li>
                                 </ul>
                             </li>
                             @endif
                             <li  class="has-submenu">
                                 <a href="#"><i class="fas fa-file-invoice-dollar"></i> Quản lý <div class="arrow-down"></div></a>
                                 <ul class="submenu">
-                                    <li><a href="{{ env('APP_URL') }}admin/nhap-hang">Nhập hàng</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/don-hang">Bán hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/nhap-hang"><i class="fas fa-truck-loading text-info"></i> Nhập hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/don-hang"><i class="fas fa-cash-register text-success"></i> Bán hàng</a></li>
 
                                 </ul>
                             </li>
                             <li class="has-submenu">
-                                <a href="#"><i class="fas fa-undo text-warning"></i> Trả hàng <div class="arrow-down"></div></a>
+                                <a href="#"><i class="fas fa-undo"></i> Trả hàng <div class="arrow-down"></div></a>
                                 <ul class="submenu">
                                     <li><a href="{{ env('APP_URL') }}admin/tra-hang-khach"><i class="fas fa-user-minus text-primary"></i> Trả hàng Khách</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/tra-hang-ncc"><i class="fas fa-truck-loading text-danger"></i> Trả hàng NCC</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/tra-hang-ncc"><i class="fas fa-truck text-danger"></i> Trả hàng NCC</a></li>
                                 </ul>
                             </li>
                             <li  class="has-submenu">
                                 <a href="#"><i class="fas fa-money-check-alt"></i> Công nợ <div class="arrow-down"></div></a>
                                 <ul class="submenu">
-                                    <li><a href="{{ env('APP_URL') }}admin/cong-no">Công nợ Khách hàng</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/cong-no-ncc">Công nợ Nhà Cung cấp</a></li>
-                                </ul>
+                                    <li><a href="{{ env('APP_URL') }}admin/cong-no"><i class="fas fa-file-invoice text-primary"></i> Công nợ Khách hàng</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/cong-no-ncc"><i class="fas fa-file-invoice-dollar text-danger"></i> Công nợ Nhà Cung cấp</a></li>
+                            </ul>
                             </li>
                             <li class="has-submenu">
-                                <a href="#"><i class="icon-chart"></i>Thống kê <div class="arrow-down"></div></a>
+                                <a href="#"><i class="fas fa-chart-pie"></i> Thống kê <div class="arrow-down"></div></a>
                                 <ul class="submenu">
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang"><i class="fas fa-shopping-cart text-success"></i> Thống kê Bán hàng</a></li>
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/nhap-hang"><i class="fas fa-truck text-info"></i> Thống kê Nhập hàng</a></li>
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/doanh-so"><i class="fas fa-chart-line text-primary"></i> Doanh số</a></li>
                                     <li><a href="{{ env('APP_URL') }}admin/thong-ke/ton-kho"><i class="fas fa-boxes text-warning"></i> Tồn kho</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/so-luong-hang-hoa"><i class="fas fa-list text-secondary"></i> Số lượng hàng hóa</a></li>
-                                    <li><a href="{{ env('APP_URL') }}admin/logs"><i class="fas fa-history text-danger"></i> Nhật ký hệ thống</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/thong-ke/so-luong-hang-hoa"><i class="fas fa-list-ol text-secondary"></i> Số lượng hàng hóa</a></li>
                                 </ul>
                             </li>
-                            {{--@endif--}}
+                            @if(in_array('Admin', Session::get('user.roles')))
+                            <li class="has-submenu">
+                                <a href="#"><i class="fas fa-cogs"></i> Hệ thống <div class="arrow-down"></div></a>
+                                <ul class="submenu">
+                                    <li><a href="{{ env('APP_URL') }}admin/user"><i class="fas fa-users text-primary"></i> Quản lý tài khoản</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/logs"><i class="fas fa-history text-danger"></i> Nhật ký hoạt động</a></li>
+                                    <li><a href="{{ env('APP_URL') }}admin/backup"><i class="fas fa-database text-success"></i> Backup dữ liệu</a></li>
+                                </ul>
+                            </li>
+                            @endif
                         </ul>
                         <!-- End navigation menu -->
                         <div class="clearfix"></div>

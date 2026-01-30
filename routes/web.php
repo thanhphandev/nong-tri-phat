@@ -139,4 +139,12 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('logs', 'LogController@index')->middleware('role:Admin');
     Route::get('logs/get-log/{id}', 'LogController@get_log')->middleware('role:Admin');
     Route::get('logs/datatable', 'LogController@datatable')->middleware('role:Admin');
+
+    // Backup Management
+    Route::get('backup', 'BackupController@index')->middleware('role:Admin');
+    Route::post('backup/create', 'BackupController@create')->middleware('role:Admin');
+    Route::get('backup/download/{filename}', 'BackupController@download')->middleware('role:Admin');
+    Route::post('backup/restore/{filename}', 'BackupController@restore')->middleware('role:Admin');
+    Route::delete('backup/delete/{filename}', 'BackupController@delete')->middleware('role:Admin');
+    Route::post('backup/upload', 'BackupController@upload')->middleware('role:Admin');
 });
