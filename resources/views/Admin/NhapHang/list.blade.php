@@ -44,8 +44,10 @@
 						@foreach($danhsach as $ds)
                         @php
                             $so_luong = 0;
+                            $so_luong_tra = 0;
                             foreach($ds['hanghoa'] as $hh) {
                                 $so_luong += $hh['so_luong'];
+                                $so_luong_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
                             }
                         @endphp
 						 <tr>   
@@ -55,9 +57,33 @@
                             <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_giao'],"d/m/Y H:i") }}</td>
                             <td class="text-center"><b>{{ $ds['ten_ncc'] }}</b></td>
 							<td class="text-right">
-                                <a href="{{ env('APP_URL') }}admin/nhap-hang/xem-hang-hoa/{{ $ds['_id'] }}" class="xem-hang-hoa" data-toggle="modal" data-target="#modalHangHoa">{{ $so_luong }}</a>
+                                <a href="{{ env('APP_URL') }}admin/nhap-hang/xem-hang-hoa/{{ $ds['_id'] }}" class="xem-hang-hoa" data-toggle="modal" data-target="#modalHangHoa">
+                                    {{ $so_luong }}
+                                    @if($so_luong_tra > 0)
+                                        <span class="text-danger" title="Đã trả">(-{{ number_format($so_luong_tra, 0, ',', '.') }})</span>
+                                    @endif
+                                </a>
                             </td>
-                            <td class="text-right">{{ number_format($ds['thanh_tien'],0,",",".") }}</td>
+                            <td class="text-right">
+                                {{ number_format($ds['thanh_tien'],0,",",".") }}
+                                @php
+                                    // Calculate refund value
+                                    $tien_tra = 0;
+                                    if ($so_luong_tra > 0) {
+                                        foreach($ds['hanghoa'] as $hh){
+                                            if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
+                                                $tien_tra += $hh['so_luong_tra'] * $hh['don_gia'];
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @if($tien_tra > 0)
+                                    <br>
+                                    <small class="text-success font-weight-bold" title="Thực chi (Sau khi trừ trả hàng)">
+                                        (Thực: {{ number_format($ds['thanh_tien'] - $tien_tra, 0, ',', '.') }})
+                                    </small>
+                                @endif
+                            </td>
                             <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 							<td class="text-center">
                                 <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}" title="Trả hàng NCC"><i class="fas fa-undo text-warning"></i></a>

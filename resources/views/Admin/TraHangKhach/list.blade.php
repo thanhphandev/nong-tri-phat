@@ -53,9 +53,9 @@
 							<td class="text-right"><span class="badge badge-danger">{{ number_format($ds['tong_tien_tra'], 0, ',', '.') }}</span></td>
                             <td>
                                 @if($ds['hinh_thuc_hoan'] == 'giam_no')
-                                    <span class="badge badge-info">Giảm nợ</span>
+                                    <span class="badge badge-info">Trừ công nợ</span>
                                 @elseif($ds['hinh_thuc_hoan'] == 'hoan_tien')
-                                    <span class="badge badge-success">Hoàn tiền</span>
+                                    <span class="badge badge-success">Hoàn tiền mặt</span>
                                 @else
                                     <span class="badge badge-warning">Đổi hàng</span>
                                 @endif

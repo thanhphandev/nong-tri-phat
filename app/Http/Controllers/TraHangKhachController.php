@@ -52,6 +52,26 @@ class TraHangKhachController extends Controller
         // Get customer info
         $khachhang = KhachHang::find($donhang['id_khachhang']);
         
+        // Populate Unit names (Optimized to avoid N+1)
+        $items = $donhang['hanghoa'];
+        $dvt_ids = array_filter(array_unique(array_column($items, 'id_donvitinh')));
+        
+        if (!empty($dvt_ids)) {
+            $units = \App\Models\DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) {
+                return (string) $item->_id;
+            });
+            
+            foreach ($items as &$item) {
+                $dvt_id = isset($item['id_donvitinh']) ? (string)$item['id_donvitinh'] : '';
+                if ($dvt_id && isset($units[$dvt_id])) {
+                    $item['donvitinh'] = ['ten' => $units[$dvt_id]->ten];
+                } else {
+                    $item['donvitinh'] = ['ten' => ''];
+                }
+            }
+        }
+        $donhang['hanghoa'] = $items;
+
         return view('Admin.TraHangKhach.add')->with(compact('donhang', 'khachhang'));
     }
 
@@ -233,6 +253,26 @@ class TraHangKhachController extends Controller
             
             $tra_hang->save();
 
+            // Update DonHang with returned quantities
+            $donhang_hh = $donhang['hanghoa'];
+            $updated_donhang = false;
+
+            foreach ($arr_hanghoa as $return_item) {
+                foreach ($donhang_hh as &$original_item) {
+                    if ((string)$original_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
+                        $current_return = isset($original_item['so_luong_tra']) ? floatval($original_item['so_luong_tra']) : 0;
+                        $original_item['so_luong_tra'] = $current_return + $return_item['so_luong_tra'];
+                        $updated_donhang = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($updated_donhang) {
+                $donhang->hanghoa = $donhang_hh;
+                $donhang->save();
+            }
+
             // Handle financial flow based on refund type
             $hinh_thuc = $data['hinh_thuc_hoan'] ?? 'giam_no';
             
@@ -242,30 +282,12 @@ class TraHangKhachController extends Controller
                 $tra_hang->save();
                 
             } else if ($hinh_thuc == 'hoan_tien') {
-                // Cash refund - Should record in SoQuy (not implemented yet)
-                // For now, still reduce debt - this creates negative balance = credit
-                $congno = new CongNo();
-                $congno->id_khachhang = $donhang['id_khachhang'];
-                $congno->id_donhang = ObjectController::ObjectId($donhang['_id']);
-                $congno->ma_don_hang = $donhang['ma_don_hang'];
-                $congno->ho_ten = $donhang['ho_ten'];
-                $congno->dien_thoai = $donhang['dien_thoai'];
-                $congno->dia_chi = $donhang['dia_chi'] ?? '';
-                $congno->email = $donhang['email'] ?? '';
-                $congno->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
-                $congno->tong_thanh_tien = $tong_tien_tra; 
-                $congno->ngay_gio = ObjectController::setDate();
-                $congno->loai_cong_no = 1; // THANH TOAN (reduces debt, can make it negative)
-                $congno->ghi_chu = 'Hoàn tiền trả hàng [' . $ma_tra_hang . '] - Khách nhận tiền mặt';
-                $congno->id_user = ObjectController::ObjectId($id_user);
-                $congno->save();
-                
-                $no_sau_tra = $no_truoc_tra - $tong_tien_tra;
-                $tra_hang->no_sau_tra = $no_sau_tra;
+                // Hoàn tiền: Khách nhận tiền mặt -> Không thay đổi công nợ
+                $tra_hang->no_sau_tra = $no_truoc_tra;
                 $tra_hang->save();
                 
             } else { // giam_no
-                // Reduce debt (default)
+                // Giảm nợ: Trừ vào số tiền khách đang nợ
                 $congno = new CongNo();
                 $congno->id_khachhang = $donhang['id_khachhang'];
                 $congno->id_donhang = ObjectController::ObjectId($donhang['_id']);
@@ -275,10 +297,11 @@ class TraHangKhachController extends Controller
                 $congno->dia_chi = $donhang['dia_chi'] ?? '';
                 $congno->email = $donhang['email'] ?? '';
                 $congno->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
+                // tong_thanh_tien > 0 trong loai_cong_no=1 nghĩa là SỐ TIỀN TRẢ/GIẢM
                 $congno->tong_thanh_tien = $tong_tien_tra;
                 $congno->ngay_gio = ObjectController::setDate();
-                $congno->loai_cong_no = 1; // THANH TOAN
-                $congno->ghi_chu = 'Trả hàng [' . $ma_tra_hang . '] - Giảm công nợ';
+                $congno->loai_cong_no = 1; // 1 = THANH TOAN/GIAM NO
+                $congno->ghi_chu = 'Trả hàng [' . $ma_tra_hang . '] - Trừ công nợ';
                 $congno->id_user = ObjectController::ObjectId($id_user);
                 $congno->save();
                 
@@ -321,7 +344,7 @@ class TraHangKhachController extends Controller
     /**
      * Delete return (admin only, revert all changes)
      */
-    function delete($id) {
+    function delete(Request $request, $id) {
         $tra_hang = TraHangKhach::find($id);
         
         if (!$tra_hang) {
@@ -347,6 +370,50 @@ class TraHangKhachController extends Controller
                 $hang_hoa->ds_lo_hang = $ds_lo_hang_new;
                 $hang_hoa->save();
             }
+        }
+
+        // Revert DonHang returned quantity
+        $donhang = DonHang::find($tra_hang['id_donhang']);
+        if ($donhang) {
+            $donhang_hh = $donhang['hanghoa'];
+            $updated_donhang = false;
+            foreach ($tra_hang['hanghoa'] as $return_item) {
+                foreach ($donhang_hh as &$original_item) {
+                    if ((string)$original_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
+                        $current_return = isset($original_item['so_luong_tra']) ? floatval($original_item['so_luong_tra']) : 0;
+                        $original_item['so_luong_tra'] = max(0, $current_return - $return_item['so_luong_tra']);
+                        $updated_donhang = true;
+                        break;
+                    }
+                }
+            }
+            if ($updated_donhang) {
+                $donhang->hanghoa = $donhang_hh;
+                $donhang->save();
+            }
+        }
+
+        // Revert CongNo if applicable
+        if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
+            // Find and delete the CongNo record created for this return
+            // Assuming we can identify it by ma_don_hang and time, or we should have saved ID.
+            // Since we didn't save ID, we create a REVERSE CongNo entry to balance it out.
+            // Or delete the specific log if possible.
+            // Better to create a compensating entry: "Hủy phiếu trả hàng"
+            
+            $congno = new CongNo();
+            $congno->id_khachhang = $tra_hang['id_khachhang'];
+            $congno->id_donhang = $tra_hang['id_donhang'];
+            $congno->ma_don_hang = $tra_hang['ma_don_hang'];
+            $congno->ho_ten = $tra_hang['ho_ten'];
+            $congno->dien_thoai = $tra_hang['dien_thoai'];
+            $congno->dia_chi = $tra_hang['dia_chi'];
+            $congno->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 0; // 0 = GHI NO (Increase debt back)
+            $congno->ghi_chu = 'Hủy phiếu trả hàng [' . $tra_hang['ma_tra_hang'] . ']';
+            $congno->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
+            $congno->save();
         }
 
         // Log and delete

@@ -44,8 +44,10 @@
 						@foreach($danhsach as $ds)
 							@php
 								$so_luong = 0;
+                                $so_luong_tra = 0;
 								foreach($ds['hanghoa'] as $hh){
 									$so_luong += $hh['so_luong'];
+                                    $so_luong_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
 								}
 							@endphp
 							<tr>
@@ -55,9 +57,31 @@
 								<td class="text-right">
 									<a href="{{ env('APP_URL') }}admin/don-hang/hang-hoa/{{ $ds['_id'] }}" class="getHangHoa" data-toggle="modal" data-target="#modalHangHoa">
 										{{ number_format($so_luong,0,",",".") }}
+                                        @if($so_luong_tra > 0)
+                                            <span class="text-danger" title="Đã trả">(-{{ number_format($so_luong_tra, 0, ',', '.') }})</span>
+                                        @endif
 									</a>
 								</td>
-								<td class="text-right">{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</td>
+								<td class="text-right">
+                                    {{ number_format($ds['tong_thanh_tien'],0,",",".") }}
+                                    @php
+                                        // Calculate refund value to display "Net Total"
+                                        $tien_tra = 0;
+                                        if ($so_luong_tra > 0) {
+                                            foreach($ds['hanghoa'] as $hh){
+                                                if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
+                                                    $tien_tra += $hh['so_luong_tra'] * $hh['don_gia'];
+                                                }
+                                            }
+                                        }
+                                    @endphp
+                                    @if($tien_tra > 0)
+                                        <br>
+                                        <small class="text-success font-weight-bold" title="Thực thu (Sau khi trừ trả hàng)">
+                                            (Thực: {{ number_format($ds['tong_thanh_tien'] - $tien_tra, 0, ',', '.') }})
+                                        </small>
+                                    @endif
+                                </td>
 								<td class="text-center">
                                     @php
 									   if($ds['tinh_trang'] == 0){                                            $tt = 'badge-info';
@@ -79,6 +103,7 @@
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 								</td>
 								<td class="text-center">
+                                    <a href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}" class="mr-2" title="Trả hàng"><i class="fas fa-undo text-warning"></i></a>
                                     <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print"></i></a>
                                     <a href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
                                 </td>

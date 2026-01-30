@@ -51,6 +51,26 @@ class TraHangNCCController extends Controller
         // Get supplier info
         $nhacungcap = NhaCungCap::find($nhaphang['id_nhacungcap']);
         
+        // Populate Unit names (Optimized to avoid N+1)
+        $items = $nhaphang['hanghoa'];
+        $dvt_ids = array_filter(array_unique(array_column($items, 'id_donvitinh')));
+        
+        if (!empty($dvt_ids)) {
+            $units = \App\Models\DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) {
+                return (string) $item->_id;
+            });
+            
+            foreach ($items as &$item) {
+                $dvt_id = isset($item['id_donvitinh']) ? (string)$item['id_donvitinh'] : '';
+                if ($dvt_id && isset($units[$dvt_id])) {
+                    $item['donvitinh'] = ['ten' => $units[$dvt_id]->ten];
+                } else {
+                    $item['donvitinh'] = ['ten' => ''];
+                }
+            }
+        }
+        $nhaphang['hanghoa'] = $items;
+
         return view('Admin.TraHangNCC.add')->with(compact('nhaphang', 'nhacungcap'));
     }
 
@@ -87,6 +107,40 @@ class TraHangNCCController extends Controller
         $tong_tien_tra = 0;
         $arr_hanghoa = [];
         
+        // Check history to prevent over-returning
+        $previous_returns = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($nhaphang['_id']))->get();
+
+        foreach ($data['hanghoa'] as $hh) {
+             if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
+                 $sl_tra = floatval($hh['so_luong_tra']);
+
+                 // Find original item
+                 $original_item = null;
+                 foreach ($nhaphang['hanghoa'] as $orig) {
+                     if ((string)$orig['id_hanghoa'] == (string)$hh['id_hanghoa']) {
+                         $original_item = $orig;
+                         break;
+                     }
+                 }
+                 
+                 if ($original_item) {
+                     $sl_da_tra = 0;
+                     foreach ($previous_returns as $p_ret) {
+                         foreach ($p_ret['hanghoa'] as $p_item) {
+                             if ((string)$p_item['id_hanghoa'] == (string)$hh['id_hanghoa']) {
+                                 $sl_da_tra += $p_item['so_luong_tra'];
+                             }
+                         }
+                     }
+                     
+                     if (($sl_da_tra + $sl_tra) > $original_item['so_luong']) {
+                         Session::flash('msg', 'Lỗi: Sản phẩm ' . $hh['ten'] . ' trả quá số lượng đã nhập! (Đã trả: '.$sl_da_tra.', Trả thêm: '.$sl_tra.', Gốc: '.$original_item['so_luong'].')');
+                         return redirect()->back();
+                     }
+                 }
+             }
+        }
+
         foreach ($data['hanghoa'] as $hh) {
             if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
                 $thanh_tien = $hh['so_luong_tra'] * $hh['don_gia'];
@@ -96,7 +150,7 @@ class TraHangNCCController extends Controller
                     'id_hanghoa' => ObjectController::ObjectId($hh['id_hanghoa']),
                     'ma_hang_hoa' => $hh['ma_hang_hoa'],
                     'ten' => $hh['ten'],
-                    'don_vi_tinh' => $hh['don_vi_tinh'],
+                    'don_vi_tinh' => $hh['don_vi_tinh'] ?? '',
                     'so_luong_tra' => floatval($hh['so_luong_tra']),
                     'don_gia' => floatval($hh['don_gia']),
                     'thanh_tien' => $thanh_tien,
@@ -137,14 +191,26 @@ class TraHangNCCController extends Controller
                             $new_batches[] = $batch;
                             continue;
                         }
-                        
-                        $batch_qty = $batch['so_luong'] ?? 0;
+
+                        // Handle BSON/Array structure inconsistencies
+                        $batch_qty = 0;
+                        if (isset($batch['so_luong_con_lai'])) {
+                            $batch_qty = floatval($batch['so_luong_con_lai']);
+                        } elseif (isset($batch['so_luong'])) { // Fallback
+                            $batch_qty = floatval($batch['so_luong']);
+                        }
+
                         if ($batch_qty <= $remaining) {
-                            // Remove entire batch
+                            // Consume entire batch
                             $remaining -= $batch_qty;
+                            // Do NOT add to new_batches -> Effectively removes it
                         } else {
                             // Partial deduction
-                            $batch['so_luong'] = $batch_qty - $remaining;
+                            $batch['so_luong_con_lai'] = $batch_qty - $remaining;
+                            // Ensure consistency
+                            if (isset($batch['so_luong'])) { 
+                                $batch['so_luong'] = $batch['so_luong_con_lai'];
+                            }
                             $new_batches[] = $batch;
                             $remaining = 0;
                         }
@@ -186,7 +252,7 @@ class TraHangNCCController extends Controller
         $tra_hang->save();
 
         // Update supplier debt - Create payment entry (reduce debt to supplier)
-        if ($data['hinh_thuc_hoan'] == 'giam_no' || $data['hinh_thuc_hoan'] == 'hoan_tien') {
+        if ($data['hinh_thuc_hoan'] == 'giam_no') {
             $congno = new CongNoNCC();
             $congno->id_nhacungcap = $nhaphang['id_nhacungcap'];
             $congno->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
@@ -197,9 +263,29 @@ class TraHangNCCController extends Controller
             $congno->tong_thanh_tien = $tong_tien_tra; // Positive = payment/credit
             $congno->ngay_gio = ObjectController::setDate();
             $congno->loai_cong_no = 1; // 1 = THANH TOAN (reduces our debt to supplier)
-            $congno->ghi_chu = 'Trả hàng NCC [' . $ma_tra_hang . '] - ' . ($data['hinh_thuc_hoan'] == 'hoan_tien' ? 'NCC hoàn tiền' : 'Giảm nợ');
+            $congno->ghi_chu = 'Trả hàng NCC [' . $ma_tra_hang . '] - Trừ công nợ';
             $congno->id_user = ObjectController::ObjectId($id_user);
             $congno->save();
+        }
+
+        // Update NhapHang with returned quantities
+        $nhaphang_hh = $nhaphang['hanghoa'];
+        $updated_nhaphang = false;
+
+        foreach ($arr_hanghoa as $return_item) {
+            foreach ($nhaphang_hh as &$original_item) {
+                if ((string)$original_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
+                    $current_return = isset($original_item['so_luong_tra']) ? floatval($original_item['so_luong_tra']) : 0;
+                    $original_item['so_luong_tra'] = $current_return + $return_item['so_luong_tra'];
+                    $updated_nhaphang = true;
+                    break;
+                }
+            }
+        }
+
+        if ($updated_nhaphang) {
+            $nhaphang->hanghoa = $nhaphang_hh;
+            $nhaphang->save();
         }
 
         // Log
@@ -226,7 +312,7 @@ class TraHangNCCController extends Controller
     /**
      * Delete return (admin only, not recommended in production)
      */
-    function delete($id) {
+    function delete(Request $request, $id) {
         $tra_hang = TraHangNCC::find($id);
         
         if (!$tra_hang) {
@@ -234,10 +320,78 @@ class TraHangNCCController extends Controller
             return redirect(env('APP_URL') . 'admin/tra-hang-ncc');
         }
 
-        // Note: Reverting supplier returns is complex and risky
-        // In production, consider disabling delete or requiring special approval
+        // 1. Revert Inventory (Add items back to stock)
+        // Note: For supplier return, we removed items. Now we must ADD them back.
+        // However, we don't know the exact original batch details perfectly if we didn't save them.
+        // But in recent logic, we just removed generally or specific batch.
+        // To keep it simple and safe: Add to a new "Hủy trả" batch or just increase quantity if possible.
+        // The safest is to add to a generic batch or "Tồn đầu" type, or fail strict batch tracking.
+        // Let's just add to so_luong_ton and create a "Restored" batch.
         
-        Session::flash('msg', 'Chức năng xóa phiếu trả hàng NCC cần được xem xét kỹ');
+        foreach ($tra_hang['hanghoa'] as $item) {
+            $hang_hoa = HangHoa::find($item['id_hanghoa']);
+            if ($hang_hoa) {
+                $hang_hoa->so_luong_ton += $item['so_luong_tra'];
+                
+                // create restored batch
+                $new_batch = [
+                    'ngay_san_xuat' => null,
+                    'so_thang' => 0,
+                    'so_luong_con_lai' => $item['so_luong_tra'],
+                    'so_luong' => $item['so_luong_tra'],
+                    'gia_von' => $item['don_gia'],
+                    'nguon_goc' => 'huy_tra_hang_ncc',
+                    'ma_tra_hang' => $tra_hang['ma_tra_hang'],
+                    'ngay_nhap' => ObjectController::setDate()
+                ];
+                $batches = $hang_hoa->ds_lo_hang ?? [];
+                $batches[] = $new_batch;
+                $hang_hoa->ds_lo_hang = $batches;
+                
+                $hang_hoa->save();
+            }
+        }
+
+        // 2. Revert NhapHang returned quantity
+        $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
+        if ($nhaphang) {
+            $nhaphang_hh = $nhaphang['hanghoa'];
+            $updated_nhaphang = false;
+            foreach ($tra_hang['hanghoa'] as $return_item) {
+                foreach ($nhaphang_hh as &$original_item) {
+                    if ((string)$original_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
+                        $current_return = isset($original_item['so_luong_tra']) ? floatval($original_item['so_luong_tra']) : 0;
+                        $original_item['so_luong_tra'] = max(0, $current_return - $return_item['so_luong_tra']);
+                        $updated_nhaphang = true;
+                        break;
+                    }
+                }
+            }
+            if ($updated_nhaphang) {
+                $nhaphang->hanghoa = $nhaphang_hh;
+                $nhaphang->save();
+            }
+        }
+
+        // 3. Revert CongNoNCC
+        if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
+            $congno = new CongNoNCC();
+            $congno->id_nhacungcap = $tra_hang['id_nhacungcap'];
+            $congno->id_nhaphang = $tra_hang['id_nhaphang'];
+            $congno->ma_nhap_hang = $tra_hang['ma_nhap_hang'];
+            $congno->ten_ncc = $tra_hang['ten_ncc'];
+            $congno->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 0; // 0 = GHI NO (Increase debt/liability back because we cancelled the payment/return)
+            $congno->ghi_chu = 'Hủy phiếu trả hàng NCC [' . $tra_hang['ma_tra_hang'] . ']';
+            $congno->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
+            $congno->save();
+        }
+
+        // 4. Delete Record
+        $tra_hang->delete();
+        
+        Session::flash('msg', 'Đã xóa phiếu trả hàng NCC và hoàn tác dữ liệu');
         return redirect(env('APP_URL') . 'admin/tra-hang-ncc');
     }
 }

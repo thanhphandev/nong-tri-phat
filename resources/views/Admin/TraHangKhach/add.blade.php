@@ -66,13 +66,22 @@
                                         <input type="hidden" name="hanghoa[{{ $key }}][ma_hang_hoa]" value="{{ $hh['ma'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][ten]" value="{{ $hh['ten'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][id_donvitinh]" value="{{ $hh['id_donvitinh'] ?? '' }}">
+                                        <input type="hidden" name="hanghoa[{{ $key }}][don_vi_tinh]" value="{{ $hh['donvitinh']['ten'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][don_gia]" value="{{ $hh['don_gia'] ?? 0 }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][ngay_san_xuat]" value="{{ $hh['ngay_san_xuat'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][so_thang]" value="{{ $hh['so_thang'] ?? 12 }}">
                                     </td>
                                     <td class="text-center">{{ $hh['donvitinh']['ten'] ?? '-' }}</td>
+                                    @php
+                                        $so_luong_mua = $hh['so_luong'] ?? 0;
+                                        $da_tra = $hh['so_luong_tra'] ?? 0;
+                                        $con_lai = $so_luong_mua - $da_tra;
+                                    @endphp
                                     <td class="text-right">
-                                        <span class="badge badge-info">{{ number_format($hh['so_luong'] ?? 0, 0) }}</span>
+                                        {{ number_format($so_luong_mua, 0) }}
+                                        @if($da_tra > 0)
+                                            <br><small class="text-danger">(Đã trả: {{ $da_tra }})</small>
+                                        @endif
                                     </td>
                                     <td class="text-right">{{ number_format($hh['don_gia'] ?? 0, 0, ',', '.') }}</td>
                                     <td class="text-center">
@@ -80,11 +89,12 @@
                                             name="hanghoa[{{ $key }}][so_luong_tra]" 
                                             class="form-control text-center so-luong-tra" 
                                             data-index="{{ $key }}"
-                                            data-max="{{ $hh['so_luong'] ?? 0 }}"
+                                            data-max="{{ $con_lai }}"
                                             data-price="{{ $hh['don_gia'] ?? 0 }}"
                                             min="0" 
-                                            max="{{ $hh['so_luong'] ?? 0 }}" 
+                                            max="{{ $con_lai }}" 
                                             value="0"
+                                            {{ $con_lai <= 0 ? 'disabled' : '' }}
                                             disabled>
                                     </td>
                                     <td>
@@ -122,9 +132,9 @@
                         <label class="control-label col-md-2 text-right">Hình thức hoàn <span class="text-danger">*</span></label>
                         <div class="col-md-4">
                             <select name="hinh_thuc_hoan" class="form-control" required>
-                                <option value="giam_no">Giảm công nợ</option>
-                                <option value="hoan_tien">Hoàn tiền mặt</option>
-                                <option value="doi_hang">Đổi hàng khác</option>
+                                <option value="giam_no">Trừ vào công nợ (Khách nợ/Mua chịu)</option>
+                                <option value="hoan_tien">Hoàn tiền mặt (Khách đã trả tiền)</option>
+                                <option value="doi_hang">Đổi hàng khác (Chỉ đổi sản phẩm)</option>
                             </select>
                         </div>
                         <label class="control-label col-md-2 text-right">Lý do chung</label>
