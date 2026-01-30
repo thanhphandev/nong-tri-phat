@@ -31,8 +31,9 @@ function addCart(path) {
                         tong_thanh_tien();
                         $("#id_khachhang").prop('disabled', true);
                         $("#updateCart").prop("disabled", false);
+
                         $("#id_khachhang_cart").val(id_khachhang);
-                        change_so_luong(); jQuery(".number").number(true, 0, ',', '.');
+                        change_so_luong(path); jQuery(".number").number(true, 0, ',', '.');
                         update_prices_by_mode();
                         // Reset input fields for next entry
                         $("#id_hanghoa").val(null).trigger('change');
@@ -108,7 +109,7 @@ function currencyFormat(num) {
     return num.toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.")
 }
 
-function change_so_luong() {
+function change_so_luong(path) {
     $(".cart-change").off('change').change(function () {
         var parent = $(this).parents(".item");
         var so_luong = parseFloat(parent.find(".so-luong").val());
@@ -128,6 +129,28 @@ function change_so_luong() {
         parent.find(".thanh-tien").val(thanh_tien);
         parent.find(".thanh-tien-show").html(currencyFormat(thanh_tien));
         tong_thanh_tien();
+
+        // Check Batch Usage
+        var id_hanghoa = parent.find("input[name='id_hanghoa_cart[]']").val();
+        if (path && id_hanghoa) {
+            $.get(path + "admin/don-hang/check-batch-usage", {
+                id_hanghoa: id_hanghoa,
+                so_luong: so_luong
+            }, function (resp) {
+                var warningName = parent.find("td:eq(1) .alert-warning");
+                if (resp.warning_info) {
+                    if (warningName.length > 0) {
+                        warningName.html(resp.warning_info);
+                    } else {
+                        parent.find("td:eq(1)").append('<div class="alert alert-warning p-1 m-1" style="font-size: 11px;">' + resp.warning_info + '</div>');
+                    }
+                } else {
+                    if (warningName.length > 0) {
+                        warningName.remove();
+                    }
+                }
+            });
+        }
     });
 }
 

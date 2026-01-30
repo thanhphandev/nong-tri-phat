@@ -272,7 +272,7 @@
         <div class="info-right">
             <div class="info-row">
                 <span class="info-label">Ngày Bán:</span>
-                {{ App\Http\Controllers\ObjectController::getDate($dh['ngay_ban'], "d/m/Y") }}
+                {{ App\Http\Controllers\ObjectController::getDate($dh['ngay_ban'], "d/m/Y H:i") }}
             </div>
         </div>
     </div>
@@ -308,24 +308,24 @@
         <table class="summary-table">
             <tr>
                 <td class="summary-label">Tổng cộng:</td>
-                <td class="summary-value text-bold">{{ number_format($tong_tien_don_nay, 0, ",", ".") }}</td>
+                <td class="summary-value text-bold">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
             </tr>
-            @if($thanh_toan_don_nay > 0)
+            @if(isset($dh['thanh_toan']) && $dh['thanh_toan'] > 0)
             <tr>
                 <td class="summary-label">Đã thanh toán:</td>
-                <td class="summary-value">{{ number_format($thanh_toan_don_nay, 0, ",", ".") }}</td>
+                <td class="summary-value">{{ number_format($dh['thanh_toan'], 0, ",", ".") }}</td>
             </tr>
             @endif
             <tr class="summary-total">
-                <td class="summary-label">Dư nợ hiện tại:</td>
-                <td class="summary-value">{{ number_format($no_moi, 0, ",", ".") }}</td>
+                <td class="summary-label">Còn lại:</td>
+                <td class="summary-value">{{ number_format($dh['tong_thanh_tien'] - $dh['thanh_toan'], 0, ",", ".") }}</td>
             </tr>
         </table>
     </div>
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($no_moi) }}.</em>
+        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh['tong_thanh_tien'] - $dh['thanh_toan']) }}.</em>
     </div>
 
     <!-- Signature Section -->

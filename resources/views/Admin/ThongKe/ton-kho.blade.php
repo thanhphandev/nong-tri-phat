@@ -1,8 +1,11 @@
 @extends('Admin.layout')
 @section('title', 'Tồn kho')
 @section('css')
-  <link href="{{ env('APP_URL') }}assets/libs/datatables/dataTables.bootstrap4.css" rel="stylesheet" type="text/css" />
-  @endsection
+    <link href="{{ env('APP_URL') }}assets/libs/datatables/dataTables.bootstrap4.css" rel="stylesheet" type="text/css" />
+    <link href="{{ env('APP_URL') }}assets/libs/datatables/responsive.bootstrap4.css" rel="stylesheet" type="text/css" />
+    <link href="{{ env('APP_URL') }}assets/libs/datatables/buttons.bootstrap4.css" rel="stylesheet" type="text/css" />
+    <link href="{{ env('APP_URL') }}assets/libs/datatables/select.bootstrap4.css" rel="stylesheet" type="text/css" />
+@endsection
 @section('body')
 <div class="card-box">
     <div class="row">
@@ -18,20 +21,6 @@
                 <p class="text-uppercase font-13 font-weight-bold">TỔNG HÀNG TỒN KHO</p>
             </div>
         </div>
-        {{-- <div class="col-md-6 col-xl-3">
-            <div class="card-box bg-primary widget-flat border-primary text-white">
-                <i class="fe-hard-drive"></i>
-                <h3 class="text-white">{{ number_format($count_loaihang,0,",",".") }}</h3>
-                <p class="text-uppercase font-13 font-weight-bold">Loại hàng</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="card-box bg-danger widget-flat border-danger text-white">
-                <i class="fab fa-amazon-pay"></i>
-                <h3 class="text-white">{{ number_format($count_hanghoa,0,",",".") }}</h3>
-                <p class="text-uppercase font-13 font-weight-bold">Hàng hóa</p>
-            </div>
-        </div> --}}
     </div>
     <div class="row">
         <div class="col-12 col-md-12">
@@ -51,13 +40,14 @@
                 <div class="tab-content">
                     <div class="tab-pane show active" id="home">
                         @if($tonkho)
-                        <table class="table table-border table-bordered table-striped table-hovered table-sm">
+                        <table id="table-tonkho" class="table table-bordered table-striped table-hover table-sm dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                             <thead>
                                 <tr>
                                     <th>STT</th>
                                     <th>Mã</th>
                                     <th>Tên hàng hóa</th>
                                     <th>Số lượng tồn</th>
+                                    <th>Chi tiết</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -66,9 +56,12 @@
                                     <td>{{ $ktk+1 }}</td>
                                     <td>{{ $vtk['ma'] }}</td>
                                     <td>{{ $vtk['ten'] }}</td>
-                                    <td class="text-right">
-                                        <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $vtk['id'] }}" class="xem-ton-kho" data-toggle="modal" data-target="#modalTonKho">
-                                            {{ number_format($vtk['so_luong_ton'],0,",",".") }}
+                                    <td class="text-right font-weight-bold text-primary">
+                                        {{ number_format($vtk['so_luong_ton'],0,",",".") }}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $vtk['id'] }}" class="btn btn-sm btn-info xem-ton-kho" data-toggle="modal" data-target="#modalTonKho" title="Xem chi tiết lô hàng">
+                                            <i class="fe-eye"></i> Xem lô
                                         </a>
                                     </td>
                                 </tr>
@@ -79,7 +72,7 @@
                     </div>
                     <div class="tab-pane" id="profile">
                         @if($hethang)
-                        <table class="table table-border table-bordered table-striped table-hovered table-sm">
+                        <table id="table-hethang" class="table table-bordered table-striped table-hover table-sm dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                             <thead>
                                 <tr>
                                     <th>STT</th>
@@ -94,7 +87,7 @@
                                     <td>{{ $ktk+1 }}</td>
                                     <td>{{ $vtk['ma'] }}</td>
                                     <td>{{ $vtk['ten'] }}</td>
-                                    <td class="text-right">{{ $vtk['so_luong_ton'] }}</td>
+                                    <td class="text-right text-danger font-weight-bold">{{ $vtk['so_luong_ton'] }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -127,16 +120,66 @@
 </div>
 @endsection
 @section('js')
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/jquery.dataTables.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/dataTables.responsive.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/responsive.bootstrap4.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/dataTables.buttons.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/buttons.bootstrap4.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/jszip/jszip.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/pdfmake/pdfmake.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/pdfmake/vfs_fonts.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/buttons.html5.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/datatables/buttons.print.min.js"></script>
+
     <script type="text/javascript">
         $(document).ready(function(){
-            $(".xem-ton-kho").click(function(e){
-                e.preventDefault(); // Prevent default link behavior
+            // Vietnamese translation
+            var tableOptions = {
+                language: {
+                    "sProcessing":   "Đang xử lý...",
+                    "sLengthMenu":   "Xem _MENU_ mục",
+                    "sZeroRecords":  "Không tìm thấy dòng nào phù hợp",
+                    "sInfo":         "Đang xem _START_ đến _END_ trong tổng số _TOTAL_ mục",
+                    "sInfoEmpty":    "Đang xem 0 đến 0 trong tổng số 0 mục",
+                    "sInfoFiltered": "(được lọc từ _MAX_ mục)",
+                    "sInfoPostFix":  "",
+                    "sSearch":       "Tìm kiếm:",
+                    "sUrl":          "",
+                    "oPaginate": {
+                        "sFirst":    "Đầu",
+                        "sPrevious": "Trước",
+                        "sNext":     "Tiếp",
+                        "sLast":     "Cuối"
+                    }
+                },
+                responsive: true,
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'excel',
+                        exportOptions: {
+                            columns: [0, 1, 2, 3]
+                        }
+                    },
+                    {
+                        extend: 'pdf',
+                        exportOptions: {
+                            columns: [0, 1, 2, 3]
+                        }
+                    }
+                ]
+            };
+
+            $('#table-tonkho').DataTable(tableOptions);
+            $('#table-hethang').DataTable(tableOptions);
+
+            $('body').on('click', '.xem-ton-kho', function(e){
+                e.preventDefault();
                 var _link = $(this).attr("href");
                 
-                // Clear previous content
                 $("#ListTonKho").html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x text-primary"></i><br>Đang tải dữ liệu...</div>');
                 
-                // Fetch new content
                 $.get(_link, function(data){
                     $("#ListTonKho").html(data);
                 });

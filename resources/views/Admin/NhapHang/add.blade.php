@@ -28,17 +28,11 @@
                     <label class="control-label col-md-2 text-right p-t-10">Nhà Cung cấp</label>
                     <div class="col-12 col-md-9">
                         <div class="input-group">
-                            <select name="id_nhacungcap" id="id_nhacungcap" class="form-control select2" data-placeholder="Chọn Nhà Cugn cấp" style="max-width:800px;">
+                            <select name="id_nhacungcap" id="id_nhacungcap" class="form-control select2" data-placeholder="Chọn Nhà Cung cấp" style="max-width:800px;">
                                 <option value=""></option>
                                 @if($nhacungcap)
                                     @foreach($nhacungcap as $ncc)
-                                    @php
-                                        $id_nhacungcap = App\Http\Controllers\ObjectController::ObjectId($ncc['_id']);
-                                        $congno_sum = App\Models\CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-                                        $thanhtoan_sum = App\Models\CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-                                        $nocu = $congno_sum - $thanhtoan_sum;
-                                    @endphp
-                                        <option value="{{ $ncc['_id'] }}" @if($ncc['_id'] == $id_nhacungcap) selected @endif>{{ $ncc['ma'] }} - {{ $ncc['ten'] }} @if($nocu > 0)- [Nợ cũ: {{ number_format($nocu,0,",",".") }}] @endif</option>
+                                        <option value="{{ $ncc['_id'] }}" {{ old('id_nhacungcap') == $ncc['_id'] ? 'selected' : '' }}>{{ $ncc['ma'] }} - {{ $ncc['ten'] }} @if($ncc->no_cu > 0)- [Nợ cũ: {{ number_format($ncc->no_cu,0,",",".") }}] @endif</option>
                                     @endforeach
                                 @endif
                             </select>

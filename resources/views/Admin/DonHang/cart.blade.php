@@ -7,7 +7,14 @@
 			<input type="hidden" name="id_hanghoa_cart[]" value="{{ $hh['_id'] }}" placeholder="">
 			{{ $hh['ma'] }}
 		</td>
-		<td>{{ $hh['ten'] }}</td>
+		<td>
+			{{ $hh['ten'] }}
+			@if(isset($warning_info) && $warning_info)
+				<div class="alert alert-warning p-1 m-1" style="font-size: 11px;">
+					{!! $warning_info !!}
+				</div>
+			@endif
+		</td>
 		<td class="text-center" align="center" style="width:100px;max-width:100px;">
 			<input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="Số lượng" class="so-luong cart-change form-control form-control-sm" min="1" max="{{ $hh['so_luong_ton'] }}" style="width:80px;">
 		</td>

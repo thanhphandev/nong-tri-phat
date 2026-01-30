@@ -219,8 +219,6 @@ class HangHoaController extends Controller
         echo json_encode($arr);
     }
 
-
-
     function xem_ton_kho(Request $request, $id = ''){
         $hh = HangHoa::find($id);
         $batches = [];
@@ -245,7 +243,7 @@ class HangHoaController extends Controller
         $searchQuery = trim($search);
         
         // 1. Optimize Selection: Only get needed fields
-        $query = HangHoa::select('_id', 'ma', 'ten', 'gia_si', 'gia_le', 'so_luong_ton', 'id_donvitinh');
+        $query = HangHoa::select('_id', 'ma', 'ten', 'gia_si', 'gia_le', 'so_luong_ton', 'gia_von', 'id_donvitinh');
 
         // 2. Search Heuristic for Performance
         // Case A: Exact Match (Barcode/Code) - Fastest
@@ -282,6 +280,7 @@ class HangHoaController extends Controller
                     'text' => $item->ma . ' - ' . $item->ten,
                     'ma' => $item->ma,
                     'ten' => $item->ten,
+                    'gia_von' => $item->gia_von,
                     'gia_si' => $item->gia_si,
                     'gia_le' => $item->gia_le,
                     'so_luong_ton' => $item->so_luong_ton,

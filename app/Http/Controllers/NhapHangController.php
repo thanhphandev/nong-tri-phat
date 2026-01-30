@@ -28,7 +28,53 @@ class NhapHangController extends Controller
     }
 
     function add(){
-        $nhacungcap = NhaCungCap::All();
+        $nhacungcap = NhaCungCap::orderBy('ten', 'asc')->get();
+        
+        // Aggregation to calculate debts efficiently
+        $balances = [];
+        try {
+            $raw_balances = CongNoNCC::raw(function($collection) {
+                return $collection->aggregate([
+                    [
+                        '$group' => [
+                            '_id' => '$id_nhacungcap',
+                            'debt_sum' => [
+                                '$sum' => [
+                                    '$cond' => [
+                                        ['$eq' => ['$loai_cong_no', 0]], 
+                                        '$tong_thanh_tien', 
+                                        0
+                                    ]
+                                ]
+                            ],
+                            'paid_sum' => [
+                                '$sum' => [
+                                    '$cond' => [
+                                        ['$eq' => ['$loai_cong_no', 1]], 
+                                        '$tong_thanh_tien', 
+                                        0
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]);
+            });
+
+            foreach($raw_balances as $b) {
+                $id = (string)$b['_id'];
+                $balances[$id] = (isset($b['debt_sum']) ? $b['debt_sum'] : 0) - (isset($b['paid_sum']) ? $b['paid_sum'] : 0);
+            }
+        } catch(\Exception $e) {
+            // Fallback or log if aggregation fails
+        }
+
+        // Attach to suppliers
+        foreach($nhacungcap as $ncc) {
+            $id = (string)$ncc->_id;
+            $ncc->no_cu = isset($balances[$id]) ? $balances[$id] : 0;
+        }
+
         return view('Admin.NhapHang.add')->with(compact('nhacungcap'));
     }
 
@@ -88,6 +134,7 @@ class NhapHangController extends Controller
                     'ngay_san_xuat' => $ngay_san_xuat,
                     'ngay_het_han' => $ngay_het_han,
                     'gia_von' => $don_gia,
+                    'ngay_nhap' => $ngay_nhap,
                 );
                 
                 $hanghoa_update = HangHoa::find($value);
