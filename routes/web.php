@@ -119,7 +119,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('tra-hang-khach/add/{id_donhang}', 'TraHangKhachController@add')->middleware('role:Admin,Manager');
     Route::post('tra-hang-khach/create', 'TraHangKhachController@create')->middleware('role:Admin,Manager');
     Route::get('tra-hang-khach/view/{id}', 'TraHangKhachController@view')->middleware('role:Admin,Manager');
-    Route::get('tra-hang-khach/delete/{id}', 'TraHangKhachController@delete')->middleware('role:Admin');
+    // Route::get('tra-hang-khach/delete/{id}', 'TraHangKhachController@delete')->middleware('role:Admin');
     Route::get('tra-hang-khach/in-phieu-tra-hang/{id}', 'TraHangKhachController@in_phieu_tra_hang')->middleware('role:Admin,Manager');
 
     // Supplier Returns
@@ -127,7 +127,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('tra-hang-ncc/add/{id_nhaphang}', 'TraHangNCCController@add')->middleware('role:Admin,Manager');
     Route::post('tra-hang-ncc/create', 'TraHangNCCController@create')->middleware('role:Admin,Manager');
     Route::get('tra-hang-ncc/view/{id}', 'TraHangNCCController@view')->middleware('role:Admin,Manager');
-    Route::get('tra-hang-ncc/delete/{id}', 'TraHangNCCController@delete')->middleware('role:Admin');
+    // Route::get('tra-hang-ncc/delete/{id}', 'TraHangNCCController@delete')->middleware('role:Admin');
     Route::get('tra-hang-ncc/in-phieu-tra-hang/{id}', 'TraHangNCCController@in_phieu_tra_hang')->middleware('role:Admin,Manager');
 
     Route::get('user', 'UserController@list')->middleware('role:Admin');

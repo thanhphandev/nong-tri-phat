@@ -153,13 +153,13 @@
             <div class="text-right">
                 <a href="{{ env('APP_URL') }}admin/tra-hang-ncc" class="btn btn-primary"><i class="fa fa-reply"></i> Quay lại</a>
                 <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/in-phieu-tra-hang/{{ $tra_hang['_id'] }}" target="_blank" class="btn btn-warning"><i class="fa fa-print"></i> In phiếu</a>
-                @if(in_array('Admin', Session::get('user.roles')))
+                <!-- @if(in_array('Admin', Session::get('user.roles')))
                     <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/delete/{{ $tra_hang['_id'] }}" 
                        class="btn btn-danger" 
                        onclick="return confirm('Xóa phiếu trả NCC sẽ hoàn tác toàn bộ thay đổi (tồn kho, công nợ). Chắc chắn xóa?');">
                         <i class="fa fa-trash"></i> Xóa phiếu
                     </a>
-                @endif
+                @endif -->
             </div>
     	</div>
     </div>

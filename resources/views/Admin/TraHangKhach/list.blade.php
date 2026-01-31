@@ -78,9 +78,9 @@
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/in-phieu-tra-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
                                         <div class="dropdown-divider"></div>
-                                        @if(in_array('Admin', Session::get('user.roles')))
+                                        <!-- @if(in_array('Admin', Session::get('user.roles')))
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/delete/{{ $ds['_id'] }}" onclick="return confirm('Xóa phiếu trả sẽ hoàn tác toàn bộ thay đổi. Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a>
-                                        @endif
+                                        @endif -->
                                     </div>
                                 </div>
                             </td>

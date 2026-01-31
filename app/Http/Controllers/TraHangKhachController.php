@@ -337,25 +337,6 @@ class TraHangKhachController extends Controller
             $tra_hang->nguoi_duyet = ObjectController::ObjectId($id_user);
             $tra_hang->ngay_duyet = ObjectController::setDate();
             $tra_hang->id_user = ObjectController::ObjectId($id_user);
-            
-            // Audit trail
-            $tra_hang->lich_su_thao_tac = [
-                [
-                    'user_id' => ObjectController::ObjectId($id_user),
-                    'user_name' => $user_name,
-                    'action' => 'tao_phieu',
-                    'time' => ObjectController::setDate(),
-                    'ghi_chu' => 'Tạo phiếu trả hàng'
-                ],
-                [
-                    'user_id' => ObjectController::ObjectId($id_user),
-                    'user_name' => $user_name,
-                    'action' => 'duyet',
-                    'time' => ObjectController::setDate(),
-                    'ghi_chu' => 'Tự động duyệt'
-                ]
-            ];
-            
             $tra_hang->save();
 
             // UPDATE DONHANG COLLECTION - Track returned quantity
@@ -438,7 +419,7 @@ class TraHangKhachController extends Controller
     }
 
     /**
-     * Delete return (admin only, revert all changes)
+     * Hiện không áp dụng xóa phiếu trả hàng
      */
     function delete(Request $request, $id) {
         $tra_hang = TraHangKhach::find($id);
