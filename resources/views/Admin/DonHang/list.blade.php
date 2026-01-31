@@ -158,44 +158,46 @@
     </div>
     </div>
 </div>
-<div class="modal fade" id="modalTraNo" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-md">
+<div class="modal fade" id="modalTraNo" tabindex="-1" role="dialog" aria-labelledby="modalTraNoLabel" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h4 class="modal-title" id="myModalLabel"><i class="fas fa-money-bill-wave"></i> TRẢ NỢ ĐƠN HÀNG</h4>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="{{ env('APP_URL') }}admin/don-hang/tra-no" id="TraNoForm">
-                    {{ csrf_field() }}
-                    <input type="hidden" name="id_donhang" id="tra_no_id_donhang" value="">
+            <form action="{{ env('APP_URL') }}admin/don-hang/tra-no" method="POST" id="TraNoForm">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTraNoLabel">Khách trả nợ đơn hàng - <span id="tra_no_ma"></span></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id_donhang" id="tra_no_id_donhang">
                     <input type="hidden" name="url" value="{{ Request::fullUrl() }}">
                     
-                    <div class="alert alert-info">
-                        <strong>Mã đơn:</strong> <span id="tra_no_ma"></span><br>
-                        <strong>Khách hàng:</strong> <span id="tra_no_khach"></span><br>
-                        <strong class="text-danger">Còn nợ:</strong> <span id="tra_no_con_no" class="text-danger font-weight-bold"></span> VND
-                    </div>
-                    
                     <div class="form-group">
-                        <label class="control-label">Số tiền trả <span class="text-danger">*</span></label>
-                        <input type="text" name="so_tien" id="so_tien_tra" class="form-control number" placeholder="Nhập số tiền trả" required style="text-align:right; font-size: 16px; font-weight: bold; color: #28a745;">
-                        <small class="form-text text-muted">Nhập số tiền khách hàng trả (tối đa bằng số nợ hiện tại)</small>
+                        <label>Khách hàng</label>
+                        <input type="text" class="form-control" id="tra_no_khach" readonly value="" style="font-weight: bold;">
                     </div>
-                    
+
                     <div class="form-group">
-                        <label class="control-label">Ghi chú</label>
-                        <textarea name="ghi_chu" id="ghi_chu_tra_no" class="form-control" rows="2" placeholder="Nhập ghi chú cho lần trả nợ này"></textarea>
+                        <label>Số nợ hiện tại</label>
+                        <input type="text" class="form-control" id="tra_no_con_no" readonly value="" style="font-weight: bold; color: #d9534f;">
                     </div>
-                    
-                    <div class="form-actions text-right">
-                        <button type="button" class="btn btn-light" data-dismiss="modal"><i class="fa fa-times"></i> Hủy</button>
-                        <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> XÁC NHẬN TRẢ</button>
+
+                    <div class="form-group">
+                        <label>Số tiền khách trả <span class="text-danger">*</span></label>
+                        <input type="text" name="so_tien" id="so_tien_tra" class="form-control money" required placeholder="Nhập số tiền khách trả" autocomplete="off">
                     </div>
-                </form>
-            </div>
+
+                    <div class="form-group">
+                        <label>Ghi chú</label>
+                        <textarea name="ghi_chu" id="ghi_chu_tra_no" class="form-control" rows="3" placeholder="Ghi chú thanh toán"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                     <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Xác nhận thanh toán</button>
+                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -229,31 +231,44 @@
                 
                 $("#tra_no_id_donhang").val(id);
                 $("#tra_no_ma").text(ma);
-                $("#tra_no_khach").text(khach);
-                $("#tra_no_con_no").text(conno.toLocaleString('vi-VN'));
-                $("#so_tien_tra").val(conno);
+                $("#tra_no_khach").val(khach);
+                $("#tra_no_con_no").val(new Intl.NumberFormat('vi-VN').format(conno));
+                
+                // Reset và gán giá trị mặc định
+                $("#so_tien_tra").val(new Intl.NumberFormat('vi-VN').format(conno));
                 $("#so_tien_tra").attr('data-max', conno);
-                jQuery(".number").number(true, 0, ',', '.');
+                $("#ghi_chu_tra_no").val('Khách trả nợ đơn ' + ma);
+                
+                $("#modalTraNo").modal("show");
             });
-            
-            // Validate payment amount
+
+            // Định dạng tiền tệ khi nhập (Giống trang Nhập hàng)
+            $('input.money').on('keyup', function() {
+                var val = $(this).val().replace(/[^0-9]/g, '');
+                if(val !== '') {
+                    val = new Intl.NumberFormat('vi-VN').format(parseInt(val));
+                    $(this).val(val);
+                }
+            });
+
+            // Kiểm tra trước khi submit
             $("#TraNoForm").submit(function(e){
-                var soTien = parseFloat($("#so_tien_tra").val().replace(/\./g, '').replace(/,/g, '.'));
+                var strSotien = $("#so_tien_tra").val().replace(/\./g, '');
+                var soTien = parseFloat(strSotien);
                 var maxAmount = parseFloat($("#so_tien_tra").attr('data-max'));
                 
                 if(isNaN(soTien) || soTien <= 0){
                     alert("Vui lòng nhập số tiền hợp lệ!");
-                    e.preventDefault();
                     return false;
                 }
                 
                 if(soTien > maxAmount){
-                    alert("Số tiền trả không được lớn hơn số nợ hiện tại!");
-                    e.preventDefault();
-                    return false;
+                    if(!confirm("Số tiền trả đang lớn hơn số nợ. Bạn vẫn muốn tiếp tục?")) {
+                        return false;
+                    }
                 }
                 
-                return confirm('Xác nhận khách hàng đã trả ' + soTien.toLocaleString('vi-VN') + ' VND?');
+                return confirm('Xác nhận khách hàng đã thanh toán ' + $("#so_tien_tra").val() + ' VND?');
             });
         	@if(Session::get('msg') && Session::get('msg'))
 	            $.toast({

@@ -325,7 +325,7 @@ class DonHangController extends Controller
         $con_no = $donhang['tong_thanh_tien'] - $da_thanh_toan;
         
         // Parse payment amount
-        $so_tien = ObjectController::convertStr2Number($data['so_tien']);
+        $so_tien = ObjectController::convertStr2Number_1($data['so_tien']);
         
         // Validate payment amount
         if ($so_tien <= 0) {

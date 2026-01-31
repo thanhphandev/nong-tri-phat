@@ -61,6 +61,11 @@
                             </td>
                             <td class="text-right">
                                 {{ number_format($ds['thanh_tien'],0,",",".") }}
+                                @if($ds['con_no'] > 0)
+                                    <br/><small class="text-danger">Nợ: {{ number_format($ds['con_no'],0,",",".") }}</small>
+                                @else
+                                    <br/><small class="text-success">Đã thanh toán</small>
+                                @endif
                             </td>
                             <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 							<td class="text-center">
@@ -72,6 +77,9 @@
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng NCC</a>
+                                        @if($ds['con_no'] > 0)
+                                            <a class="dropdown-item tra-no-btn" href="javascript:void(0)" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_nhap_hang'] }}" data-no="{{ $ds['con_no'] }}"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                        @endif
                                         <div class="dropdown-divider"></div>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a>
                                     </div>
@@ -101,6 +109,40 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="modalTraNo" tabindex="-1" role="dialog" aria-labelledby="modalTraNoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ env('APP_URL') }}admin/nhap-hang/tra-no" method="POST">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTraNoLabel">Trả nợ nhập hàng - <span id="lbl-ma-don"></span></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id_nhaphang" id="id_nhaphang">
+                    <div class="form-group">
+                        <label>Số nợ hiện tại</label>
+                        <input type="text" class="form-control" id="txt-con-no" readonly value="" style="font-weight: bold; color: #d9534f;">
+                    </div>
+                    <div class="form-group">
+                        <label>Số tiền trả <span class="text-danger">*</span></label>
+                        <input type="text" name="so_tien" class="form-control money" required placeholder="Nhập số tiền trả" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú</label>
+                        <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Ghi chú thanh toán"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                     <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Thanh toán</button>
+                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 @section('js')
 	<script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
@@ -122,6 +164,40 @@
                     loaderBg:"#3b98b5",icon:"info", hideAfter:3e3,stack:1,position:"top-right"
                 });
             @endif
+
+            $(".tra-no-btn").click(function(){
+                var id = $(this).data("id");
+                var ma = $(this).data("ma");
+                var no = $(this).data("no");
+
+                $("#id_nhaphang").val(id);
+                $("#lbl-ma-don").text(ma);
+                
+                // Format số nợ để hiển thị trong ô readonly
+                var formattedNo = new Intl.NumberFormat('vi-VN').format(no);
+                $("#txt-con-no").val(formattedNo);
+
+                $("input[name='so_tien']").val(formattedNo);
+                
+                $("input[name='so_tien']").attr('data-max', no);
+
+                $("textarea[name='ghi_chu']").val('Trả nợ đơn ' + ma);
+                $("#modalTraNo").modal("show");
+            });
+
+            // Thêm sự kiện tự động bôi đen khi click vào ô tiền (UX giúp sửa số tiền nhanh hơn)
+            $("input[name='so_tien']").on("focus", function() {
+                $(this).select();
+            });
+
+            // Simple money formatter for input
+            $('input.money').on('keyup', function() {
+                var val = $(this).val().replace(/[^0-9]/g, '');
+                if(val !== '') {
+                    val = new Intl.NumberFormat('vi-VN').format(parseInt(val));
+                    $(this).val(val);
+                }
+            });
         });
     </script>
 @endsection

@@ -99,6 +99,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('nhap-hang/delete/{id}', 'NhapHangController@delete')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/get-add-cart', 'NhapHangController@add_cart')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/xem-hang-hoa/{id}', 'NhapHangController@xem_hang_hoa')->middleware('role:Admin,Manager');
+    Route::post('nhap-hang/tra-no', 'NhapHangController@tra_no')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/in-phieu-nhap-hang/{id}', 'NhapHangController@in_phieu_nhap_hang')->middleware('role:Admin,Manager');
 
     Route::get('cong-no', 'CongNoController@list')->middleware('role:Admin,Manager');

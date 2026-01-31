@@ -23,6 +23,40 @@ class NhapHangController extends Controller
         } else {
             $danhsach = NhapHang::orderBy('ngay_nhap', 'desc')->paginate(30);
         }
+        
+        // Calculate Paid Amount for each item
+        $ids = $danhsach->pluck('_id')->toArray();
+        $ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $ids);
+        
+        $payments = [];
+        if(count($ids) > 0){
+            $raw_payments = CongNoNCC::raw(function($collection) use ($ids) {
+                return $collection->aggregate([
+                    [
+                        '$match' => [
+                            'id_nhaphang' => ['$in' => $ids],
+                            'loai_cong_no' => 1 // Payment
+                        ]
+                    ],
+                    [
+                        '$group' => [
+                            '_id' => '$id_nhaphang',
+                            'total_paid' => ['$sum' => '$tong_thanh_tien']
+                        ]
+                    ]
+                ]);
+            });
+            
+            foreach($raw_payments as $p){
+                $payments[(string)$p['_id']] = $p['total_paid'];
+            }
+        }
+        
+        foreach($danhsach as $ds){
+            $ds->da_thanh_toan = isset($payments[$ds->_id]) ? $payments[$ds->_id] : 0;
+            $ds->con_no = $ds->tong_thanh_tien - $ds->da_thanh_toan;
+        }
+
     	$hanghoa = HangHoa::All();
     	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords'));
     }
@@ -176,6 +210,8 @@ class NhapHangController extends Controller
         $db->ngay_nhap = $ngay_nhap;
         $db->tong_thanh_tien = doubleval($data['thanh_tien']);
         $db->thanh_tien = doubleval($data['thanh_tien']);
+        $thanh_toan = isset($data['thanh_toan']) ? ObjectController::convertStr2Number_1($data['thanh_toan']) : 0;
+        $db->da_thanh_toan = $thanh_toan;
         $db->id_user = ObjectController::ObjectId($id_user);
         $db->ghi_chu = isset($data['ghi_chu']) ? $data['ghi_chu'] : '';
         $db->save();
@@ -358,4 +394,82 @@ class NhapHangController extends Controller
 
     return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'no_cu', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi'));
 }
+    function tra_no(Request $request) {
+        $data = $request->all();
+        $validator = Validator::make($request->all(), [
+            'id_nhaphang' => 'required',
+            'so_tien' => 'required'
+        ]);
+        
+        if ($validator->fails()) {
+            Session::flash('msg', 'Vui lòng nhập đầy đủ thông tin');
+            return redirect()->back();
+        }
+        
+        $nhaphang = NhapHang::find($data['id_nhaphang']);
+        if (!$nhaphang) {
+            Session::flash('msg', 'Không tìm thấy phiếu nhập');
+            return redirect()->back();
+        }
+        
+        // Calculate Debt
+        $id_nh = ObjectController::ObjectId($nhaphang['_id']);
+        $da_thanh_toan = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $con_no = $nhaphang['tong_thanh_tien'] - $da_thanh_toan;
+        
+        $so_tien = ObjectController::convertStr2Number_1($data['so_tien']);
+        
+        if ($so_tien <= 0) {
+            Session::flash('msg', 'Số tiền trả phải lớn hơn 0');
+            return redirect()->back();
+        }
+        
+        // Allow distinct margin of error or strict check? Strict for debt.
+        if ($so_tien > $con_no) { 
+            Session::flash('msg', 'Số tiền trả (' . number_format($so_tien) . ') lớn hơn số nợ hiện tại (' . number_format($con_no, 0, ',', '.') . ' VND)');
+            return redirect()->back();
+        }
+        
+        $id_user = $request->session()->get('user._id');
+        
+        $congno = new CongNoNCC();
+        $congno->id_nhacungcap = ObjectController::ObjectId($nhaphang['id_nhacungcap']);
+        $congno->ma_ncc = $nhaphang['ma_ncc'];
+        $congno->ten_ncc = $nhaphang['ten_ncc'];
+        $congno->dien_thoai = $nhaphang['dien_thoai'];
+        $congno->dia_chi = $nhaphang['dia_chi'];
+        $congno->email = $nhaphang['email'];
+        $congno->id_nhaphang = $id_nh;
+        $congno->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
+        $congno->so_chung_tu = isset($nhaphang['so_chung_tu']) ? $nhaphang['so_chung_tu'] : '';
+        $congno->tong_thanh_tien = $so_tien;
+        $congno->ngay_gio = ObjectController::setDate();
+        $congno->loai_cong_no = 1; // Payment
+        $congno->ghi_chu = $data['ghi_chu'] ?? 'Trả nợ nhập hàng ' . $nhaphang['ma_nhap_hang'];
+        $congno->id_user = ObjectController::ObjectId($id_user);
+        $congno->save();
+        
+        // Update da_thanh_toan field in NhapHang
+        $nhaphang->da_thanh_toan = $da_thanh_toan + $so_tien;
+        $nhaphang->save();
+        
+        $querLog = array(
+            'action' => 'Trả nợ nhập hàng [' . $nhaphang['ma_nhap_hang'] . '] - Số tiền: ' . number_format($so_tien, 0, ',', '.') . ' VND',
+            'id_collection' => $congno->_id,
+            'collection' => 'cong_no_ncc',
+            'data' => $data
+        );
+        LogController::addLog($querLog);
+        
+        $con_no_sau = $con_no - $so_tien;
+        $msg = 'Thanh toán thành công ' . number_format($so_tien, 0, ',', '.') . ' VND';
+        if ($con_no_sau > 0) {
+            $msg .= '. Còn nợ: ' . number_format($con_no_sau, 0, ',', '.') . ' VND';
+        } else {
+            $msg .= '. Đã thanh toán hết nợ!';
+        }
+
+        Session::flash('msg', $msg);
+        return redirect()->back();
+    }
 }

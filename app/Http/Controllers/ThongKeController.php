@@ -254,6 +254,11 @@ class ThongKeController extends Controller
         $so_phieu_tra = 0;
         $so_san_pham_nhap = 0;
         $so_san_pham_tra = 0;
+
+        if(!$tu_ngay || !$den_ngay) {
+            $tu_ngay = Carbon::now()->subDays(30)->format('d/m/Y');
+            $den_ngay = Carbon::now()->format('d/m/Y');
+        }
         
         if($tu_ngay && $den_ngay) {
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
