@@ -16,7 +16,12 @@
             @foreach($batches as $batch)
             <tr>
                 <td>{{ isset($batch['ngay_nhap']) ? App\Http\Controllers\ObjectController::getDate($batch['ngay_nhap'], "d/m/Y") : '' }}</td>
-                <td class="font-weight-bold text-primary">{{ isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '' }}</td>
+                <td class="font-weight-bold text-primary">
+                    {{ isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '' }}
+                    @if(isset($batch['loai_lo']) && $batch['loai_lo'] == 'TRA_HANG')
+                        <br/><small class="text-danger font-italic"><i class="fas fa-undo"></i>Khách trả hàng</small>
+                    @endif
+                </td>
                 <td class="text-right">{{ isset($batch['gia_von']) ? number_format($batch['gia_von'],0,",",".") : 0 }}</td>
                 <td class="text-right">{{ isset($batch['so_luong_nhap']) ? number_format($batch['so_luong_nhap'],0,",",".") : 0 }}</td>
                 <td class="text-right font-weight-bold text-success">{{ isset($batch['so_luong_con_lai']) ? number_format($batch['so_luong_con_lai'],0,",",".") : 0 }}</td>

@@ -105,8 +105,14 @@ class TraHangKhachController extends Controller
         }
 
         try {
-            // Generate return code
-            $ma_tra_hang = strtoupper(uniqid());
+            // Generate return info early to link with inventory batches
+            $tra_hang = new TraHangKhach();
+            $tra_hang->_id = new \MongoDB\BSON\ObjectId(); // Pre-generate ID
+            $id_tra_hang = $tra_hang->_id;
+            
+            $ma_tra_hang = 'TRK-' . Carbon::now()->format('Ymd') . '-' . strtoupper(uniqid());
+            $tra_hang->ma_tra_hang = $ma_tra_hang;
+            
             // Calculate totals and validate quantities
             $tong_tien_tra = 0; // Selling price total (for refund)
             $tong_gia_von = 0;  // Cost price total (for inventory)
@@ -190,113 +196,40 @@ class TraHangKhachController extends Controller
                         'tinh_trang' => $hh['tinh_trang'] ?? 'Khác',
                     ];
 
-                    // Update inventory - Return to stock
+                    // Update inventory - Return to stock as NEW BATCH
                     $hang_hoa = HangHoa::find($hh['id_hanghoa']);
                     if ($hang_hoa) {
                         $hang_hoa->so_luong_ton += $so_luong_tra;
                         
-                        // REVERT TO EXACT BATCHES IF AVAILABLE
-                        $batches_used = $original_item['ds_lo_hang_su_dung'] ?? [];
-                        $remaining_to_return = $so_luong_tra;
-                        $batches_updated = false;
-
-                        if (!empty($batches_used)) {
-                            $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
-                            $new_batches_list = [];
-                            
-                            // Map existing batches for easy lookup
-                            $existing_batches_map = [];
-                            foreach ($ds_lo_hang as $key => $b) {
-                                $batch_key = (isset($b['ma_lo']) ? $b['ma_lo'] : '') . '_' . (isset($b['ma_nhap_hang']) ? $b['ma_nhap_hang'] : '');
-                                $existing_batches_map[$batch_key] = $key;
-                            }
-
-                            // Distribute return quantity back to used batches
-                            foreach ($batches_used as $used_batch) {
-                                if ($remaining_to_return <= 0) break;
-
-                                $used_qty = $used_batch['so_luong_tru'];
-                                $return_qty = min($remaining_to_return, $used_qty); // Don't return more than what was taken from this batch
-                                
-                                // Find this batch in current inventory
-                                $batch_key = (isset($used_batch['ma_lo']) ? $used_batch['ma_lo'] : '') . '_' . (isset($used_batch['ma_nhap_hang']) ? $used_batch['ma_nhap_hang'] : '');
-                                
-                                if (isset($existing_batches_map[$batch_key])) {
-                                    // Batch exists - increment quantity
-                                    $idx = $existing_batches_map[$batch_key];
-                                    $ds_lo_hang[$idx]['so_luong_con_lai'] += $return_qty;
-                                } else {
-                                    // Batch not found (empty/deleted) - Re-create it
-                                    $restored_batch = [
-                                        'id_nhap_hang' => $used_batch['id_nhap_hang'] ?? null,
-                                        'ma_nhap_hang' => $used_batch['ma_nhap_hang'] ?? '',
-                                        'ma_lo' => $used_batch['ma_lo'] ?? '',
-                                        'so_luong_nhap' => $used_batch['so_luong_tru'], // Original deducted amount as reference
-                                        'so_luong_con_lai' => $return_qty,
-                                        'ngay_san_xuat' => isset($used_batch['ngay_san_xuat']) ? $used_batch['ngay_san_xuat'] : null,
-                                        'ngay_het_han' => isset($used_batch['ngay_het_han']) ? $used_batch['ngay_het_han'] : null,
-                                        'gia_von' => $used_batch['gia_von'] ?? 0,
-                                        'ghi_chu' => 'Hoàn trả từ đơn: ' . $donhang['ma_don_hang'],
-                                    ];
-                                    
-                                    // If dates missing in used_batch, try to infer or leave null
-                                    if (!isset($restored_batch['ngay_het_han'])) {
-                                        // Fallback logic for dates similar to creating new batch...
-                                        // For now, let's assume if it was in used_batch, it has dates. 
-                                        // If not, we might create a generic batch or use current date logic
-                                        $nsx_date = Carbon::now()->startOfDay();
-                                        $hsd_date = (clone $nsx_date)->addMonths(12);
-                                        $restored_batch['ngay_san_xuat'] = new \MongoDB\BSON\UTCDateTime($nsx_date->getTimestamp() * 1000);
-                                        $restored_batch['ngay_het_han'] = new \MongoDB\BSON\UTCDateTime($hsd_date->getTimestamp() * 1000);
-                                    }
-
-                                    $ds_lo_hang[] = $restored_batch;
-                                }
-
-                                $remaining_to_return -= $return_qty;
-                            }
-                            
-                            $hang_hoa->ds_lo_hang = $ds_lo_hang;
-                            $hang_hoa->save();
-                            
-                            if ($remaining_to_return <= 0) {
-                                $batches_updated = true;
-                            }
+                        // Parse dates or infer
+                        $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
+                        try {
+                            $nsx_date = Carbon::createFromFormat('d/m/Y', $nsx_input)->startOfDay();
+                        } catch (\Exception $e) {
+                            $nsx_date = Carbon::now()->startOfDay();
                         }
-
-                        // FALLBACK: If tracking info missing or incomplete, create new batch (Old Logic)
-                        if (!$batches_updated || $remaining_to_return > 0) {
-                            $qty_to_create = ($batches_updated) ? $remaining_to_return : $so_luong_tra;
-                            
-                             // Parse ngay_san_xuat from input (d/m/Y format) or use current date
-                            $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
-                            try {
-                                $nsx_date = Carbon::createFromFormat('d/m/Y', $nsx_input)->startOfDay();
-                            } catch (\Exception $e) {
-                                $nsx_date = Carbon::now()->startOfDay();
-                            }
-                            
-                            // Calculate expiry date from so_thang or default 12 months
-                            $so_thang = isset($hh['so_thang']) && is_numeric($hh['so_thang']) ? intval($hh['so_thang']) : 12;
-                            $hsd_date = (clone $nsx_date)->addMonths($so_thang);
-                            
-                            // STANDARDIZED batch structure - same as NhapHang
-                            $new_batch = [
-                                'id_nhap_hang' => null, // No import reference for returns
-                                'ma_nhap_hang' => $ma_tra_hang, // Use return code as reference
-                                'so_luong_nhap' => $qty_to_create,
-                                'so_luong_con_lai' => $qty_to_create,
-                                'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->getTimestamp() * 1000),
-                                'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->getTimestamp() * 1000),
-                                'gia_von' => $gia_von,
-                                'ghi_chu' => 'Trả hàng khách: ' . $ma_tra_hang,
-                            ];
-                            
-                            $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
-                            $ds_lo_hang[] = $new_batch;
-                            $hang_hoa->ds_lo_hang = $ds_lo_hang;
-                            $hang_hoa->save();
-                        }
+                        
+                        $so_thang = isset($hh['so_thang']) && is_numeric($hh['so_thang']) ? intval($hh['so_thang']) : 12;
+                        $hsd_date = (clone $nsx_date)->addMonths($so_thang);
+                        
+                        // Create distinct batch for this return
+                        $new_batch = [
+                            'ma_nhap_hang' => $ma_tra_hang,
+                            'loai_lo' => 'TRA_HANG',
+                            'so_luong_nhap' => $so_luong_tra,
+                            'so_luong_con_lai' => $so_luong_tra,
+                            'nguon_goc_id' => $id_tra_hang,
+                            'gia_von' => $gia_von,
+                            'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(Carbon::now()->timestamp * 1000),
+                            'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->timestamp * 1000),
+                            'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->timestamp * 1000),
+                            'ghi_chu' => 'Hoàn trả từ đơn: ' . $donhang['ma_don_hang'],
+                        ];
+                        
+                        $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
+                        $ds_lo_hang[] = $new_batch;
+                        $hang_hoa->ds_lo_hang = $ds_lo_hang;
+                        $hang_hoa->save();
                     }
                 }
             }
@@ -312,12 +245,10 @@ class TraHangKhachController extends Controller
             $no_cu_giam = CongNo::where('id_khachhang', $id_kh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
             $no_truoc_tra = $no_cu_tang - $no_cu_giam;
             
-            // Create return record
+            // Create return record (Using the pre-instantiated object)
             $id_user = $request->session()->get('user._id');
-            $user_name = $request->session()->get('user.name');
             
-            $tra_hang = new TraHangKhach();
-            $tra_hang->ma_tra_hang = $ma_tra_hang;
+            //$tra_hang->ma_tra_hang = $ma_tra_hang; // Already set
             $tra_hang->id_donhang = ObjectController::ObjectId($donhang['_id']);
             $tra_hang->ma_don_hang = $donhang['ma_don_hang'];
             $tra_hang->id_khachhang = $donhang['id_khachhang'];
@@ -389,7 +320,7 @@ class TraHangKhachController extends Controller
 
             // Log
             $querLog = [
-                'action' => 'Trả hàng khách [' . $ma_tra_hang . '] - Đơn: ' . $donhang['ma_don_hang'] . ' - Giá trị: ' . number_format($tong_tien_tra, 0, ',', '.') . ' - Giá vốn: ' . number_format($tong_gia_von, 0, ',', '.'),
+                'action' => 'Trả hàng khách [' . $ma_tra_hang . '] - Đơn: ' . $donhang['ma_don_hang'] . ' - Giá trị: ' . number_format($tong_tien_tra, 0, ',', '.') . ' - Giá vốn: ' . number_format($tong_gia_von, 0, ',', '.'). ' - Hinh thuc: ' . $hinh_thuc,
                 'id_collection' => $tra_hang->_id,
                 'collection' => 'tra_hang_khach',
                 'data' => $data

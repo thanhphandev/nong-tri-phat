@@ -107,12 +107,41 @@ class DonHangController extends Controller
                                 $sl_da_tru += $qty_deducted_from_batch;
                             }
                         }
-                        if(isset($batch['so_luong_con_lai']) && intval($batch['so_luong_con_lai']) > 0){
-                            $new_batches[] = $batch;
-                        }
+                        // if(isset($batch['so_luong_con_lai']) && intval($batch['so_luong_con_lai']) > 0){
+                        // }
+                        $new_batches[] = $batch;
                     }
                     
                     // Update Product
+                    // Limit to 50 records (Prioritize Active Batches)
+                    $active_batches = [];
+                    $inactive_batches = [];
+                    foreach($new_batches as $b){
+                        if(isset($b['so_luong_con_lai']) && intval($b['so_luong_con_lai']) > 0){
+                            $active_batches[] = $b;
+                        } else {
+                            $inactive_batches[] = $b;
+                        }
+                    }
+
+                    if(count($active_batches) < 50){
+                        $needed = 50 - count($active_batches);
+                        // Take the ones with latest expiry (end of sorted inactive list)
+                        $taken_inactive = array_slice($inactive_batches, -$needed);
+                        $final_batches = array_merge($taken_inactive, $active_batches);
+                        
+                        // Re-sort checks
+                        usort($final_batches, function($a, $b) {
+                            $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                            $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                            return $t1 - $t2;
+                        });
+                        $new_batches = $final_batches;
+                    } else {
+                        // If we have > 50 active batches, keep them all to ensure stock accuracy
+                        $new_batches = $active_batches;
+                    }
+
                     $hanghoa_db->ds_lo_hang = $new_batches;
                     $current_total_stock = 0;
                     foreach($new_batches as $b){
