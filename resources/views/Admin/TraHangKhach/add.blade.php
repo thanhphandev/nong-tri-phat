@@ -42,20 +42,28 @@
                         <table class="table table-bordered table-hover" id="ProductsTable">
                             <thead class="bg-primary text-white">
                                 <tr>
-                                    <th width="5%" class="text-center">
+                                    <th width="4%" class="text-center">
                                         <input type="checkbox" id="check_all" title="Chọn tất cả">
                                     </th>
-                                    <th width="25%">Sản phẩm</th>
-                                    <th width="10%" class="text-center">ĐVT</th>
-                                    <th width="10%" class="text-right">SL đã mua</th>
-                                    <th width="12%" class="text-right">Đơn giá</th>
-                                    <th width="12%" class="text-center">SL trả</th>
-                                    <th width="13%" class="text-center">Tình trạng</th>
-                                    <th width="13%">Lý do</th>
+                                    <th width="18%">Sản phẩm</th>
+                                    <th width="5%" class="text-center">ĐVT</th>
+                                    <th width="7%" class="text-right">SL mua</th>
+                                    <th width="9%" class="text-right">Giá gốc</th>
+                                    <th width="15%" class="text-right">Giá trả <i class="fas fa-edit" title="Có thể điều chỉnh"></i></th>
+                                    <th width="10%" class="text-center">SL trả</th>
+                                    <th width="10%" class="text-center">Thành tiền</th>
+                                    <th width="10%" class="text-center">Tình trạng</th>
+                                    <th width="12%">Lý do</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($donhang['hanghoa'] as $key => $hh)
+                                @php
+                                    $so_luong_mua = $hh['so_luong'] ?? 0;
+                                    $da_tra = $hh['so_luong_tra'] ?? 0;
+                                    $con_lai = $so_luong_mua - $da_tra;
+                                    $don_gia_goc = $hh['don_gia'] ?? 0;
+                                @endphp
                                 <tr class="product-row">
                                     <td class="text-center">
                                         <input type="checkbox" class="product-checkbox" data-index="{{ $key }}">
@@ -67,35 +75,55 @@
                                         <input type="hidden" name="hanghoa[{{ $key }}][ten]" value="{{ $hh['ten'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][id_donvitinh]" value="{{ $hh['id_donvitinh'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][don_vi_tinh]" value="{{ $hh['donvitinh']['ten'] ?? '' }}">
-                                        <input type="hidden" name="hanghoa[{{ $key }}][don_gia]" value="{{ $hh['don_gia'] ?? 0 }}">
+                                        <input type="hidden" name="hanghoa[{{ $key }}][don_gia_goc]" value="{{ $don_gia_goc }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][ngay_san_xuat]" value="{{ $hh['ngay_san_xuat'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][so_thang]" value="{{ $hh['so_thang'] ?? 12 }}">
                                     </td>
                                     <td class="text-center">{{ $hh['donvitinh']['ten'] ?? '-' }}</td>
-                                    @php
-                                        $so_luong_mua = $hh['so_luong'] ?? 0;
-                                        $da_tra = $hh['so_luong_tra'] ?? 0;
-                                        $con_lai = $so_luong_mua - $da_tra;
-                                    @endphp
                                     <td class="text-right">
                                         {{ number_format($so_luong_mua, 0) }}
                                         @if($da_tra > 0)
                                             <br><small class="text-danger">(Đã trả: {{ $da_tra }})</small>
                                         @endif
                                     </td>
-                                    <td class="text-right">{{ number_format($hh['don_gia'] ?? 0, 0, ',', '.') }}</td>
+                                    <td class="text-right">
+                                        <span class="gia-goc">{{ number_format($don_gia_goc, 0, ',', '.') }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                name="hanghoa[{{ $key }}][don_gia]" 
+                                                class="form-control text-right don-gia-tra" 
+                                                style="font-size: 16px; font-weight: bold; color: #007bff;"
+                                                data-index="{{ $key }}"
+                                                data-gia-goc="{{ $don_gia_goc }}"
+                                                value="{{ $don_gia_goc }}"
+                                                min="0"
+                                                step="1000"
+                                                disabled>
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-outline-secondary btn-reset-price" data-index="{{ $key }}" title="Khôi phục giá gốc" disabled>
+                                                    <i class="fas fa-undo"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted ty-le-hoan font-weight-bold" style="font-size: 13px;" data-index="{{ $key }}">100%</small>
+                                    </td>
                                     <td class="text-center">
                                         <input type="number" 
                                             name="hanghoa[{{ $key }}][so_luong_tra]" 
                                             class="form-control text-center so-luong-tra" 
+                                            style="font-size: 16px; font-weight: bold; color: #dc3545;"
                                             data-index="{{ $key }}"
                                             data-max="{{ $con_lai }}"
-                                            data-price="{{ $hh['don_gia'] ?? 0 }}"
                                             min="0" 
                                             max="{{ $con_lai }}" 
                                             value="0"
                                             {{ $con_lai <= 0 ? 'disabled' : '' }}
                                             disabled>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong class="thanh-tien text-success" data-index="{{ $key }}">0</strong>
                                     </td>
                                     <td>
                                         <select name="hanghoa[{{ $key }}][tinh_trang]" class="form-control form-control-sm" disabled>
@@ -108,15 +136,15 @@
                                         </select>
                                     </td>
                                     <td>
-                                        <input type="text" name="hanghoa[{{ $key }}][ly_do_tra]" class="form-control form-control-sm" placeholder="Lý do chi tiết" disabled>
+                                        <input type="text" name="hanghoa[{{ $key }}][ly_do_tra]" class="form-control form-control-sm" placeholder="Lý do" disabled>
                                     </td>
                                 </tr>
                                 @endforeach
                             </tbody>
                             <tfoot>
                                 <tr class="bg-light font-weight-bold">
-                                    <td colspan="5" class="text-right">TỔNG TIỀN TRẢ:</td>
-                                    <td colspan="3" class="text-right">
+                                    <td colspan="7" class="text-right">TỔNG TIỀN TRẢ:</td>
+                                    <td colspan="3" class="text-left">
                                         <span id="tong-tien-tra" class="text-danger" style="font-size: 18px;">0</span> VND
                                     </td>
                                 </tr>
@@ -134,7 +162,6 @@
                             <select name="hinh_thuc_hoan" class="form-control" required>
                                 <option value="giam_no">Trừ vào công nợ (Khách nợ/Mua chịu)</option>
                                 <option value="hoan_tien">Hoàn tiền mặt (Khách đã trả tiền)</option>
-                                <option value="doi_hang">Đổi hàng khác (Chỉ đổi sản phẩm)</option>
                             </select>
                         </div>
                         <label class="control-label col-md-2 text-right">Lý do chung</label>
@@ -184,6 +211,8 @@
                 
                 // Enable/disable inputs
                 row.find('input.so-luong-tra').prop('disabled', !isChecked);
+                row.find('input.don-gia-tra').prop('disabled', !isChecked);
+                row.find('.btn-reset-price').prop('disabled', !isChecked);
                 row.find('select').prop('disabled', !isChecked);
                 row.find('input[type="text"]').prop('disabled', !isChecked);
                 
@@ -191,10 +220,23 @@
                     // Auto-fill max quantity when checked
                     var maxQty = row.find('.so-luong-tra').data('max');
                     row.find('.so-luong-tra').val(maxQty);
+                    // Reset price to original
+                    var giaGoc = row.find('.don-gia-tra').data('gia-goc');
+                    row.find('.don-gia-tra').val(giaGoc);
+                    updateRowCalculation(row);
                 } else {
                     row.find('.so-luong-tra').val(0);
+                    row.find('.thanh-tien').text('0');
+                    row.find('.ty-le-hoan').text('100%').removeClass('text-warning text-danger');
                 }
                 
+                calculateTotal();
+            });
+
+            // Price change - update percentage and subtotal
+            $(".don-gia-tra").on('input', function(){
+                var row = $(this).closest('tr');
+                updateRowCalculation(row);
                 calculateTotal();
             });
 
@@ -208,8 +250,48 @@
                     alert('Số lượng trả không được lớn hơn số lượng đã mua!');
                 }
                 
+                var row = $(this).closest('tr');
+                updateRowCalculation(row);
                 calculateTotal();
             });
+
+            // Reset price button
+            $(".btn-reset-price").click(function(){
+                var index = $(this).data('index');
+                var row = $(this).closest('tr');
+                var priceInput = row.find('.don-gia-tra');
+                var giaGoc = priceInput.data('gia-goc');
+                priceInput.val(giaGoc);
+                updateRowCalculation(row);
+                calculateTotal();
+            });
+
+            // Update row calculation (percentage + subtotal)
+            function updateRowCalculation(row) {
+                var priceInput = row.find('.don-gia-tra');
+                var qtyInput = row.find('.so-luong-tra');
+                var giaGoc = parseFloat(priceInput.data('gia-goc')) || 0;
+                var giaTra = parseFloat(priceInput.val()) || 0;
+                var soLuong = parseFloat(qtyInput.val()) || 0;
+                
+                // Calculate percentage
+                var tyLe = giaGoc > 0 ? Math.round((giaTra / giaGoc) * 100) : 100;
+                var tyLeSpan = row.find('.ty-le-hoan');
+                tyLeSpan.text(tyLe + '%');
+                
+                // Color coding for percentage
+                if (tyLe < 100 && tyLe >= 50) {
+                    tyLeSpan.removeClass('text-muted text-danger').addClass('text-warning');
+                } else if (tyLe < 50) {
+                    tyLeSpan.removeClass('text-muted text-warning').addClass('text-danger');
+                } else {
+                    tyLeSpan.removeClass('text-warning text-danger').addClass('text-muted');
+                }
+                
+                // Calculate subtotal
+                var thanhTien = giaTra * soLuong;
+                row.find('.thanh-tien').text(thanhTien.toLocaleString('vi-VN'));
+            }
 
             // Calculate total
             function calculateTotal() {
@@ -219,7 +301,8 @@
                 $('.so-luong-tra').each(function(){
                     if (!$(this).prop('disabled')) {
                         var qty = parseFloat($(this).val()) || 0;
-                        var price = parseFloat($(this).data('price')) || 0;
+                        var row = $(this).closest('tr');
+                        var price = parseFloat(row.find('.don-gia-tra').val()) || 0;
                         if (qty > 0) {
                             total += qty * price;
                             hasReturn = true;
@@ -247,6 +330,14 @@
                             var tinhTrang = row.find('select[name*="tinh_trang"]').val();
                             if (!tinhTrang) {
                                 alert('Vui lòng chọn tình trạng cho sản phẩm: ' + row.find('strong').text());
+                                isValid = false;
+                                return false;
+                            }
+
+                            // Validate price
+                            var price = parseFloat(row.find('.don-gia-tra').val()) || 0;
+                            if (price <= 0) {
+                                alert('Giá trả phải lớn hơn 0 cho sản phẩm: ' + row.find('strong').text());
                                 isValid = false;
                                 return false;
                             }

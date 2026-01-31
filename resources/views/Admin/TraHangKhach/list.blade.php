@@ -45,7 +45,7 @@
 					<tbody>
 						@foreach($danhsach as $ds)
 						<tr>
-							<td><b class="text-primary">{{ $ds['ma_tra_hang'] }}</b></td>
+							<td><a href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $ds['_id'] }}"><b class="text-primary">{{ $ds['ma_tra_hang'] }}</b></a></td>
 							<td>{{ $ds['ma_don_hang'] }}</td>
                             <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_tra'], "d/m/Y H:i") }}</td>
 							<td>{{ $ds['ho_ten'] }}</td>
@@ -70,10 +70,19 @@
                                 @endif
                             </td>
 							<td class="text-center">
-                                <a href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $ds['_id'] }}" title="Xem chi tiết"><i class="fas fa-eye text-info"></i></a>
-                                @if(in_array('Admin', Session::get('user.roles')))
-                                    <a href="{{ env('APP_URL') }}admin/tra-hang-khach/delete/{{ $ds['_id'] }}" onclick="return confirm('Xóa phiếu trả sẽ hoàn tác toàn bộ thay đổi. Chắc chắn xóa?');" title="Xóa"><i class="fa fa-trash text-danger"></i></a>
-                                @endif
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fa fa-cogs"></i> Tác vụ
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/in-phieu-tra-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
+                                        <div class="dropdown-divider"></div>
+                                        @if(in_array('Admin', Session::get('user.roles')))
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/delete/{{ $ds['_id'] }}" onclick="return confirm('Xóa phiếu trả sẽ hoàn tác toàn bộ thay đổi. Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a>
+                                        @endif
+                                    </div>
+                                </div>
                             </td>
 						</tr>
 						@endforeach

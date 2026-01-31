@@ -45,10 +45,9 @@ class TraHangKhach extends Eloquent
      * tong_tien_tra: Number (total SELLING price value to refund customer)
      * tong_gia_von: Number (total COST value for inventory)
      * 
-     * hinh_thuc_hoan: String (giam_no/hoan_tien/doi_hang)
+     * hinh_thuc_hoan: String (giam_no/hoan_tien)
      *   - giam_no: Reduce customer debt (if debt > 0)
      *   - hoan_tien: Cash refund (record in SoQuy as Chi phieu)
-     *   - doi_hang: Exchange for other products (no cash/debt impact)
      * 
      * so_tien_hoan: Number (actual refund amount)
      * no_truoc_tra: Number (customer debt BEFORE this return)

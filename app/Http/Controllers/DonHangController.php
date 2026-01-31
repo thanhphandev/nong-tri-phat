@@ -134,7 +134,6 @@ class DonHangController extends Controller
                     'chiet_khau' => $chiet_khau, 
                     'thanh_tien' => $thanh_tien,
                     'gia_von_thuc_te' => $tong_gia_von_thuc_te, // Total Cost for this line
-                    'don_gia_von_thuc_te' => ($so_luong > 0) ? ($tong_gia_von_thuc_te / $so_luong) : 0 // Unit Cost
                 ));
             }
         }
@@ -221,7 +220,7 @@ class DonHangController extends Controller
         if(count($batches_used) > 1){
             $warning_info = "Sử dụng từ nhiều lô: ";
             foreach($batches_used as $b){
-                $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . "): " . $b['so_luong'];
+                $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Gía nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
             }
         } elseif(count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
              // Case where total stock is less than requested, but handled by validator elsewhere usually.
@@ -243,7 +242,7 @@ class DonHangController extends Controller
             if(count($batches_used) > 1){
                 $warning_info = "Sử dụng từ nhiều lô: ";
                 foreach($batches_used as $b){
-                    $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . "): " . $b['so_luong'];
+                    $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Gía nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
                 }
             } elseif(count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
                  $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];
@@ -402,6 +401,29 @@ class DonHangController extends Controller
         return view('Admin.DonHang.in-phieu-giao-hang', compact('dh'));
     }
 
+    function edit($id) {
+        $dh = DonHang::find($id);
+        if(!$dh) {
+             Session::flash('msg', 'Không tìm thấy đơn hàng');
+             return redirect(env('APP_URL').'admin/don-hang');
+        }
+
+        // 1. Map thông tin Hàng hóa & Đơn vị tính
+        $id_hh = collect($dh->hanghoa)->pluck('id_hanghoa')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+        $id_dvt = collect($dh->hanghoa)->pluck('id_donvitinh')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+
+        $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(fn($i) => (string)$i->_id);
+        $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
+
+        $dh->hanghoa = collect($dh->hanghoa)->map(function($hh) use ($products, $units) {
+            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            return $hh;
+        });
+
+        return view('Admin.DonHang.edit', compact('dh'));
+    }
+
     static function check_HangHoa($id = ''){
         $id = ObjectController::ObjectId($id);
         $check = DonHang::where('hanghoa.id_hanghoa', '=', $id)->first();
@@ -455,10 +477,13 @@ class DonHangController extends Controller
                                         ? date('d/m/Y', $batch['ngay_het_han']->toDateTime()->getTimestamp()) 
                                         : 'N/A';
                         
+                        $gia_von = isset($batch['gia_von']) ? number_format($batch['gia_von'], 0, ',', '.') : (isset($hanghoa['gia_von']) ? number_format($hanghoa['gia_von'], 0, ',', '.') : '0');
+
                         $batches_used[] = [
                             'ma_lo' => isset($batch['ma_lo']) ? $batch['ma_lo'] : '',
                             'so_luong' => $used,
-                            'ngay_het_han' => $date_display
+                            'ngay_het_han' => $date_display,
+                            'gia_von' => $gia_von
                         ];
                     }
                 }

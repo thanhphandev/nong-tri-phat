@@ -26,7 +26,6 @@ $new_batch = [
 - ✅ Phân biệt 3 hình thức hoàn:
   - `giam_no`: Giảm công nợ (default)
   - `hoan_tien`: Hoàn tiền mặt (ghi chú rõ "Khách nhận tiền mặt")
-  - `doi_hang`: Đổi hàng (không impact công nợ)
 
 ```php
 $msg = 'Tạo phiếu trả hàng thành công! Mã: TRK-20260129-001';
@@ -187,9 +186,7 @@ $tra_hang->minh_chung = [
 5. Step B: FINANCIAL
    - Calculate debt BEFORE
    - Create TraHangKhach record
-   - IF hinh_thuc_hoan == "doi_hang"
-       → No debt impact
-   - ELSE IF hinh_thuc_hoan == "hoan_tien"
+   - IF hinh_thuc_hoan == "hoan_tien"
        → Create CongNo (type 1 = Payment)
        → May create negative debt (= customer credit)
    - ELSE (giam_no)

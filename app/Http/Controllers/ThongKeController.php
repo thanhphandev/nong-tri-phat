@@ -61,11 +61,8 @@ class ThongKeController extends Controller
                 if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
                     foreach($dh['hanghoa'] as $hh) {
                         $so_luong = isset($hh['so_luong']) ? $hh['so_luong'] : 0;
-                        
-                        // PRIORITY 1: Use Snapshotted Real Cost (if available from new logic)
-                        if(isset($hh['gia_von_thuc_te'])) {
-                             $gia_von += doubleval($hh['gia_von_thuc_te']);
-                        } 
+                        $don_gia_von = isset($hh['gia_von_thuc_te']) ? doubleval($hh['gia_von_thuc_te']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) * $so_luong : 0);
+                        $gia_von += $don_gia_von;
                     }
                 }
             }
@@ -100,13 +97,22 @@ class ThongKeController extends Controller
         
         // Initialize statistics
         $danhsach = collect();
-        $tong_doanh_thu = 0;
-        $tong_gia_von = 0;
+        $ds_tra_hang = collect();
+        $tong_doanh_thu_ban = 0;
+        $tong_gia_von_ban = 0;
+        $tong_doanh_thu_tra = 0; // Tiền trả lại khách (Giảm doanh thu)
+        $tong_gia_von_tra = 0;   // Giá vốn hàng trả (Giảm giá vốn)
+        
+        $tong_doanh_thu = 0;     // Net Revenue
+        $tong_gia_von = 0;       // Net Cost
         $tong_loi_nhuan = 0;
+        
         $tong_da_thanh_toan = 0;
         $tong_con_no = 0;
         $so_don_hang = 0;
-        $so_san_pham = 0;
+        $so_don_tra = 0;
+        $so_san_pham_ban = 0;
+        $so_san_pham_tra = 0;
         
         if(!$tu_ngay || !$den_ngay) {
             $tu_ngay = Carbon::now()->subDays(30)->format('d/m/Y');
@@ -117,7 +123,7 @@ class ThongKeController extends Controller
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
             $end_date = ObjectController::convertDateTime_max($den_ngay);
             
-            // Build query with filters
+            // 1. SALES ORDER QUERY
             $query = DonHang::where('ngay_ban', '>=', $start_date)
                 ->where('ngay_ban', '<=', $end_date);
             
@@ -132,21 +138,70 @@ class ThongKeController extends Controller
             $so_don_hang = count($danhsach);
             
             foreach($danhsach as $dh) {
-                // Revenue
-                $tong_doanh_thu += isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
-                
-                // Cost and Product Count
-                if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
-                    foreach($dh['hanghoa'] as $hh) {
-                        $so_san_pham += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
-                        if(isset($hh['gia_von_thuc_te'])) {
-                            $tong_gia_von += doubleval($hh['gia_von_thuc_te']);
+                // Ignore cancelled orders for financial stats if needed, or handle based on status
+                if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
+                    $tong_doanh_thu_ban += isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
+                    
+                    if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+                        foreach($dh['hanghoa'] as $hh) {
+                            $so_san_pham_ban += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                            // Calculate Cost properly
+                            $item_cost = 0;
+                            if (isset($hh['gia_von_thuc_te'])) {
+                                $item_cost = doubleval($hh['gia_von_thuc_te']);
+                            } else {
+                                $base_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
+                                $item_qty = isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                                $item_cost = $base_cost * $item_qty;
+                            }
+                            $tong_gia_von_ban += $item_cost;
                         }
                     }
                 }
             }
             
-            // Calculate profit
+            // 2. CUSTOMER RETURN QUERY
+            $query_tra = \App\Models\TraHangKhach::where('ngay_tra', '>=', $start_date)
+                ->where('ngay_tra', '<=', $end_date);
+            
+            if($id_khachhang) {
+                $query_tra->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
+            }
+            // Only confirmed returns usually count, assume status 1 is approved
+            // $query_tra->where('trang_thai', 1); 
+
+            $ds_tra_hang = $query_tra->orderBy('ngay_tra', 'desc')->get();
+            $so_don_tra = count($ds_tra_hang);
+
+            foreach($ds_tra_hang as $th) {
+                // Subtract from Revenue
+                $tong_doanh_thu_tra += isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : 0;
+                
+                // Subtract from Cost (Inventory value returned)
+                // If tong_gia_von is stored:
+                if (isset($th['tong_gia_von'])) {
+                    $tong_gia_von_tra += doubleval($th['tong_gia_von']);
+                } else {
+                    // Manual calc if not stored
+                    if (isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                        foreach($th['hanghoa'] as $hh_tra) {
+                            $gv = isset($hh_tra['gia_von']) ? doubleval($hh_tra['gia_von']) : 0;
+                            $sl = isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
+                            $tong_gia_von_tra += $gv * $sl;
+                        }
+                    }
+                }
+
+                if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                    foreach($th['hanghoa'] as $hh_tra) {
+                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? intval($hh_tra['so_luong_tra']) : 0;
+                    }
+                }
+            }
+
+            // 3. NET CALCULATIONS
+            $tong_doanh_thu = $tong_doanh_thu_ban - $tong_doanh_thu_tra;
+            $tong_gia_von = $tong_gia_von_ban - $tong_gia_von_tra;
             $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von;
             
             // Calculate debt from CongNo
@@ -165,9 +220,12 @@ class ThongKeController extends Controller
         
         return view('Admin.ThongKe.thong-ke-ban-hang')->with(compact(
             'tu_ngay', 'den_ngay', 'id_khachhang', 'tinh_trang',
-            'khachhang_list', 'tinhtrang', 'danhsach',
-            'tong_doanh_thu', 'tong_gia_von', 'tong_loi_nhuan', 'ty_le_loi_nhuan',
-            'tong_da_thanh_toan', 'tong_con_no', 'so_don_hang', 'so_san_pham'
+            'khachhang_list', 'tinhtrang', 'danhsach', 'ds_tra_hang',
+            'tong_doanh_thu', 'tong_doanh_thu_ban', 'tong_doanh_thu_tra',
+            'tong_gia_von', 'tong_gia_von_ban', 'tong_gia_von_tra',
+            'tong_loi_nhuan', 'ty_le_loi_nhuan',
+            'tong_da_thanh_toan', 'tong_con_no', 
+            'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra'
         ));
     }
 
@@ -184,17 +242,24 @@ class ThongKeController extends Controller
         
         // Initialize statistics
         $danhsach = collect();
-        $tong_gia_tri_nhap = 0;
+        $ds_tra_hang_ncc = collect();
+        
+        $tong_gia_tri_nhap_goc = 0;
+        $tong_gia_tri_tra = 0;
+        $tong_gia_tri_nhap = 0; // Net Import Value
+        
         $tong_da_thanh_toan = 0;
         $tong_con_no = 0;
         $so_phieu_nhap = 0;
-        $so_san_pham = 0;
+        $so_phieu_tra = 0;
+        $so_san_pham_nhap = 0;
+        $so_san_pham_tra = 0;
         
         if($tu_ngay && $den_ngay) {
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
             $end_date = ObjectController::convertDateTime_max($den_ngay);
             
-            // Build query with filters
+            // 1. IMPORT ORDERS
             $query = \App\Models\NhapHang::where('ngay_nhap', '>=', $start_date)
                 ->where('ngay_nhap', '<=', $end_date);
             
@@ -207,15 +272,39 @@ class ThongKeController extends Controller
             
             foreach($danhsach as $nh) {
                 // Total import value
-                $tong_gia_tri_nhap += isset($nh['tong_thanh_tien']) ? doubleval($nh['tong_thanh_tien']) : 0;
+                $tong_gia_tri_nhap_goc += isset($nh['tong_thanh_tien']) ? doubleval($nh['tong_thanh_tien']) : 0;
                 
                 // Product count
                 if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
                     foreach($nh['hanghoa'] as $hh) {
-                        $so_san_pham += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                        $so_san_pham_nhap += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
                     }
                 }
             }
+
+            // 2. SUPPLIER RETURNS (TraHangNCC)
+            $query_tra = \App\Models\TraHangNCC::where('ngay_tra', '>=', $start_date)
+                ->where('ngay_tra', '<=', $end_date);
+            
+            if($id_nhacungcap) {
+                $query_tra->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
+            }
+            
+            $ds_tra_hang_ncc = $query_tra->orderBy('ngay_tra', 'desc')->get();
+            $so_phieu_tra = count($ds_tra_hang_ncc);
+            
+            foreach($ds_tra_hang_ncc as $th) {
+                $tong_gia_tri_tra += isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : 0;
+                
+                 if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                    foreach($th['hanghoa'] as $hh_tra) {
+                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? intval($hh_tra['so_luong_tra']) : 0;
+                    }
+                }
+            }
+
+            // 3. NET VALUES
+            $tong_gia_tri_nhap = $tong_gia_tri_nhap_goc - $tong_gia_tri_tra;
             
             // Calculate debt from CongNoNCC
             $congno_query = \App\Models\CongNoNCC::where('ngay_gio', '>=', $start_date)
@@ -229,11 +318,13 @@ class ThongKeController extends Controller
             $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
         }
         
+        $so_san_pham = $so_san_pham_nhap;
         return view('Admin.ThongKe.thong-ke-nhap-hang')->with(compact(
             'tu_ngay', 'den_ngay', 'id_nhacungcap',
-            'nhacungcap_list', 'danhsach',
-            'tong_gia_tri_nhap', 'tong_da_thanh_toan', 'tong_con_no',
-            'so_phieu_nhap', 'so_san_pham'
+            'nhacungcap_list', 'danhsach', 'ds_tra_hang_ncc',
+            'tong_gia_tri_nhap', 'tong_gia_tri_nhap_goc', 'tong_gia_tri_tra',
+            'tong_da_thanh_toan', 'tong_con_no',
+            'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham'
         ));
     }
 }

@@ -44,14 +44,12 @@
 						@foreach($danhsach as $ds)
                         @php
                             $so_luong = 0;
-                            $so_luong_tra = 0;
                             foreach($ds['hanghoa'] as $hh) {
                                 $so_luong += $hh['so_luong'];
-                                $so_luong_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
                             }
                         @endphp
 						 <tr>   
-                            <td class="text-center">{{ $ds['ma_nhap_hang'] }}</td>
+                            <td class="text-center"><a href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><b>{{ $ds['ma_nhap_hang'] }}</b></a></td>
 							<td class="text-center bold">{{ isset($ds['so_chung_tu']) ? $ds['so_chung_tu'] : '-' }}</td>
                             <td class="text-center">{{ isset($ds['ngay_chung_tu']) ? App\Http\Controllers\ObjectController::getDate($ds['ngay_chung_tu'],"d/m/Y H:i") : '-' }}</td>
                             <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_giao'],"d/m/Y H:i") }}</td>
@@ -59,36 +57,25 @@
 							<td class="text-right">
                                 <a href="{{ env('APP_URL') }}admin/nhap-hang/xem-hang-hoa/{{ $ds['_id'] }}" class="xem-hang-hoa" data-toggle="modal" data-target="#modalHangHoa">
                                     {{ $so_luong }}
-                                    @if($so_luong_tra > 0)
-                                        <span class="text-danger" title="Đã trả">(-{{ number_format($so_luong_tra, 0, ',', '.') }})</span>
-                                    @endif
                                 </a>
                             </td>
                             <td class="text-right">
                                 {{ number_format($ds['thanh_tien'],0,",",".") }}
-                                @php
-                                    // Calculate refund value
-                                    $tien_tra = 0;
-                                    if ($so_luong_tra > 0) {
-                                        foreach($ds['hanghoa'] as $hh){
-                                            if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
-                                                $tien_tra += $hh['so_luong_tra'] * $hh['don_gia'];
-                                            }
-                                        }
-                                    }
-                                @endphp
-                                @if($tien_tra > 0)
-                                    <br>
-                                    <small class="text-success font-weight-bold" title="Thực chi (Sau khi trừ trả hàng)">
-                                        (Thực: {{ number_format($ds['thanh_tien'] - $tien_tra, 0, ',', '.') }})
-                                    </small>
-                                @endif
                             </td>
                             <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 							<td class="text-center">
-                                <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}" title="Trả hàng NCC"><i class="fas fa-undo text-warning"></i></a>
-                                <a href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank" class="mr-2" title="In phiếu"><i class="fa fa-print text-success"></i></a>
-                                <a href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');" title="Xóa"><i class="fa fa-trash text-danger"></i></a>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fa fa-cogs"></i> Tác vụ
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng NCC</a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a>
+                                    </div>
+                                </div>
                             </td>
 						</tr>
 						@endforeach

@@ -51,6 +51,9 @@
                             <th class="text-center">ĐVT</th>
                             <th class="text-right">SL trả</th>
                             <th class="text-right">Giá nhập</th>
+                            <th class="text-right">Giá trả NCC</th>
+                            <th class="text-center">Tỷ lệ</th>
+                            <th class="text-right">Chênh lệch</th>
                             <th class="text-right">Thành tiền</th>
                             <th>Tình trạng</th>
                             <th>Lý do</th>
@@ -58,12 +61,42 @@
                     </thead>
                     <tbody>
                         @foreach($tra_hang['hanghoa'] as $key => $hh)
+                        @php
+                            $don_gia_goc = $hh['don_gia_goc'] ?? $hh['don_gia'];
+                            $don_gia = $hh['don_gia'];
+                            $ty_le = $hh['ty_le_hoan'] ?? ($don_gia_goc > 0 ? round(($don_gia / $don_gia_goc) * 100, 1) : 100);
+                            $chenh_lech = $hh['chenh_lech'] ?? (($don_gia_goc - $don_gia) * $hh['so_luong_tra']);
+                            $has_adjustment = $don_gia_goc != $don_gia;
+                        @endphp
                         <tr>
                             <td class="text-center">{{ $key + 1 }}</td>
                             <td><strong>{{ $hh['ten'] }}</strong></td>
                             <td class="text-center">{{ $hh['don_vi_tinh'] }}</td>
                             <td class="text-right">{{ number_format($hh['so_luong_tra'], 0) }}</td>
-                            <td class="text-right">{{ number_format($hh['don_gia'], 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format($don_gia_goc, 0, ',', '.') }}</td>
+                            <td class="text-right">
+                                @if($has_adjustment)
+                                    <span class="text-warning"><strong>{{ number_format($don_gia, 0, ',', '.') }}</strong></span>
+                                @else
+                                    {{ number_format($don_gia, 0, ',', '.') }}
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @if($ty_le < 100 && $ty_le >= 50)
+                                    <span class="badge badge-warning">{{ $ty_le }}%</span>
+                                @elseif($ty_le < 50)
+                                    <span class="badge badge-danger">{{ $ty_le }}%</span>
+                                @else
+                                    <span class="badge badge-success">100%</span>
+                                @endif
+                            </td>
+                            <td class="text-right">
+                                @if($chenh_lech > 0)
+                                    <span class="text-danger">{{ number_format($chenh_lech, 0, ',', '.') }}</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td class="text-right"><strong>{{ number_format($hh['thanh_tien'], 0, ',', '.') }}</strong></td>
                             <td>
                                 @if($hh['tinh_trang'] == 'Lỗi')
@@ -80,8 +113,8 @@
                     </tbody>
                     <tfoot class="bg-light">
                         <tr>
-                            <td colspan="5" class="text-right"><strong>TỔNG TIỀN TRẢ:</strong></td>
-                            <td colspan="3" class="text-right">
+                            <td colspan="7" class="text-right"><strong>TỔNG TIỀN TRẢ NCC:</strong></td>
+                            <td colspan="3" class="text-left">
                                 <h4 class="text-danger mb-0">{{ number_format($tra_hang['tong_tien_tra'], 0, ',', '.') }} VND</h4>
                             </td>
                         </tr>
@@ -99,8 +132,6 @@
                                 <span class="badge badge-info">Giảm công nợ cho NCC</span>
                             @elseif($tra_hang['hinh_thuc_hoan'] == 'hoan_tien')
                                 <span class="badge badge-success">NCC hoàn tiền</span>
-                            @else
-                                <span class="badge badge-warning">Đổi hàng khác</span>
                             @endif
                         </p>
                         <p><strong>Số tiền NCC hoàn:</strong> {{ number_format($tra_hang['so_tien_hoan'], 0, ',', '.') }} VND</p>
@@ -121,6 +152,14 @@
             <!-- Action Buttons -->
             <div class="text-right">
                 <a href="{{ env('APP_URL') }}admin/tra-hang-ncc" class="btn btn-primary"><i class="fa fa-reply"></i> Quay lại</a>
+                <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/in-phieu-tra-hang/{{ $tra_hang['_id'] }}" target="_blank" class="btn btn-warning"><i class="fa fa-print"></i> In phiếu</a>
+                @if(in_array('Admin', Session::get('user.roles')))
+                    <a href="{{ env('APP_URL') }}admin/tra-hang-ncc/delete/{{ $tra_hang['_id'] }}" 
+                       class="btn btn-danger" 
+                       onclick="return confirm('Xóa phiếu trả NCC sẽ hoàn tác toàn bộ thay đổi (tồn kho, công nợ). Chắc chắn xóa?');">
+                        <i class="fa fa-trash"></i> Xóa phiếu
+                    </a>
+                @endif
             </div>
     	</div>
     </div>

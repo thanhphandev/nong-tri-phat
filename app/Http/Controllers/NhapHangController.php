@@ -300,6 +300,31 @@ class NhapHangController extends Controller
         return view('Admin.NhapHang.hang-hoa')->with(compact('ds'));
     }
 
+    function edit($id){
+        $nh = NhapHang::find($id);
+        if(!$nh) {
+            Session::flash('msg', 'Không tìm thấy phiếu nhập');
+            return redirect(env('APP_URL') .'admin/nhap-hang');
+        }
+        
+        $id_hh = collect($nh->hanghoa)->pluck('id_hanghoa')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+        $id_dvt = collect($nh->hanghoa)->pluck('id_donvitinh')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+
+        $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(fn($i) => (string)$i->_id);
+        $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
+
+        $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
+             $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+             $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+             return $hh;
+        });
+
+        $da_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $nh->da_thanh_toan = $da_thanh_toan;
+
+        return view('Admin.NhapHang.edit', compact('nh'));
+    }
+
     function in_phieu_nhap_hang(Request $request, $id = '') {
     $nh = NhapHang::findOrFail($id);
     

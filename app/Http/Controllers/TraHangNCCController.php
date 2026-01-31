@@ -99,9 +99,7 @@ class TraHangNCCController extends Controller
         }
 
         // Generate return code
-        $today = Carbon::now()->format('Ymd');
-        $count = TraHangNCC::where('ma_tra_hang', 'regexp', '/^TRN-'.$today.'/')->count();
-        $ma_tra_hang = 'TRN-' . $today . '-' . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+        $ma_tra_hang = strtoupper(uniqid());
 
         // Calculate total
         $tong_tien_tra = 0;
@@ -143,7 +141,19 @@ class TraHangNCCController extends Controller
 
         foreach ($data['hanghoa'] as $hh) {
             if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
-                $thanh_tien = $hh['so_luong_tra'] * $hh['don_gia'];
+                $so_luong_tra = floatval($hh['so_luong_tra']);
+                
+                // Get original import price and adjusted return price
+                $don_gia_goc = floatval($hh['don_gia_goc'] ?? $hh['don_gia']);
+                $don_gia = floatval($hh['don_gia']); // Adjusted return price (can be modified by user)
+                
+                // Calculate totals based on adjusted return price
+                $thanh_tien = $so_luong_tra * $don_gia;
+                
+                // Calculate adjustment amount if any
+                $chenh_lech = ($don_gia_goc - $don_gia) * $so_luong_tra;
+                $ty_le_hoan = $don_gia_goc > 0 ? round(($don_gia / $don_gia_goc) * 100, 1) : 100;
+                
                 $tong_tien_tra += $thanh_tien;
                 
                 $arr_hanghoa[] = [
@@ -151,43 +161,45 @@ class TraHangNCCController extends Controller
                     'ma_hang_hoa' => $hh['ma_hang_hoa'],
                     'ten' => $hh['ten'],
                     'don_vi_tinh' => $hh['don_vi_tinh'] ?? '',
-                    'so_luong_tra' => floatval($hh['so_luong_tra']),
-                    'don_gia' => floatval($hh['don_gia']),
+                    'so_luong_tra' => $so_luong_tra,
+                    'don_gia_goc' => $don_gia_goc, // Original import price
+                    'don_gia' => $don_gia, // Adjusted return price
+                    'ty_le_hoan' => $ty_le_hoan, // Return percentage (e.g. 80%)
+                    'chenh_lech' => $chenh_lech, // Price adjustment amount
                     'thanh_tien' => $thanh_tien,
                     'ly_do_tra' => $hh['ly_do_tra'] ?? '',
                     'tinh_trang' => $hh['tinh_trang'] ?? 'Khác',
                 ];
 
-                // Update inventory - Remove from stock
+                // Update inventory - Remove from stock by finding EXACT batch
                 $hang_hoa = HangHoa::find($hh['id_hanghoa']);
                 if ($hang_hoa) {
                     $so_luong_tra = floatval($hh['so_luong_tra']);
                     
-                    // EXACT BATCH DEDUCTION: Find and deduct from the batch that came from this import
+                    // EXACT BATCH DEDUCTION: Find batch by id_nhap_hang ObjectId
                     $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
                     $new_batches = [];
                     $remaining = $so_luong_tra;
                     $batch_deducted = false;
                     
-                    // Get original import info
-                    $id_nhaphang_str = (string)$nhaphang['_id'];
-                    $ma_nhaphang = $nhaphang['ma_nhap_hang'];
+                    // Get original import ObjectId for exact matching
+                    $id_nhaphang_obj = ObjectController::ObjectId($nhaphang['_id']);
                     
                     foreach ($ds_lo_hang as $batch) {
-                        // Check if this batch belongs to the original import
-                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? (string)$batch['id_nhap_hang'] : '';
-                        $batch_ma_nhap = isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '';
+                        // Exact match: compare id_nhap_hang ObjectId only
+                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : null;
                         
-                        $is_from_this_import = ($batch_id_nhap == $id_nhaphang_str) || ($batch_ma_nhap == $ma_nhaphang);
+                        $is_from_this_import = false;
+                        if ($batch_id_nhap !== null) {
+                            $is_from_this_import = ((string)$batch_id_nhap == (string)$id_nhaphang_obj);
+                        }
                         
                         if ($is_from_this_import && $remaining > 0) {
-                            // This is the batch from the original import - deduct from here
-                            $batch_qty = isset($batch['so_luong_con_lai']) 
-                                ? floatval($batch['so_luong_con_lai']) 
-                                : (isset($batch['so_luong']) ? floatval($batch['so_luong']) : 0);
+                            // This is the exact batch from the original import - deduct from here
+                            $batch_qty = floatval($batch['so_luong_con_lai'] ?? 0);
                             
                             if ($batch_qty <= $remaining) {
-                                // Consume entire batch
+                                // Consume entire batch - remove it
                                 $remaining -= $batch_qty;
                                 $batch_deducted = true;
                                 // Don't add to new_batches - effectively removes it
@@ -204,38 +216,12 @@ class TraHangNCCController extends Controller
                         }
                     }
                     
-                    // If we couldn't find the exact batch, log warning but still proceed
-                    if (!$batch_deducted && $remaining > 0) {
-                        // Fallback: deduct from FEFO (first expiry first out) - for edge cases
-                        // Sort by ngay_het_han
-                        usort($new_batches, function($a, $b) {
-                            $exp_a = isset($a['ngay_het_han']) ? ObjectController::convertDate($a['ngay_het_han']) : null;
-                            $exp_b = isset($b['ngay_het_han']) ? ObjectController::convertDate($b['ngay_het_han']) : null;
-                            if (!$exp_a) return 1;
-                            if (!$exp_b) return -1;
-                            return $exp_a <=> $exp_b;
-                        });
-                        
-                        $final_batches = [];
-                        foreach ($new_batches as $batch) {
-                            if ($remaining <= 0) {
-                                $final_batches[] = $batch;
-                                continue;
-                            }
-                            
-                            $batch_qty = isset($batch['so_luong_con_lai']) 
-                                ? floatval($batch['so_luong_con_lai']) 
-                                : (isset($batch['so_luong']) ? floatval($batch['so_luong']) : 0);
-                            
-                            if ($batch_qty <= $remaining) {
-                                $remaining -= $batch_qty;
-                            } else {
-                                $batch['so_luong_con_lai'] = $batch_qty - $remaining;
-                                $final_batches[] = $batch;
-                                $remaining = 0;
-                            }
-                        }
-                        $new_batches = $final_batches;
+                    // If batch not found or remaining > 0, log error but still proceed
+                    if (!$batch_deducted || $remaining > 0) {
+                        // Log warning: batch not found for return
+                        \Log::warning('TraHangNCC: Batch not found for product ' . $hh['ten'] . 
+                            ' from import ' . $nhaphang['ma_nhap_hang'] . 
+                            '. Remaining: ' . $remaining);
                     }
                     
                     $hang_hoa->ds_lo_hang = $new_batches;
@@ -290,26 +276,6 @@ class TraHangNCCController extends Controller
             $congno->save();
         }
 
-        // Update NhapHang with returned quantities
-        $nhaphang_hh = $nhaphang['hanghoa'];
-        $updated_nhaphang = false;
-
-        foreach ($arr_hanghoa as $return_item) {
-            foreach ($nhaphang_hh as &$original_item) {
-                if ((string)$original_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
-                    $current_return = isset($original_item['so_luong_tra']) ? floatval($original_item['so_luong_tra']) : 0;
-                    $original_item['so_luong_tra'] = $current_return + $return_item['so_luong_tra'];
-                    $updated_nhaphang = true;
-                    break;
-                }
-            }
-        }
-
-        if ($updated_nhaphang) {
-            $nhaphang->hanghoa = $nhaphang_hh;
-            $nhaphang->save();
-        }
-
         // Log
         $querLog = [
             'action' => 'Trả hàng NCC [' . $ma_tra_hang . '] - Phiếu nhập: ' . $nhaphang['ma_nhap_hang'] . ' - Giá trị: ' . number_format($tong_tien_tra, 0, ',', '.'),
@@ -331,6 +297,11 @@ class TraHangNCCController extends Controller
         return view('Admin.TraHangNCC.view')->with(compact('tra_hang'));
     }
 
+    function in_phieu_tra_hang($id) {
+        $tra_hang = TraHangNCC::findOrFail($id);
+        return view('Admin.TraHangNCC.in-phieu-tra-hang', compact('tra_hang'));
+    }
+
     /**
      * Delete return (admin only, not recommended in production)
      */
@@ -343,9 +314,7 @@ class TraHangNCCController extends Controller
         }
 
         // 1. Revert Inventory (Add items back to stock)
-        // Try to restore to the original import batch, or create a standardized new batch
-        $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
-        
+        // Find exact batch by id_nhap_hang and restore quantity
         foreach ($tra_hang['hanghoa'] as $item) {
             $hang_hoa = HangHoa::find($item['id_hanghoa']);
             if ($hang_hoa) {
@@ -354,39 +323,36 @@ class TraHangNCCController extends Controller
                 $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
                 $restored = false;
                 
-                // Try to find the original batch from the import and add back to it
-                if ($nhaphang) {
-                    $id_nhaphang_str = (string)$nhaphang['_id'];
-                    $ma_nhaphang = $nhaphang['ma_nhap_hang'];
-                    
-                    foreach ($ds_lo_hang as &$batch) {
-                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? (string)$batch['id_nhap_hang'] : '';
-                        $batch_ma_nhap = isset($batch['ma_nhap_hang']) ? $batch['ma_nhap_hang'] : '';
-                        
-                        if (($batch_id_nhap == $id_nhaphang_str) || ($batch_ma_nhap == $ma_nhaphang)) {
-                            // Found the original batch - add quantity back
-                            $current_qty = isset($batch['so_luong_con_lai']) 
-                                ? floatval($batch['so_luong_con_lai']) 
-                                : 0;
-                            $batch['so_luong_con_lai'] = $current_qty + $item['so_luong_tra'];
-                            $restored = true;
-                            break;
-                        }
-                    }
-                    unset($batch);
-                }
+                // Find exact batch by id_nhap_hang ObjectId
+                $id_nhaphang_obj = $tra_hang['id_nhaphang'];
                 
-                // If we couldn't find and restore to original batch, create a standardized new batch
+                foreach ($ds_lo_hang as &$batch) {
+                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : null;
+                    
+                    if ($batch_id_nhap !== null && (string)$batch_id_nhap == (string)$id_nhaphang_obj) {
+                        // Found the exact batch - add quantity back
+                        $current_qty = floatval($batch['so_luong_con_lai'] ?? 0);
+                        $batch['so_luong_con_lai'] = $current_qty + $item['so_luong_tra'];
+                        $restored = true;
+                        break;
+                    }
+                }
+                unset($batch);
+                
+                // If batch not found, need to recreate it
                 if (!$restored) {
                     // Get original import info for dates if available
+                    $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
                     $ngay_san_xuat = null;
                     $ngay_het_han = null;
+                    $gia_von = $item['don_gia'];
                     
                     if ($nhaphang) {
                         foreach ($nhaphang['hanghoa'] as $nh_item) {
                             if ((string)$nh_item['id_hanghoa'] == (string)$item['id_hanghoa']) {
                                 $ngay_san_xuat = $nh_item['ngay_san_xuat'] ?? null;
                                 $ngay_het_han = $nh_item['ngay_het_han'] ?? null;
+                                $gia_von = $nh_item['gia_von'] ?? $item['don_gia'];
                                 break;
                             }
                         }
@@ -400,7 +366,7 @@ class TraHangNCCController extends Controller
                         'so_luong_con_lai' => $item['so_luong_tra'],
                         'ngay_san_xuat' => $ngay_san_xuat ?? new \MongoDB\BSON\UTCDateTime(Carbon::now()->getTimestamp() * 1000),
                         'ngay_het_han' => $ngay_het_han ?? new \MongoDB\BSON\UTCDateTime(Carbon::now()->addYear()->getTimestamp() * 1000),
-                        'gia_von' => $item['don_gia'],
+                        'gia_von' => $gia_von,
                         'ghi_chu' => 'Hủy trả hàng NCC: ' . $tra_hang['ma_tra_hang'],
                     ];
                     $ds_lo_hang[] = $new_batch;
@@ -411,28 +377,9 @@ class TraHangNCCController extends Controller
             }
         }
 
-        // 2. Revert NhapHang returned quantity
-        $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
-        if ($nhaphang) {
-            $nhaphang_hh = $nhaphang['hanghoa'];
-            $updated_nhaphang = false;
-            foreach ($tra_hang['hanghoa'] as $return_item) {
-                foreach ($nhaphang_hh as &$original_item) {
-                    if ((string)$original_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
-                        $current_return = isset($original_item['so_luong_tra']) ? floatval($original_item['so_luong_tra']) : 0;
-                        $original_item['so_luong_tra'] = max(0, $current_return - $return_item['so_luong_tra']);
-                        $updated_nhaphang = true;
-                        break;
-                    }
-                }
-            }
-            if ($updated_nhaphang) {
-                $nhaphang->hanghoa = $nhaphang_hh;
-                $nhaphang->save();
-            }
-        }
+        // NOTE: Không cập nhật NhapHang collection - chỉ thao tác trên ds_lo_hang trong HangHoa
 
-        // 3. Revert CongNoNCC
+        // 2. Revert CongNoNCC
         if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
             $congno = new CongNoNCC();
             $congno->id_nhacungcap = $tra_hang['id_nhacungcap'];
@@ -447,7 +394,7 @@ class TraHangNCCController extends Controller
             $congno->save();
         }
 
-        // 4. Delete Record
+        // 3. Delete Record
         $tra_hang->delete();
         
         Session::flash('msg', 'Đã xóa phiếu trả hàng NCC và hoàn tác dữ liệu');

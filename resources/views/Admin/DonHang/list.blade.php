@@ -46,10 +46,8 @@
 						@foreach($danhsach as $ds)
 							@php
 								$so_luong = 0;
-                                $so_luong_tra = 0;
 								foreach($ds['hanghoa'] as $hh){
 									$so_luong += $hh['so_luong'];
-                                    $so_luong_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
 								}
 								// Use stored thanh_toan field instead of calculating from CongNo
 								$da_thanh_toan = $ds['thanh_toan'] ?? 0;
@@ -62,33 +60,13 @@
 								<td class="text-right">
 									<a href="{{ env('APP_URL') }}admin/don-hang/hang-hoa/{{ $ds['_id'] }}" class="getHangHoa" data-toggle="modal" data-target="#modalHangHoa">
 										{{ number_format($so_luong,0,",",".") }}
-                                        @if($so_luong_tra > 0)
-                                            <span class="text-danger" title="Đã trả">(-{{ number_format($so_luong_tra, 0, ',', '.') }})</span>
-                                        @endif
 									</a>
 								</td>
-								<td class="text-right"><b>
-                                    {{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b></td>
-								<td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
-								<td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}
-                                    @php
-                                        // Calculate refund value to display "Net Total"
-                                        $tien_tra = 0;
-                                        if ($so_luong_tra > 0) {
-                                            foreach($ds['hanghoa'] as $hh){
-                                                if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
-                                                    $tien_tra += $hh['so_luong_tra'] * $hh['don_gia'];
-                                                }
-                                            }
-                                        }
-                                    @endphp
-                                    @if($tien_tra > 0)
-                                        <br>
-                                        <small class="text-success font-weight-bold" title="Thực thu (Sau khi trừ trả hàng)">
-                                            (Thực: {{ number_format($ds['tong_thanh_tien'] - $tien_tra, 0, ',', '.') }})
-                                        </small>
-                                    @endif
+								<td class="text-right">
+                                    <b>{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b>
                                 </td>
+								<td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
+								<td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
 								<td class="text-center">
                                     @php
 									   if($ds['tinh_trang'] == 0){                                            $tt = 'badge-info';
@@ -107,15 +85,24 @@
                                             {{ $tinhtrang[$ds['tinh_trang']] }}
                                         @endif
                                     </span>
-                                    <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 								</td>
+                                <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 								<td class="text-center">
-                                    @if($con_no > 0)
-                                        <a href="#" class="btn-tra-no" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo" title="Trả nợ"><i class="fas fa-money-bill-wave text-success"></i></a>
-                                    @endif
-                                    <a href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}" title="Trả hàng"><i class="fas fa-undo text-warning"></i></a>
-                                    <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank" title="In phiếu"><i class="fa fa-print"></i></a>
-                                    <a href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');" title="Xóa"><i class="fa fa-trash text-danger"></i></a>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            <i class="fa fa-cogs"></i> Tác vụ
+                                        </button>
+                                        <div class="dropdown-menu dropdown-menu-right">
+                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
+                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
+                                            @if($con_no > 0)
+                                                <a class="dropdown-item btn-tra-no" href="#" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                            @endif
+                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
+                                            <div class="dropdown-divider"></div>
+                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa đơn</a>
+                                        </div>
+                                    </div>
                                 </td>
 							</tr>
 						@endforeach
