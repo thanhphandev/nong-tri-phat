@@ -136,8 +136,9 @@
                         </tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
-                                <td colspan="8" class="text-right">TỔNG NHẬP:</td>
-                                <td class="text-right text-primary">{{ number_format($tong_gia_tri_nhap_goc,0,",",".") }}</td>
+                                <td colspan="7" class="text-right">TỔNG CỘNG:</td>
+                                <td class="text-center text-danger">{{ $so_san_pham_nhap }}</td>
+                                <td class="text-right text-primary">{{ number_format($tong_gia_tri_nhap_goc, 0, ",", ".") }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -191,8 +192,9 @@
                         </tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
-                                <td colspan="6" class="text-right">TỔNG TRẢ NCC:</td>
-                                <td class="text-right text-danger">{{ number_format($tong_gia_tri_tra,0,",",".") }}</td>
+                                <td colspan="5" class="text-right">TỔNG CỘNG:</td>
+                                <td class="text-center text-primary">{{ number_format($so_san_pham_tra, 0, ",", ".") }}</td>
+                                <td class="text-right text-danger">{{ number_format($tong_gia_tri_tra, 0, ",", ".") }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>

@@ -323,7 +323,7 @@ class ThongKeController extends Controller
             $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
         }
         
-        $so_san_pham = $so_san_pham_nhap;
+        $so_san_pham = $so_san_pham_nhap - $so_san_pham_tra;
         return view('Admin.ThongKe.thong-ke-nhap-hang')->with(compact(
             'tu_ngay', 'den_ngay', 'id_nhacungcap',
             'nhacungcap_list', 'danhsach', 'ds_tra_hang_ncc',

@@ -32,6 +32,8 @@
                 </div>
             </div>
             @if($id_nhacungcap)
+            {{-- PAYMENT FORM DISABLED - Use payment function in Order List instead --}}
+            {{--
             <form action="{{ env('APP_URL') }}admin/cong-no-ncc/thanh-toan" method="POST" id="ThanhToanForm">
                 <div class="card-box">
                     <div class="row form-group">
@@ -56,6 +58,10 @@
                     </div>
                 </div>
             </form>
+            --}}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> <strong>Lưu ý:</strong> Để trả nợ cho nhà cung cấp, vui lòng vào <a href="{{ env('APP_URL') }}admin/nhap-hang" class="alert-link"><strong>Danh sách Nhập hàng</strong></a> và sử dụng nút <i class="fas fa-money-bill-wave text-success"></i> bên cạnh mỗi đơn hàng còn nợ.
+            </div>
             <div class="row">
                 <div class="col-12 col-md-12">
                     <div class="card-box">

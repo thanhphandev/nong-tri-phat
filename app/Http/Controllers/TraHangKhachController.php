@@ -82,7 +82,6 @@ class TraHangKhachController extends Controller
 
     /**
      * Process customer return with proper validation
-     * Note: MongoDB transactions removed - using try-catch instead
      */
     function create(Request $request) {
         $data = $request->all();

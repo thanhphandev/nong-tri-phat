@@ -220,7 +220,7 @@ class DonHangController extends Controller
         if(count($batches_used) > 1){
             $warning_info = "Sử dụng từ nhiều lô: ";
             foreach($batches_used as $b){
-                $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Gía nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
+                $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Giá nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
             }
         } elseif(count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
              // Case where total stock is less than requested, but handled by validator elsewhere usually.
@@ -242,7 +242,7 @@ class DonHangController extends Controller
             if(count($batches_used) > 1){
                 $warning_info = "Sử dụng từ nhiều lô: ";
                 foreach($batches_used as $b){
-                    $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Gía nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
+                    $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Giá nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
                 }
             } elseif(count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
                  $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];

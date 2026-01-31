@@ -332,12 +332,12 @@
     <!-- Signature Section -->
     <div class="signature-section">
         <div class="signature-box">
-            <div class="signature-title">Người lập phiếu</div>
-            <div class="signature-name">{{ Session::get('user.username') }}</div>
-        </div>
-        <div class="signature-box">
             <div class="signature-title">Khách hàng</div>
             <div class="signature-company">{{ $tra_hang['ho_ten'] }}</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-title">Người lập phiếu</div>
+            <div class="signature-name">{{ Session::get('user.fullname') }}</div>
         </div>
     </div>
 </div>

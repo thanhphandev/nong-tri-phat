@@ -335,11 +335,11 @@
     <!-- Signature Section -->
     <div class="signature-section">
         <div class="signature-box">
-            <div class="signature-title">Người lập phiếu</div>
-            <div class="signature-name">{{ Session::get('user.username') }}</div>
+            <div class="signature-title">Nhà cung cấp</div>
         </div>
         <div class="signature-box">
-            <div class="signature-title">Nhà cung cấp</div>
+            <div class="signature-title">Người lập phiếu</div>
+            <div class="signature-name">{{ Session::get('user.fullname') }}</div>
         </div>
     </div>
 </div>

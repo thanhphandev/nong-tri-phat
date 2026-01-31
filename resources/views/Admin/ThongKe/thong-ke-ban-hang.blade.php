@@ -171,8 +171,8 @@
                         </tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
-                                <td colspan="6" class="text-right">TỔNG BÁN:</td>
-                                <td class="text-right text-primary">{{ number_format($tong_doanh_thu_ban,0,",",".") }}</td>
+                                <td colspan="5" class="text-right">TỔNG BÁN:</td>
+                                <td class="text-center text-primary">{{ $so_san_pham_ban }}</td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
                                 <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
                                 <td colspan="3"></td>
@@ -237,7 +237,8 @@
                         </tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
-                                <td colspan="6" class="text-right">TỔNG TRẢ:</td>
+                                <td colspan="5" class="text-right">TỔNG TRẢ:</td>
+                                <td class="text-center text-danger">{{ $so_san_pham_tra }}</td>
                                 <td class="text-right text-danger">{{ number_format($tong_doanh_thu_tra,0,",",".") }}</td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
                                 <td></td>
