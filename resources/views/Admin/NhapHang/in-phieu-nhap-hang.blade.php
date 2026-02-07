@@ -36,14 +36,14 @@
             width: 22mm;
             vertical-align: top;
         }
-        .header-left img { width: 20mm; }
+        .header-left img { width: 35mm; }
         .header-right {
             display: table-cell;
             vertical-align: top;
             padding-left: 3mm;
         }
         .company-name {
-            color: #28a745;
+            color: #d71a21;
             font-weight: bold;
             font-size: 13pt;
             text-transform: uppercase;
@@ -115,7 +115,7 @@
         /* Summary */
         .summary-wrapper {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             margin-bottom: 3mm;
         }
         .summary-table {
@@ -159,7 +159,7 @@
         }
         .signature-title { font-weight: bold; margin-bottom: 15mm; }
         .signature-name { font-weight: bold; }
-        .signature-company { font-weight: bold; color: #28a745; }
+        .signature-company { font-weight: bold; color: #d71a21; white-space: nowrap; }
 
         /* Print Button */
         .print-btn-container {
@@ -239,7 +239,6 @@
             <img src="{{ asset('assets/images/logo.png') }}" alt="Logo">
         </div>
         <div class="header-right">
-            <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
                 SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
@@ -321,6 +320,19 @@
 
     <!-- Summary -->
     <div class="summary-wrapper">
+        <div class="bank-info" style="width: 45%; text-align: left; font-size: 10pt;">
+            @if(env('BANK_STK'))
+            <div style="font-weight: bold; margin-bottom: 2mm;">THÔNG TIN THANH TOÁN</div>
+            <div style="margin-bottom: 2mm;">
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ $tong_no_moi }}&addInfo={{ $nh['ma_nhap_hang'] }}" style="width: 35mm;">
+            </div>
+            <div>
+                STK: <b>{{ env('BANK_STK') }}</b><br>
+                Chủ TK: <b>{{ env('BANK_CHU_TK') }}</b><br>
+                Ngân hàng: <b>{{ env('BANK_NAME') }}</b>
+            </div>
+            @endif
+        </div>
         <table class="summary-table">
             <tr>
                 <td class="summary-label">Tổng cộng:</td>
