@@ -52,22 +52,60 @@ class TraHangNCCController extends Controller
         $nhacungcap = NhaCungCap::find($nhaphang['id_nhacungcap']);
         
         // Populate Unit names (Optimized to avoid N+1)
+        
+        // Populate Unit names and Calculate Returnable/In-Stock Quantities
         $items = $nhaphang['hanghoa'];
         $dvt_ids = array_filter(array_unique(array_column($items, 'id_donvitinh')));
         
+        // 1. Get previous returns
+        $previous_returns = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($nhaphang['_id']))->get();
+        
+        // 2. Get Unit names
+        $units = [];
         if (!empty($dvt_ids)) {
             $units = \App\Models\DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) {
                 return (string) $item->_id;
             });
-            
-            foreach ($items as &$item) {
-                $dvt_id = isset($item['id_donvitinh']) ? (string)$item['id_donvitinh'] : '';
-                if ($dvt_id && isset($units[$dvt_id])) {
-                    $item['donvitinh'] = ['ten' => $units[$dvt_id]->ten];
-                } else {
-                    $item['donvitinh'] = ['ten' => ''];
+        }
+
+        // 3. Process items
+        foreach ($items as &$item) {
+            // Unit Name
+            $dvt_id = isset($item['id_donvitinh']) ? (string)$item['id_donvitinh'] : '';
+            if ($dvt_id && isset($units[$dvt_id])) {
+                $item['donvitinh'] = ['ten' => $units[$dvt_id]->ten];
+            } else {
+                $item['donvitinh'] = ['ten' => ''];
+            }
+
+            // Calculate 'da_tra' (Already returned count)
+            $sl_da_tra = 0;
+            foreach ($previous_returns as $p_ret) {
+                if (isset($p_ret['hanghoa'])) {
+                    foreach ($p_ret['hanghoa'] as $p_item) {
+                        if ((string)$p_item['id_hanghoa'] == (string)$item['id_hanghoa']) {
+                            $sl_da_tra += $p_item['so_luong_tra'];
+                        }
+                    }
                 }
             }
+            $item['da_tra'] = $sl_da_tra;
+
+            // Calculate 'ton_kho_lo' (Pending Stock for this Import)
+            $ton_kho_lo = 0;
+            $hang_hoa_db = HangHoa::find($item['id_hanghoa']);
+            if ($hang_hoa_db) {
+                $ds_lo_hang = $hang_hoa_db->ds_lo_hang ?? [];
+                $id_nhaphang_obj = ObjectController::ObjectId($nhaphang['_id']);
+                
+                foreach ($ds_lo_hang as $batch) {
+                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : null;
+                    if ($batch_id_nhap !== null && (string)$batch_id_nhap == (string)$id_nhaphang_obj) {
+                        $ton_kho_lo += floatval($batch['so_luong_con_lai'] ?? 0);
+                    }
+                }
+            }
+            $item['ton_kho_lo'] = $ton_kho_lo;
         }
         $nhaphang['hanghoa'] = $items;
 
@@ -270,10 +308,42 @@ class TraHangNCCController extends Controller
             $congno->dia_chi = $nhaphang['dia_chi'] ?? '';
             $congno->tong_thanh_tien = $tong_tien_tra; // Positive = payment/credit
             $congno->ngay_gio = ObjectController::setDate();
-            $congno->loai_cong_no = 1; // 1 = THANH TOAN (reduces our debt to supplier)
+            $congno->loai_cong_no = 1;
             $congno->ghi_chu = 'Trả hàng NCC [' . $ma_tra_hang . '] - Trừ công nợ';
             $congno->id_user = ObjectController::ObjectId($id_user);
             $congno->save();
+        } elseif ($data['hinh_thuc_hoan'] == 'hoan_tien') {
+            // Nhận tiền mặt từ NCC: Tạo 2 bản ghi để cân bằng và ghi nhận đầy đủ lịch sử
+            
+            // Bản ghi 1: Giảm nợ (ghi nhận giá trị hàng trả - credit from return)
+            $congno1 = new CongNoNCC();
+            $congno1->id_nhacungcap = $nhaphang['id_nhacungcap'];
+            $congno1->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
+            $congno1->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
+            $congno1->ten_ncc = $nhaphang['ten_ncc'];
+            $congno1->dien_thoai = $nhaphang['dien_thoai'] ?? '';
+            $congno1->dia_chi = $nhaphang['dia_chi'] ?? '';
+            $congno1->tong_thanh_tien = $tong_tien_tra;
+            $congno1->ngay_gio = ObjectController::setDate();
+            $congno1->loai_cong_no = 1; // Giảm nợ - ghi nhận giá trị trả hàng
+            $congno1->ghi_chu = 'Trả hàng NCC [' . $ma_tra_hang . '] - Giá trị hàng trả: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
+            $congno1->id_user = ObjectController::ObjectId($id_user);
+            $congno1->save();
+            
+            // Bản ghi 2: Ghi nợ lại (ghi nhận đã nhận tiền mặt từ NCC)
+            $congno2 = new CongNoNCC();
+            $congno2->id_nhacungcap = $nhaphang['id_nhacungcap'];
+            $congno2->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
+            $congno2->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
+            $congno2->ten_ncc = $nhaphang['ten_ncc'];
+            $congno2->dien_thoai = $nhaphang['dien_thoai'] ?? '';
+            $congno2->dia_chi = $nhaphang['dia_chi'] ?? '';
+            $congno2->tong_thanh_tien = $tong_tien_tra;
+            $congno2->ngay_gio = ObjectController::setDate();
+            $congno2->loai_cong_no = 0; // Ghi nợ lại - vì đã nhận tiền mặt thay vì trừ nợ
+            $congno2->ghi_chu = 'Đã nhận tiền mặt từ NCC [' . $nhaphang['ten_ncc'] . '] - Hoàn tiền trả hàng [' . $ma_tra_hang . ']: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
+            $congno2->id_user = ObjectController::ObjectId($id_user);
+            $congno2->save();
         }
 
         // Log

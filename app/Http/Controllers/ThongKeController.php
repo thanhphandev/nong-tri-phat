@@ -29,7 +29,48 @@ class ThongKeController extends Controller
         $tonkho_sum = HangHoa::sum('so_luong_ton');
         $tonkho = HangHoa::where('so_luong_ton', '>', 0)->get();
         $hethang = HangHoa::where('so_luong_ton', '=', 0)->get();
-        return view('Admin.ThongKe.ton-kho')->with(compact('tonkho_sum','tonkho', 'hethang'));
+        
+        // Load all units once to avoid N+1 queries
+        $units = \App\Models\DonViTinh::pluck('ten', '_id')->toArray();
+        
+        // Calculate expired products quantity and collect expired batches
+        $expired_quantity = 0;
+        $expired_batches = [];
+        $all_products = HangHoa::all();
+        $now = time();
+        
+        foreach($all_products as $product) {
+            if(isset($product->ton_kho) && is_array($product->ton_kho)) {
+                foreach($product->ton_kho as $batch) {
+                    if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']) {
+                        $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                        if($expiry_timestamp < $now && isset($batch['so_luong']) && $batch['so_luong'] > 0) {
+                            $expired_quantity += $batch['so_luong'];
+                            $expired_batches[] = [
+                                'id_hanghoa' => (string)$product->_id,
+                                'ma_hanghoa' => $product->ma ?? '',
+                                'ten_hanghoa' => $product->ten ?? '',
+                                'id_donvitinh' => (string)($product->id_donvitinh ?? ''),
+                                'ma_lo' => $batch['ma_lo'] ?? '',
+                                'so_luong' => $batch['so_luong'],
+                                'gia_von' => $batch['gia_von'] ?? 0,
+                                'ngay_het_han' => date('d/m/Y', $expiry_timestamp),
+                                'ngay_het_han_ts' => $expiry_timestamp,
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Sort by expiry date (oldest first)
+        usort($expired_batches, function($a, $b) {
+            return $a['ngay_het_han_ts'] - $b['ngay_het_han_ts'];
+        });
+        
+        $expired_batch_count = count($expired_batches);
+        
+        return view('Admin.ThongKe.ton-kho')->with(compact('tonkho_sum','tonkho', 'hethang', 'expired_quantity', 'expired_batches', 'expired_batch_count', 'units'));
     }
 
     function doanh_so(Request $request) {
@@ -331,5 +372,52 @@ class ThongKeController extends Controller
             'tong_da_thanh_toan', 'tong_con_no',
             'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham'
         ));
+    }
+    function export_ton_kho(){
+        $hanghoa = HangHoa::where('so_luong_ton', '>', 0)->get();
+        // Fetch Units and Categories for mapping
+        $units = \App\Models\DonViTinh::pluck('ten', '_id')->toArray();
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Headers
+        $headers = ['STT', 'Mã hàng', 'Tên hàng', 'ĐVT', 'Giá vốn', 'Giá sỉ', 'Giá lẻ', 'SL Tồn', 'Ghi chú'];
+        $columnLetter = 'A';
+        foreach($headers as $header){
+            $sheet->setCellValue($columnLetter . '1', $header);
+            $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
+            $sheet->getStyle($columnLetter . '1')->getFont()->setBold(true);
+            $sheet->getStyle($columnLetter . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
+            $columnLetter++;
+        }
+        
+        // Data
+        $row = 2;
+        $i = 1;
+        foreach($hanghoa as $hh){
+            $unit_name = isset($units[(string)$hh->id_donvitinh]) ? $units[(string)$hh->id_donvitinh] : '';
+            
+            $sheet->setCellValue('A' . $row, $i++);
+            $sheet->setCellValue('B' . $row, $hh->ma);
+            $sheet->setCellValue('C' . $row, $hh->ten);
+            $sheet->setCellValue('D' . $row, $unit_name);
+            $sheet->setCellValue('E' . $row, $hh->gia_von);
+            $sheet->setCellValue('F' . $row, $hh->gia_si);
+            $sheet->setCellValue('G' . $row, $hh->gia_le);
+            $sheet->setCellValue('H' . $row, $hh->so_luong_ton);
+            $sheet->setCellValue('I' . $row, $hh->ghi_chu);
+            
+            // Format numbers
+            $sheet->getStyle('F'.$row.':I'.$row)->getNumberFormat()->setFormatCode('#,##0');
+            $row++;
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $fileName = 'TonKho_' . date('d-m-Y_H-i') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="'. $fileName .'"');
+        $writer->save('php://output');
+        exit;
     }
 }

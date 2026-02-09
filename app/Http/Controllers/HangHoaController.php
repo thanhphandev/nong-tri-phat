@@ -16,7 +16,6 @@ use Validator;
 
 class HangHoaController extends Controller
 {
-    //
     function list(Request $request){
         $keywords = $request->input('keywords');
         $id_donvitinh = $request->input('id_donvitinh');
@@ -39,7 +38,11 @@ class HangHoaController extends Controller
             });
         }
         $danhsach = $danhsach->orderBy('updated_at', 'desc')->paginate(30);
-    	return view('Admin.HangHoa.list')->with(compact('danhsach','keywords','donvitinh','id_donvitinh', 'loaihang', 'id_loaihang'));
+        
+        // Map units for efficient lookup (avoid N+1)
+        $units = DonViTinh::pluck('ten', '_id')->toArray();
+        
+    	return view('Admin.HangHoa.list')->with(compact('danhsach','keywords','donvitinh','id_donvitinh', 'loaihang', 'id_loaihang', 'units'));
     }
 
     function add(Request $request){
