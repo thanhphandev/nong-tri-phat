@@ -110,7 +110,7 @@ class TraHangKhachController extends Controller
             $tra_hang->_id = new \MongoDB\BSON\ObjectId(); // Pre-generate ID
             $id_tra_hang = $tra_hang->_id;
             
-            $ma_tra_hang = 'TRK-' . Carbon::now()->format('Ymd') . '-' . strtoupper(uniqid());
+            $ma_tra_hang = strtoupper(uniqid());
             $tra_hang->ma_tra_hang = $ma_tra_hang;
             
             // Calculate totals and validate quantities
@@ -215,14 +215,12 @@ class TraHangKhachController extends Controller
                         // Create distinct batch for this return
                         $new_batch = [
                             'ma_nhap_hang' => $ma_tra_hang,
-                            'loai_lo' => 'TRA_HANG',
                             'so_luong_nhap' => $so_luong_tra,
                             'so_luong_con_lai' => $so_luong_tra,
-                            'nguon_goc_id' => $id_tra_hang,
-                            'gia_von' => $gia_von,
-                            'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(Carbon::now()->timestamp * 1000),
                             'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->timestamp * 1000),
                             'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->timestamp * 1000),
+                            'gia_von' => $gia_von,
+                            'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(Carbon::now()->timestamp * 1000),
                             'ghi_chu' => 'Hoàn trả từ đơn: ' . $donhang['ma_don_hang'],
                         ];
                         
@@ -289,12 +287,7 @@ class TraHangKhachController extends Controller
             // Handle financial flow based on refund type
             $hinh_thuc = $data['hinh_thuc_hoan'] ?? 'giam_no';
             
-            if ($hinh_thuc == 'hoan_tien') {
-                // Hoàn tiền: Khách nhận tiền mặt -> Không thay đổi công nợ
-                $tra_hang->no_sau_tra = $no_truoc_tra;
-                $tra_hang->save();
-                
-            } else { // giam_no
+            if ($hinh_thuc == 'giam_no') {
                 // Giảm nợ: Trừ vào số tiền khách đang nợ
                 $congno = new CongNo();
                 $congno->id_khachhang = $donhang['id_khachhang'];
@@ -305,7 +298,6 @@ class TraHangKhachController extends Controller
                 $congno->dia_chi = $donhang['dia_chi'] ?? '';
                 $congno->email = $donhang['email'] ?? '';
                 $congno->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
-                // tong_thanh_tien > 0 trong loai_cong_no=1 nghĩa là SỐ TIỀN TRẢ/GIẢM
                 $congno->tong_thanh_tien = $tong_tien_tra;
                 $congno->ngay_gio = ObjectController::setDate();
                 $congno->loai_cong_no = 1; // 1 = THANH TOAN/GIAM NO
@@ -315,6 +307,47 @@ class TraHangKhachController extends Controller
                 
                 $no_sau_tra = $no_truoc_tra - $tong_tien_tra;
                 $tra_hang->no_sau_tra = $no_sau_tra;
+                $tra_hang->save();
+                
+            } elseif ($hinh_thuc == 'hoan_tien') {
+                // Hoàn tiền mặt: Tạo 2 bản ghi để cân bằng và ghi nhận đầy đủ lịch sử
+                
+                // Bản ghi 1: Giảm nợ (ghi nhận giá trị hàng trả - credit from return)
+                $congno1 = new CongNo();
+                $congno1->id_khachhang = $donhang['id_khachhang'];
+                $congno1->id_donhang = ObjectController::ObjectId($donhang['_id']);
+                $congno1->ma_don_hang = $donhang['ma_don_hang'];
+                $congno1->ho_ten = $donhang['ho_ten'];
+                $congno1->dien_thoai = $donhang['dien_thoai'];
+                $congno1->dia_chi = $donhang['dia_chi'] ?? '';
+                $congno1->email = $donhang['email'] ?? '';
+                $congno1->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
+                $congno1->tong_thanh_tien = $tong_tien_tra;
+                $congno1->ngay_gio = ObjectController::setDate();
+                $congno1->loai_cong_no = 1; // Giảm nợ - ghi nhận giá trị trả hàng
+                $congno1->ghi_chu = 'Trả hàng [' . $ma_tra_hang . '] - Giá trị hàng trả: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
+                $congno1->id_user = ObjectController::ObjectId($id_user);
+                $congno1->save();
+                
+                // Bản ghi 2: Ghi nợ lại (ghi nhận đã hoàn tiền mặt cho khách)
+                $congno2 = new CongNo();
+                $congno2->id_khachhang = $donhang['id_khachhang'];
+                $congno2->id_donhang = ObjectController::ObjectId($donhang['_id']);
+                $congno2->ma_don_hang = $donhang['ma_don_hang'];
+                $congno2->ho_ten = $donhang['ho_ten'];
+                $congno2->dien_thoai = $donhang['dien_thoai'];
+                $congno2->dia_chi = $donhang['dia_chi'] ?? '';
+                $congno2->email = $donhang['email'] ?? '';
+                $congno2->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
+                $congno2->tong_thanh_tien = $tong_tien_tra;
+                $congno2->ngay_gio = ObjectController::setDate();
+                $congno2->loai_cong_no = 0; // Ghi nợ lại - vì đã hoàn tiền mặt thay vì trừ nợ
+                $congno2->ghi_chu = 'Đã hoàn tiền mặt cho khách [' . $donhang['ho_ten'] . '] - Trả hàng [' . $ma_tra_hang . ']: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
+                $congno2->id_user = ObjectController::ObjectId($id_user);
+                $congno2->save();
+                
+                // Công nợ không đổi (2 bút toán triệt tiêu nhau)
+                $tra_hang->no_sau_tra = $no_truoc_tra;
                 $tra_hang->save();
             }
 
@@ -439,19 +472,51 @@ class TraHangKhachController extends Controller
 
         // Revert CongNo if applicable
         if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
+            // Khi xóa giam_no: tạo 1 record ghi nợ lại
             $congno = new CongNo();
             $congno->id_khachhang = $tra_hang['id_khachhang'];
             $congno->id_donhang = $tra_hang['id_donhang'];
             $congno->ma_don_hang = $tra_hang['ma_don_hang'];
             $congno->ho_ten = $tra_hang['ho_ten'];
             $congno->dien_thoai = $tra_hang['dien_thoai'];
-            $congno->dia_chi = $tra_hang['dia_chi'];
+            $congno->dia_chi = $tra_hang['dia_chi'] ?? '';
             $congno->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
             $congno->ngay_gio = ObjectController::setDate();
             $congno->loai_cong_no = 0; // 0 = GHI NO (Increase debt back)
             $congno->ghi_chu = 'Hủy phiếu trả hàng [' . $tra_hang['ma_tra_hang'] . ']';
             $congno->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
             $congno->save();
+        } elseif ($tra_hang['hinh_thuc_hoan'] == 'hoan_tien') {
+            // Khi xóa hoan_tien: tạo 2 record đảo ngược (giảm nợ + ghi nợ lại)
+            // Record 1: Ghi nợ lại (đảo ngược record giảm nợ)
+            $congno1 = new CongNo();
+            $congno1->id_khachhang = $tra_hang['id_khachhang'];
+            $congno1->id_donhang = $tra_hang['id_donhang'];
+            $congno1->ma_don_hang = $tra_hang['ma_don_hang'];
+            $congno1->ho_ten = $tra_hang['ho_ten'];
+            $congno1->dien_thoai = $tra_hang['dien_thoai'];
+            $congno1->dia_chi = $tra_hang['dia_chi'] ?? '';
+            $congno1->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
+            $congno1->ngay_gio = ObjectController::setDate();
+            $congno1->loai_cong_no = 0; // Ghi nợ lại (đảo ngược giảm nợ)
+            $congno1->ghi_chu = 'Hủy trả hàng [' . $tra_hang['ma_tra_hang'] . '] - Hoàn lại công nợ';
+            $congno1->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
+            $congno1->save();
+            
+            // Record 2: Giảm nợ lại (đảo ngược record ghi nợ)
+            $congno2 = new CongNo();
+            $congno2->id_khachhang = $tra_hang['id_khachhang'];
+            $congno2->id_donhang = $tra_hang['id_donhang'];
+            $congno2->ma_don_hang = $tra_hang['ma_don_hang'];
+            $congno2->ho_ten = $tra_hang['ho_ten'];
+            $congno2->dien_thoai = $tra_hang['dien_thoai'];
+            $congno2->dia_chi = $tra_hang['dia_chi'] ?? '';
+            $congno2->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
+            $congno2->ngay_gio = ObjectController::setDate();
+            $congno2->loai_cong_no = 1; // Giảm nợ lại (đảo ngược ghi nợ)
+            $congno2->ghi_chu = 'Hủy trả hàng [' . $tra_hang['ma_tra_hang'] . '] - Thu hồi tiền hoàn';
+            $congno2->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
+            $congno2->save();
         }
 
         // Log and delete

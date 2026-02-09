@@ -72,7 +72,7 @@
             <div class="card-box bg-success widget-flat border-success text-white">
                 <i class="fas fa-check-circle"></i>
                 <h3 class="text-white">{{ number_format($tong_da_thanh_toan,0,",",".") }}</h3>
-                <p class="text-uppercase font-13 font-weight-bold">Đã thanh toán NCC</p>
+                <p class="text-uppercase font-13 font-weight-bold">Tổng chi cho NCC</p>
             </div>
         </div>
         <div class="col-md-6 col-xl-3">

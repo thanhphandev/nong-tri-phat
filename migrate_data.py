@@ -126,12 +126,8 @@ def run_migration():
                 # Let's simplify to what fits the request best:
                 # 20k - 50k range.
                 
-                gia_ban_mat = gia_von + random.randint(20, 30) * 1000 # Lower margin for cash
-                gia_ban_thieu = gia_von + random.randint(40, 50) * 1000 # Higher margin for credit
-                
-                # Also populate standard fields
-                gia_si = gia_ban_mat 
-                gia_le = gia_ban_thieu # Mapping high price to Le is safer for display default
+                gia_le = gia_von + random.randint(20, 30) * 1000 # Lower margin for cash
+                gia_si = gia_von + random.randint(40, 50) * 1000 # Higher margin for credit
             else:
                  gia_ban_mat = 0
                  gia_ban_thieu = 0

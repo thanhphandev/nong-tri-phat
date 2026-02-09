@@ -24,8 +24,15 @@
     <div class="card-box mb-3">
         <form method="GET" action="{{ env('APP_URL') }}admin/cong-no-ncc">
             <div class="row">
-                <div class="col-md-9">
+                <div class="col-md-6">
                     <input type="text" name="keywords" class="form-control" value="{{ $keywords }}" placeholder="Tìm tên, số điện thoại, mã NCC...">
+                </div>
+                <div class="col-md-3">
+                    <select name="trang_thai_no" id="filter-trang-thai" class="form-control">
+                        <option value="">-- Tất cả --</option>
+                        <option value="con_no" {{ request('trang_thai_no') == 'con_no' ? 'selected' : '' }}>Còn nợ</option>
+                        <option value="het_no" {{ request('trang_thai_no') == 'het_no' ? 'selected' : '' }}>Đã hết nợ</option>
+                    </select>
                 </div>
                 <div class="col-md-3">
                     <button class="btn btn-primary btn-block" type="submit"><i class="fa fa-search"></i> Tìm kiếm</button>
@@ -49,18 +56,29 @@
                 </tr>
             </thead>
             <tbody>
-                @php $i = 0; @endphp
+                @php 
+                    $i = 0; 
+                    $filter_status = request('trang_thai_no');
+                @endphp
                 @foreach($nhacungcap_list as $ncc)
-                    @if($ncc['con_no'] != 0 || $ncc['tong_no'] != 0)
+                    @php
+                        $show = true;
+                        if($filter_status == 'con_no' && $ncc['con_no'] <= 0) $show = false;
+                        if($filter_status == 'het_no' && $ncc['con_no'] > 0) $show = false;
+                    @endphp
+                    @if($show)
                     @php $i++; @endphp
-                    <tr>
+                    <tr data-con-no="{{ $ncc['con_no'] }}">
                         <td class="text-center">{{ $i }}</td>
                         <td><strong>{{ $ncc['ten'] }}</strong></td>
                         <td>{{ $ncc['dien_thoai'] }}</td>
                         <td class="text-right">{{ number_format($ncc['tong_no'], 0, ',', '.') }}</td>
                         <td class="text-right text-success">{{ number_format($ncc['tong_tra'], 0, ',', '.') }}</td>
-                        <td class="text-right font-weight-bold {{ $ncc['con_no'] > 0 ? 'text-danger' : 'text-primary' }}">
+                        <td class="text-right font-weight-bold {{ $ncc['con_no'] > 0 ? 'text-danger' : 'text-success' }}">
                             {{ number_format($ncc['con_no'], 0, ',', '.') }}
+                            @if($ncc['con_no'] <= 0)
+                                <br><span class="badge badge-success">Đã thanh toán</span>
+                            @endif
                         </td>
                         <td class="text-center">
                             <a href="{{ env('APP_URL') }}admin/cong-no-ncc?id_nhacungcap={{ $ncc['_id'] }}" class="btn btn-sm btn-info"><i class="fa fa-eye"></i> Chi tiết</a>

@@ -11,6 +11,7 @@
                     <th class="align-middle">Số lượng còn lại</th>
                     <th class="align-middle">Đơn giá vốn</th>
                     <th class="align-middle">Thành tiền tồn</th>
+                    <th class="align-middle">Ghi chú</th>
                 </tr>
             </thead>
             <tbody>
@@ -46,6 +47,15 @@
                     <td class="align-middle font-weight-bold text-primary">{{ number_format($sl_con, 0, ',', '.') }}</td>
                     <td class="align-middle text-right">{{ number_format($gia_von, 0, ',', '.') }}</td>
                     <td class="align-middle text-right font-weight-bold text-success">{{ number_format($thanh_tien, 0, ',', '.') }}</td>
+                    <td class="align-middle text-left">
+                        @if(isset($batch['ghi_chu']) && $batch['ghi_chu'])
+                            <small>{{ $batch['ghi_chu'] }}</small>
+                        @elseif(isset($batch['loai_lo']) && $batch['loai_lo'] == 'TRA_HANG')
+                            <span class="badge badge-warning">Hàng trả lại</span>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -63,6 +73,7 @@
                         @endphp
                         {{ number_format($total_val, 0, ',', '.') }}
                     </td>
+                    <td></td>
                 </tr>
             </tfoot>
         </table>
