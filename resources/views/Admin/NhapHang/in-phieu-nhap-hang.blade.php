@@ -36,17 +36,11 @@
             width: 22mm;
             vertical-align: top;
         }
-        .header-left img { width: 35mm; }
+        .header-left img { width: 50mm; }
         .header-right {
             display: table-cell;
             vertical-align: top;
             padding-left: 3mm;
-        }
-        .company-name {
-            color: #d71a21;
-            font-weight: bold;
-            font-size: 13pt;
-            text-transform: uppercase;
         }
         .company-info {
             font-size: 9pt;
@@ -369,7 +363,7 @@
 </div>
 
 <div class="print-btn-container">
-    <a href="javascript:history.back()" class="back-btn">
+    <a href="{{ env('APP_URL').'admin/nhap-hang' }}" class="back-btn">
         TRỞ VỀ
     </a>
     <button class="print-btn" onclick="window.print()">

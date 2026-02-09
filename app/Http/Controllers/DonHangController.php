@@ -19,24 +19,37 @@ class DonHangController extends Controller
     function list(Request $request, $ma = ''){
         $tinhtrang = Config::get('app.tinh_trang_don_hang');
         $keywords = $request->input('keywords');
+        $id_kh = $request->input('id_kh');
+        
+        $query = DonHang::query();
+        
         if($ma){
-            $danhsach = DonHang::where('ma_don_hang','=',$ma)->orderBy('ngay_ban', 'desc')->paginate(30);
-        } else if($keywords){
-            $danhsach = DonHang::where('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
-            ->orWhere('ho_ten', 'regexp', '/.*'.$keywords.'/i')
-            ->orWhere('dien_thoai', 'regexp', '/.*'.$keywords.'/i')
-            ->orderBy('ngay_ban', 'desc')->paginate(30);
+            $query->where('ma_don_hang','=',$ma);
         } else {
-            $danhsach = DonHang::orderBy('ngay_ban', 'desc')->paginate(30);
+            if($id_kh){
+                $query->where('id_khachhang', ObjectController::ObjectId($id_kh));
+            }
+            
+            if($keywords){
+                $query->where(function($q) use ($keywords) {
+                    $q->where('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
+                      ->orWhere('dien_thoai', 'regexp', '/.*'.$keywords.'/i');
+                });
+            }
         }
-    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords'));
+        
+        $danhsach = $query->orderBy('ngay_ban', 'desc')->paginate(30);
+        $khachhang = KhachHang::orderBy('ho_ten', 'asc')->get();
+        
+    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh'));
     }
 
     function add(Request $request){
         $id_khachhang = $request->input('id_khachhang');
         $loai_khach_hang = Config::get('app.loai_khach_hang');
     	$khachhang = KhachHang::All();
-    	$hanghoa  = HangHoa::where('so_luong_ton', '>', 0)->get();
+    	// Allow all products to be selected, even with zero or negative stock
+    	$hanghoa  = HangHoa::all();
     	return view('Admin.DonHang.add')->with(compact('khachhang','hanghoa','loai_khach_hang','id_khachhang'));
     }
 
@@ -87,37 +100,38 @@ class DonHangController extends Controller
                         }
 
                         if($sl_can_tru > 0 && !$is_expired){
-                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
-                            if($sl_ton_batch > 0){
-                                if($sl_ton_batch >= $sl_can_tru){
-                                    // Take all remaining need from this batch
-                                    $qty_deducted_from_batch = $sl_can_tru;
-                                    $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
-                                    $sl_can_tru = 0;
-                                } else {
-                                    // Take all from this batch
-                                    $qty_deducted_from_batch = $sl_ton_batch;
-                                    $sl_can_tru -= $sl_ton_batch;
-                                    $batch['so_luong_con_lai'] = 0;
-                                }
-                                
-                                // Accumulate Cost
-                                $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
-                                $tong_gia_von_thuc_te += $qty_deducted_from_batch * $batch_cost_price;
-                                $sl_da_tru += $qty_deducted_from_batch;
-                            }
+                        $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                        
+                        // ALLOW NEGATIVE INVENTORY: Process deduction even if stock is 0 or negative
+                        if($sl_ton_batch >= $sl_can_tru){
+                            // Take all remaining need from this batch
+                            $qty_deducted_from_batch = $sl_can_tru;
+                            $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
+                            $sl_can_tru = 0;
+                        } else {
+                            // Take all from this batch (may go negative)
+                            $qty_deducted_from_batch = $sl_can_tru; // Take all needed
+                            $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru; // Allow negative
+                            $sl_can_tru = 0; // All quantity allocated
                         }
-                        // if(isset($batch['so_luong_con_lai']) && intval($batch['so_luong_con_lai']) > 0){
-                        // }
-                        $new_batches[] = $batch;
+                        
+                        // Accumulate Cost
+                        $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
+                        $tong_gia_von_thuc_te += $qty_deducted_from_batch * $batch_cost_price;
+                        $sl_da_tru += $qty_deducted_from_batch;
                     }
+                    
+                    $new_batches[] = $batch;
+                }    
                     
                     // Update Product
                     // Limit to 50 records (Prioritize Active Batches)
+                    // Note: Negative batches are kept as "active" for tracking
                     $active_batches = [];
                     $inactive_batches = [];
                     foreach($new_batches as $b){
-                        if(isset($b['so_luong_con_lai']) && intval($b['so_luong_con_lai']) > 0){
+                        // Keep batches with any stock (including negative) as active
+                        if(isset($b['so_luong_con_lai']) && intval($b['so_luong_con_lai']) != 0){
                             $active_batches[] = $b;
                         } else {
                             $inactive_batches[] = $b;

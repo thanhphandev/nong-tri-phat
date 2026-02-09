@@ -10,16 +10,28 @@
 		<div class="col-12 col-md-12">
             <div class="row form-group">
                 <div class="col-12 col-md-6">
-			        <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/don-hang/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Đơn hàng</h3>
+			        <h3 class="m-t-0">
+                        <a href="{{ env('APP_URL') }}admin/don-hang/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a>
+                        <a href="{{ env('APP_URL') }}admin/don-hang" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
+                        Danh sách Đơn hàng
+                    </h3>
                 </div>
                 <div class="col-12 col-md-6">
                     <form method="GET" action="{{ env('APP_URL') }}admin/don-hang" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-9">
-                                <input type="text" name="keywords" id="keywords" value="{{ $keywords }}" class="form-control" placeholder="Mã đơn hàng/khách hàng/điện thoại" />
+                            <div class="col-12 col-md-5">
+                                <select name="id_kh" id="id_kh" class="form-control select2" style="width:100%;">
+                                    <option value="">-- Tất cả KH --</option>
+                                    @foreach($khachhang as $kh)
+                                        <option value="{{ $kh['_id'] }}" {{ (isset($id_kh) && $id_kh == $kh['_id']) ? 'selected' : '' }}>{{ $kh['ho_ten'] }} - {{ $kh['dien_thoai'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <input type="text" name="keywords" id="keywords" value="{{ $keywords }}" class="form-control" placeholder="Mã đơn/điện thoại" />
                             </div>
                             <div class="col-12 col-md-3">
-                                <button type="submit" name="submit" value="Search" class="btn btn-primary"><i class="fa fa-search"></i> Tìm kiếm</button>
+                                <button type="submit" name="submit" value="Search" class="btn btn-primary btn-block"><i class="fa fa-search"></i> Lọc</button>
                             </div>
                         </div>
 
@@ -35,6 +47,7 @@
 							<th>Điện thoại</th>
 							<th>SL</th>
 							<th>Tổng tiền</th>
+                            <th>Lợi nhuận</th>
 							<th>Đã TT</th>
 							<th>Còn nợ</th>
 							<th>Trạng thái</th>
@@ -46,12 +59,23 @@
 						@foreach($danhsach as $ds)
 							@php
 								$so_luong = 0;
+                                $tong_gia_von = 0;
 								foreach($ds['hanghoa'] as $hh){
 									$so_luong += $hh['so_luong'];
+                                    // Calculate Total Cost
+                                    if(isset($hh['gia_von_thuc_te'])){
+                                        $tong_gia_von += $hh['gia_von_thuc_te'];
+                                    } else {
+                                        // Fallback if no real cost stored (old orders)
+                                        // Assume calculating from 'gia_von' if available, or 0
+                                        $gv = isset($hh['gia_von']) ? $hh['gia_von'] : 0; // Check if gia_von stored in item? Only 'gia_von_thuc_te' is reliable if batch logic used.
+                                        $tong_gia_von += $hh['so_luong'] * $gv;
+                                    }
 								}
 								// Use stored thanh_toan field instead of calculating from CongNo
 								$da_thanh_toan = $ds['thanh_toan'] ?? 0;
 								$con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                $loi_nhuan = $ds['tong_thanh_tien'] - $tong_gia_von;
 							@endphp
 							<tr>
 								<td class="text-center"><b>{{ $ds['ma_don_hang'] }}</b></td>
@@ -64,6 +88,9 @@
 								</td>
 								<td class="text-right">
                                     <b>{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b>
+                                </td>
+                                <td class="text-right font-weight-bold text-primary">
+                                    {{ number_format($loi_nhuan,0,",",".") }}
                                 </td>
 								<td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
 								<td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>

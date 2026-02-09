@@ -36,17 +36,11 @@
             width: 22mm;
             vertical-align: top;
         }
-        .header-left img { width: 35mm; }
+        .header-left img { width: 50mm; }
         .header-right {
             display: table-cell;
             vertical-align: top;
             padding-left: 3mm;
-        }
-        .company-name {
-            color: #d71a21;
-            font-weight: bold;
-            font-size: 13pt;
-            text-transform: uppercase;
         }
         .company-info {
             font-size: 9pt;
@@ -239,7 +233,6 @@
             <img src="{{ asset('assets/images/logo.png') }}" alt="Logo">
         </div>
         <div class="header-right">
-            <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
                 SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
@@ -249,7 +242,7 @@
 
     <!-- Title -->
     <div class="title-section">
-        <div class="title-main">Phiếu Trả Hàng NCC</div>
+        <div class="title-main">Phiếu Trả Hàng</div>
         <div class="title-sub">
             Mã phiếu: <span class="code">{{ $tra_hang['ma_tra_hang'] ?? 'N/A' }}</span>
         </div>
@@ -352,13 +345,13 @@
         </div>
         <div class="signature-box">
             <div class="signature-title">Người lập phiếu</div>
-            <div class="signature-name">{{ Session::get('user.fullname') }}</div>
+            <div class="signature-name">Cửa Hàng VTNN Nông Trí Phát</div>
         </div>
     </div>
 </div>
 
 <div class="print-btn-container">
-    <a href="javascript:history.back()" class="back-btn">
+    <a href="{{ env('APP_URL').'admin/tra-hang-ncc' }}" class="back-btn">
         TRỞ VỀ
     </a>
     <button class="print-btn" onclick="window.print()">

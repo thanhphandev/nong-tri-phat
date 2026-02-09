@@ -36,17 +36,11 @@
             width: 22mm;
             vertical-align: top;
         }
-        .header-left img { width: 35mm; }
+        .header-left img { width: 50mm; }
         .header-right {
             display: table-cell;
             vertical-align: top;
             padding-left: 3mm;
-        }
-        .company-name {
-            color: #d71a21;
-            font-weight: bold;
-            font-size: 13pt;
-            text-transform: uppercase;
         }
         .company-info {
             font-size: 9pt;
@@ -239,7 +233,6 @@
             <img src="{{ asset('assets/images/logo.png') }}" alt="Logo">
         </div>
         <div class="header-right">
-            <div class="company-name">CỬA HÀNG VTNN NÔNG TRÍ PHÁT</div>
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
                 SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
@@ -258,9 +251,6 @@
     <!-- Info Section -->
     <div class="info-section">
         <div class="info-left">
-            @if(!empty($dh['id_khachhang']))
-                <div class="info-row"><span class="info-label">MÃ KH:</span> {{ $dh['id_khachhang'] }}</div>
-            @endif
             <div class="info-row"><span class="info-label">KHÁCH HÀNG:</span> {{ $dh['ho_ten'] }}</div>
             @if(!empty($dh['dia_chi']))
                 <div class="info-row"><span class="info-label">ĐỊA CHỈ:</span> {{ $dh['dia_chi'] }}</div>
@@ -355,7 +345,7 @@
 </div>
 
 <div class="print-btn-container">
-    <a href="javascript:history.back()" class="back-btn">
+    <a href="{{ env('APP_URL').'admin/don-hang' }}" class="back-btn">
         ◀ TRỞ VỀ
     </a>
     <button class="print-btn" onclick="window.print()">

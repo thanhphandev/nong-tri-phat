@@ -10,7 +10,11 @@
     	<div class="card-box">
             <div class="row form-group">
                 <div class="col-12 col-md-12">
-                    <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/hang-hoa/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Hàng hóa</h3>
+                    <h3 class="m-t-0">
+                        <a href="{{ env('APP_URL') }}admin/hang-hoa/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a>
+                        <a href="{{ env('APP_URL') }}admin/hang-hoa" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
+                        Danh sách Hàng hóa
+                    </h3>
                 </div>
             </div>
             <div class="row form-group">
@@ -72,10 +76,7 @@
                         <td>{{ $ds['ma'] }}</td>
         				<td>{{ $ds['ten'] }}</td>
                         <td class="text-center">
-                            @php
-                                $dvt = App\Models\DonViTinh::find($ds['id_donvitinh']);
-                            @endphp
-                            {{ $dvt ? $dvt['ten'] : '' }}
+                            {{ $units[(string)$ds['id_donvitinh']] ?? '' }}
                         </td>
                         <td class="text-right">{{ number_format($ds['gia_von'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_si'], 0,",",".") }}</td>
@@ -110,6 +111,7 @@
 @section('js')
 <script src="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.js"></script>
 <script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
+<script src="{{ env('APP_URL') }}assets/libs/autocomplete/jquery.autocomplete.min.js"></script>
 <script type="text/javascript">
     document.onkeydown = function (evt) {
         if (navigator.userAgent.indexOf("Opera") == -1) {
@@ -135,6 +137,26 @@
         });
         $(".select2").change(function(){
             $("#SearchForm").submit();
+        });
+
+        // Initialize Autocomplete
+        $('#keywords').autocomplete({
+            serviceUrl: '{{ env("APP_URL") }}admin/hang-hoa/autocomplete',
+            dataType: 'json',
+            type: 'GET',
+            paramName: 'term',
+            minChars: 1, // Sensitivity: 1 char
+            transformResult: function(response) {
+                return {
+                    suggestions: $.map(response.results, function(dataItem) {
+                        return { value: dataItem.ma + " - " + dataItem.ten, data: dataItem.ma };
+                    })
+                };
+            },
+            onSelect: function (suggestion) {
+                $('#keywords').val(suggestion.data); // Set value to Code (Ma)
+                $("#SearchForm").submit(); // Auto submit
+            }
         });
 
     });

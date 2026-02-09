@@ -15,14 +15,22 @@ class NhapHangController extends Controller
     //
     function list(Request $request){
         $keywords = $request->input('keywords');
-        if($keywords){
-            $danhsach = NhapHang::where('ma_nhap_hang', 'regexp', '/.*'.$keywords.'/i')
-            ->orWhere('so_chung_tu', 'regexp', '/.*'.$keywords.'/i')
-            ->orWhere('ten_ncc', 'regexp', '/.*'.$keywords.'/i')
-            ->orderBy('ngay_nhap', 'desc')->paginate(30);
-        } else {
-            $danhsach = NhapHang::orderBy('ngay_nhap', 'desc')->paginate(30);
+        $id_ncc = $request->input('id_ncc');
+        
+        $query = NhapHang::query();
+        
+        if($id_ncc){
+            $query->where('id_nhacungcap', ObjectController::ObjectId($id_ncc));
         }
+        
+        if($keywords){
+            $query->where(function($q) use ($keywords) {
+                $q->where('ma_nhap_hang', 'regexp', '/.*'.$keywords.'/i')
+                  ->orWhere('so_chung_tu', 'regexp', '/.*'.$keywords.'/i');
+            });
+        }
+        
+        $danhsach = $query->orderBy('ngay_nhap', 'desc')->paginate(30);
         
         // Calculate Paid Amount for each item
         $ids = $danhsach->pluck('_id')->toArray();
@@ -58,7 +66,8 @@ class NhapHangController extends Controller
         }
 
     	$hanghoa = HangHoa::All();
-    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords'));
+    	$nhacungcap = NhaCungCap::orderBy('ten', 'asc')->get();
+    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc'));
     }
 
     function add(){
