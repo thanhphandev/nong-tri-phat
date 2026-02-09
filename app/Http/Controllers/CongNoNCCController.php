@@ -13,18 +13,163 @@ class CongNoNCCController extends Controller
 {
     //
     function list(Request $request){
-        $nhacungcap = NhaCungCap::All();
-        $id_nhacungcap = $request->input('id_nhacungcap');
-        if($id_nhacungcap){
-            $id_nhacungcap = ObjectController::ObjectId($id_nhacungcap);
-            $congno = CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 0)->get();
-            $thanhtoan = CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 1)->get();
-            $congno_sum = CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-            $thanhtoan_sum = CongNoNCC::where('id_nhacungcap', '=', $id_nhacungcap)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-        } else {
-            $congno='';$thanhtoan='';$congno_sum='';$thanhtoan_sum='';
+        $nhacungcap = NhaCungCap::orderBy('ten', 'asc')->get();
+        // Calculate Debt for List View (Aggregation)
+        $raw_stats = CongNoNCC::raw(function($collection) {
+            return $collection->aggregate([
+                ['$group' => [
+                    '_id' => '$id_nhacungcap',
+                    'tong_no' => ['$sum' => ['$cond' => [['$eq' => ['$loai_cong_no', 0]], '$tong_thanh_tien', 0]]],
+                    'tong_tra' => ['$sum' => ['$cond' => [['$eq' => ['$loai_cong_no', 1]], '$tong_thanh_tien', 0]]]
+                ]]
+            ]);
+        });
+        
+        $debt_map = [];
+        foreach($raw_stats as $stat) {
+            $debt_map[(string)$stat['_id']] = [
+                'tong_no' => $stat['tong_no'],
+                'tong_tra' => $stat['tong_tra'],
+                'con_no' => $stat['tong_no'] - $stat['tong_tra']
+            ];
         }
-        return view('Admin.CongNoNCC.list')->with(compact('id_nhacungcap', 'nhacungcap', 'congno', 'thanhtoan', 'congno_sum', 'thanhtoan_sum'));
+
+        $keywords = $request->input('keywords');
+        $q_ncc = NhaCungCap::query();
+        if($keywords){
+            $q_ncc->where(function($q) use ($keywords){
+                $q->where('ten', 'regexp', '/'.$keywords.'/i')
+                  ->orWhere('dien_thoai', 'regexp', '/'.$keywords.'/i')
+                  ->orWhere('ma', 'regexp', '/'.$keywords.'/i');
+            });
+        }
+        $nhacungcap_list = $q_ncc->get();
+
+        foreach($nhacungcap_list as $ncc) {
+            $ncc_id = (string)$ncc['_id'];
+            if(isset($debt_map[$ncc_id])) {
+                $ncc->tong_no = $debt_map[$ncc_id]['tong_no'];
+                $ncc->tong_tra = $debt_map[$ncc_id]['tong_tra'];
+                $ncc->con_no = $debt_map[$ncc_id]['con_no'];
+            } else {
+                $ncc->tong_no = 0; $ncc->tong_tra = 0; $ncc->con_no = 0;
+            }
+        }
+        // Sort by Debt Descending
+        $nhacungcap_list = $nhacungcap_list->sortByDesc('con_no');
+
+        // Detailed View Logic
+        $id_nhacungcap = $request->input('id_nhacungcap');
+        $supplier_detail = null;
+        $transaction_history = [];
+        $product_history = [];
+        $congno_sum = 0;
+        $thanhtoan_sum = 0;
+        $start_date = null; $end_date = null;
+        $from_date = $request->input('from_date');
+        $to_date = $request->input('to_date');
+
+        if($id_nhacungcap){
+            $id_nhacungcap_obj = ObjectController::ObjectId($id_nhacungcap);
+            $supplier_detail = NhaCungCap::find($id_nhacungcap);
+
+            // Date Filter
+            $q_cn = CongNoNCC::where('id_nhacungcap', $id_nhacungcap_obj);
+            if($from_date && $to_date){
+               $fd = \DateTime::createFromFormat('d/m/Y', $from_date);
+               $td = \DateTime::createFromFormat('d/m/Y', $to_date);
+               if($fd && $td){
+                   $fd->setTime(0,0,0);
+                   $td->setTime(23,59,59);
+                   $start_date = new \MongoDB\BSON\UTCDateTime($fd->getTimestamp() * 1000);
+                   $end_date = new \MongoDB\BSON\UTCDateTime($td->getTimestamp() * 1000);
+                   $q_cn->whereBetween('ngay_gio', [$start_date, $end_date]);
+               }
+            }
+            
+            // Stats
+            $congno_sum = (clone $q_cn)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $thanhtoan_sum = (clone $q_cn)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+
+            // 1. Transaction History (Merged)
+            $transaction_history = $q_cn->orderBy('ngay_gio', 'desc')->get();
+
+            // 2. Product History from Import Orders (NhapHang)
+            $q_nh = \App\Models\NhapHang::where('id_nhacungcap', $id_nhacungcap_obj);
+            if($start_date && $end_date) {
+                $q_nh->whereBetween('ngay_nhap', [$start_date, $end_date]);
+            }
+            $import_orders = $q_nh->orderBy('ngay_nhap', 'desc')->get();
+            
+            // Collect all id_donvitinh from orders to lookup
+            $all_id_dvt = [];
+            $all_id_hh = [];
+            foreach($import_orders as $order) {
+                if(isset($order['hanghoa']) && is_array($order['hanghoa'])) {
+                    foreach($order['hanghoa'] as $item) {
+                        if(isset($item['id_donvitinh']) && $item['id_donvitinh']) {
+                            $all_id_dvt[] = ObjectController::ObjectId($item['id_donvitinh']);
+                        }
+                        if(isset($item['id_hanghoa']) && $item['id_hanghoa']) {
+                            $all_id_hh[] = ObjectController::ObjectId($item['id_hanghoa']);
+                        }
+                    }
+                }
+            }
+            
+            // Get DonViTinh mapping
+            $units = [];
+            if(count($all_id_dvt) > 0) {
+                $dvt_list = \App\Models\DonViTinh::whereIn('_id', array_unique($all_id_dvt))->get();
+                foreach($dvt_list as $dvt) {
+                    $units[(string)$dvt->_id] = $dvt->ten;
+                }
+            }
+            
+            // Get HangHoa mapping for fallback id_donvitinh
+            $products = [];
+            if(count($all_id_hh) > 0) {
+                $hh_list = \App\Models\HangHoa::whereIn('_id', array_unique($all_id_hh))->get();
+                foreach($hh_list as $hh) {
+                    $products[(string)$hh->_id] = $hh;
+                }
+            }
+            
+            foreach($import_orders as $order) {
+                if(isset($order['hanghoa']) && is_array($order['hanghoa'])) {
+                    foreach($order['hanghoa'] as $item) {
+                        // Lookup don_vi_tinh from id_donvitinh
+                        $id_dvt = $item['id_donvitinh'] ?? null;
+                        if(!$id_dvt && isset($item['id_hanghoa'])) {
+                            // Fallback: get from HangHoa
+                            $id_hh = (string)$item['id_hanghoa'];
+                            if(isset($products[$id_hh]) && isset($products[$id_hh]['id_donvitinh'])) {
+                                $id_dvt = $products[$id_hh]['id_donvitinh'];
+                            }
+                        }
+                        $ten_dvt = isset($units[(string)$id_dvt]) ? $units[(string)$id_dvt] : '-';
+                        
+                        $product_history[] = [
+                            'ngay_nhap' => $order['ngay_nhap'],
+                            'ma_nhap_hang' => $order['ma_nhap_hang'] ?? '',
+                            'id_nhap_hang' => $order['_id'],
+                            'ma_sp' => $item['ma'] ?? '',
+                            'ten_sp' => $item['ten'] ?? '',
+                            'so_luong' => $item['so_luong'] ?? 0,
+                            'don_gia' => $item['don_gia'] ?? 0,
+                            'thanh_tien' => $item['thanh_tien'] ?? 0,
+                            'don_vi_tinh' => $ten_dvt
+                        ];
+                    }
+                }
+            }
+        }
+
+        return view('Admin.CongNoNCC.list')->with(compact(
+            'id_nhacungcap', 'nhacungcap_list', 'keywords', 'supplier_detail',
+            'transaction_history', 'product_history', 
+            'congno_sum', 'thanhtoan_sum', 'from_date', 'to_date'
+        ));
     }
 
     function thanh_toan(Request $request){
@@ -34,36 +179,160 @@ class CongNoNCCController extends Controller
             'id_nhacungcap' => 'required',
         ]);
         if ($validator->fails()) {
-            Session::flash('msg', 'Vui lòng chọn khách hàng và nhập số tiền');
+            Session::flash('msg', 'Vui lòng chọn nhà cung cấp và nhập số tiền');
             return redirect($data['url']);
         }
 
         $ncc = NhaCungCap::find($data['id_nhacungcap']);
-        $id = ObjectController::Id();
         $id_user = $request->session()->get('user._id');
-        $congno =  new CongNoNCC();
-        $congno->id_nhacungcap = ObjectController::ObjectId($ncc['_id']);
-        $congno->ma = $ncc['ma'];
-        $congno->ten = $ncc['ten'];
-        $congno->dien_thoai = $ncc['dien_thoai'];
-        $congno->dia_chi = $ncc['dia_chi'];
-        $congno->email = $ncc['email'];
-        $congno->id_donhang = '';
-        $congno->ma_don_hang = '';
-        $congno->tong_thanh_tien = ObjectController::convertStr2Number($data['so_tien']);
-        $congno->ngay_gio = ObjectController::setDate();
-        $congno->loai_cong_no = isset($data['loai_cong_no']) ? intval($data['loai_cong_no']) : 0;
-        $congno->ghi_chu = $data['ghi_chu'];
-        $congno->id_user = ObjectController::ObjectId($id_user);
-        $congno->save();
+        $loai_cong_no = isset($data['loai_cong_no']) ? intval($data['loai_cong_no']) : 1;
+        $so_tien = ObjectController::convertStr2Number($data['so_tien']);
+        
+        // Nếu loại là GHI NỢ THÊM (0), tạo 1 record đơn giản
+        if($loai_cong_no == 0) {
+            $congno = new CongNoNCC();
+            $congno->id_nhacungcap = ObjectController::ObjectId($ncc['_id']);
+            $congno->ma_ncc = $ncc['ma'];
+            $congno->ten_ncc = $ncc['ten'];
+            $congno->dien_thoai = $ncc['dien_thoai'];
+            $congno->dia_chi = $ncc['dia_chi'];
+            $congno->email = $ncc['email'];
+            $congno->id_nhaphang = null;
+            $congno->ma_nhap_hang = '';
+            $congno->tong_thanh_tien = $so_tien;
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 0;
+            $congno->ghi_chu = $data['ghi_chu'] ?? 'Ghi nợ thêm';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
+            
+            $querLog = array(
+                'action' => 'Ghi nợ thêm NCC ['.$ncc['ten'].'] - ' . number_format($so_tien, 0, ',', '.') . ' VND',
+                'id_collection' => $congno->_id,
+                'collection' => 'cong_no_ncc',
+                'data' => $data
+            );
+            LogController::addLog($querLog);
+            Session::flash('msg','Ghi nợ thêm thành công: ' . number_format($so_tien, 0, ',', '.') . ' VND');
+            return redirect($data['url']);
+        }
+        
+        // THANH TOÁN (1): Phân bổ tự động vào các đơn còn nợ
+        $id_nhacungcap_obj = ObjectController::ObjectId($data['id_nhacungcap']);
+        
+        // Lấy tất cả phiếu nhập hàng của NCC này
+        $nhap_hang_list = \App\Models\NhapHang::where('id_nhacungcap', $id_nhacungcap_obj)
+            ->orderBy('ngay_nhap', 'asc') // FIFO: đơn cũ nhất trước
+            ->get();
+        
+        // Tính công nợ cho từng phiếu
+        $ids = $nhap_hang_list->pluck('_id')->toArray();
+        $ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $ids);
+        
+        $payments_map = [];
+        if(count($ids) > 0) {
+            $raw_payments = CongNoNCC::raw(function($collection) use ($ids) {
+                return $collection->aggregate([
+                    [
+                        '$match' => [
+                            'id_nhaphang' => ['$in' => $ids],
+                            'loai_cong_no' => 1
+                        ]
+                    ],
+                    [
+                        '$group' => [
+                            '_id' => '$id_nhaphang',
+                            'total_paid' => ['$sum' => '$tong_thanh_tien']
+                        ]
+                    ]
+                ]);
+            });
+            
+            foreach($raw_payments as $p) {
+                $payments_map[(string)$p['_id']] = $p['total_paid'];
+            }
+        }
+        
+        // Danh sách đơn còn nợ
+        $don_con_no = [];
+        foreach($nhap_hang_list as $nh) {
+            $da_tt = isset($payments_map[(string)$nh->_id]) ? $payments_map[(string)$nh->_id] : 0;
+            $con_no = $nh->tong_thanh_tien - $da_tt;
+            if($con_no > 0) {
+                $don_con_no[] = [
+                    'id' => $nh->_id,
+                    'ma' => $nh->ma_nhap_hang,
+                    'so_chung_tu' => $nh->so_chung_tu ?? '',
+                    'con_no' => $con_no
+                ];
+            }
+        }
+        
+        // Phân bổ thanh toán
+        $so_tien_con_lai = $so_tien;
+        $da_phan_bo = [];
+        
+        foreach($don_con_no as $don) {
+            if($so_tien_con_lai <= 0) break;
+            
+            $so_tien_tra_don_nay = min($so_tien_con_lai, $don['con_no']);
+            
+            // Tạo record thanh toán cho đơn này
+            $congno = new CongNoNCC();
+            $congno->id_nhacungcap = $id_nhacungcap_obj;
+            $congno->ma_ncc = $ncc['ma'];
+            $congno->ten_ncc = $ncc['ten'];
+            $congno->dien_thoai = $ncc['dien_thoai'];
+            $congno->dia_chi = $ncc['dia_chi'];
+            $congno->email = $ncc['email'];
+            $congno->id_nhaphang = ObjectController::ObjectId($don['id']);
+            $congno->ma_nhap_hang = $don['ma'];
+            $congno->so_chung_tu = $don['so_chung_tu'];
+            $congno->tong_thanh_tien = $so_tien_tra_don_nay;
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 1;
+            $congno->ghi_chu = ($data['ghi_chu'] ?? 'Thanh toán') . ' - Phân bổ tự động';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
+            
+            $da_phan_bo[] = $don['ma'] . ': ' . number_format($so_tien_tra_don_nay, 0, ',', '.');
+            $so_tien_con_lai -= $so_tien_tra_don_nay;
+        }
+        
+        // Nếu còn tiền dư (trả hơn tổng nợ), tạo 1 record thanh toán chung
+        if($so_tien_con_lai > 0) {
+            $congno = new CongNoNCC();
+            $congno->id_nhacungcap = $id_nhacungcap_obj;
+            $congno->ma_ncc = $ncc['ma'];
+            $congno->ten_ncc = $ncc['ten'];
+            $congno->dien_thoai = $ncc['dien_thoai'];
+            $congno->dia_chi = $ncc['dia_chi'];
+            $congno->email = $ncc['email'];
+            $congno->id_nhaphang = null;
+            $congno->ma_nhap_hang = '';
+            $congno->tong_thanh_tien = $so_tien_con_lai;
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 1;
+            $congno->ghi_chu = ($data['ghi_chu'] ?? 'Thanh toán') . ' - Tiền dư/ứng trước';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
+            
+            $da_phan_bo[] = 'Tiền dư: ' . number_format($so_tien_con_lai, 0, ',', '.');
+        }
+        
         $querLog = array(
-            'action' => 'Thêm mới thanh toán ['.$ncc['ten'].']',
-            'id_collection' => $id,
+            'action' => 'Thanh toán NCC ['.$ncc['ten'].'] - ' . number_format($so_tien, 0, ',', '.') . ' VND',
+            'id_collection' => $ncc['_id'],
             'collection' => 'cong_no_ncc',
-            'data' => $data
+            'data' => array_merge($data, ['phan_bo' => $da_phan_bo])
         );
         LogController::addLog($querLog);
-        Session::flash('msg','Thanh toán thành công');
+        
+        $msg = 'Thanh toán thành công ' . number_format($so_tien, 0, ',', '.') . ' VND';
+        if(count($da_phan_bo) > 0) {
+            $msg .= ' (Phân bổ: ' . implode(', ', $da_phan_bo) . ')';
+        }
+        Session::flash('msg', $msg);
         return redirect($data['url']);
     }
 

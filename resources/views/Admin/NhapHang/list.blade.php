@@ -10,16 +10,35 @@
 		<div class="col-12 col-md-12">
             <div class="row form-group">
                 <div class="col-12 col-md-6">
-		            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/nhap-hang/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Nhập Hàng hóa</h3>
+		            <h3 class="m-t-0">
+                        <a href="{{ env('APP_URL') }}admin/nhap-hang/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a>
+                        <a href="{{ env('APP_URL') }}admin/nhap-hang" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
+                        Danh sách Nhập Hàng hóa
+                    </h3>
                 </div>
                 <div class="col-12 col-md-6">
                     <form method="GET" action="{{ env('APP_URL') }}admin/nhap-hang" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-9">
-                                <input type="text" name="keywords" id="keywords" value="{{ $keywords ?? '' }}" class="form-control" placeholder="Mã phiếu/số chứng từ/nhà cung cấp" />
+                            <div class="col-12 col-md-4">
+                                <select name="id_ncc" id="id_ncc" class="form-control select2" style="width:100%;">
+                                    <option value="">-- Tất cả NCC --</option>
+                                    @foreach($nhacungcap as $ncc)
+                                        <option value="{{ $ncc['_id'] }}" {{ (isset($id_ncc) && $id_ncc == $ncc['_id']) ? 'selected' : '' }}>{{ $ncc['ten'] }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-12 col-md-3">
-                                <button type="submit" name="submit" value="Search" class="btn btn-primary"><i class="fa fa-search"></i> Tìm kiếm</button>
+                                <select name="trang_thai_no" id="trang_thai_no" class="form-control">
+                                    <option value="">Tất cả</option>
+                                    <option value="con_no" {{ (isset($trang_thai_no) && $trang_thai_no == 'con_no') ? 'selected' : '' }}>🔴 Còn nợ</option>
+                                    <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã thanh toán</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <input type="text" name="keywords" id="keywords" value="{{ $keywords ?? '' }}" class="form-control" placeholder="Mã phiếu/chứng từ" />
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <button type="submit" name="submit" value="Search" class="btn btn-primary btn-block"><i class="fa fa-filter"></i> Lọc</button>
                             </div>
                         </div>
                     </form>

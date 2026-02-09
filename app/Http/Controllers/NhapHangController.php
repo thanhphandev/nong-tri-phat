@@ -16,6 +16,7 @@ class NhapHangController extends Controller
     function list(Request $request){
         $keywords = $request->input('keywords');
         $id_ncc = $request->input('id_ncc');
+        $trang_thai_no = $request->input('trang_thai_no');
         
         $query = NhapHang::query();
         
@@ -64,10 +65,21 @@ class NhapHangController extends Controller
             $ds->da_thanh_toan = isset($payments[$ds->_id]) ? $payments[$ds->_id] : 0;
             $ds->con_no = $ds->tong_thanh_tien - $ds->da_thanh_toan;
         }
+        
+        // Lọc theo trạng thái nợ (sau khi đã tính toán con_no)
+        if($trang_thai_no === 'con_no'){
+            $danhsach->setCollection($danhsach->getCollection()->filter(function($item){
+                return $item->con_no > 0;
+            }));
+        } elseif($trang_thai_no === 'da_tt'){
+            $danhsach->setCollection($danhsach->getCollection()->filter(function($item){
+                return $item->con_no <= 0;
+            }));
+        }
 
     	$hanghoa = HangHoa::All();
     	$nhacungcap = NhaCungCap::orderBy('ten', 'asc')->get();
-    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc'));
+    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc', 'trang_thai_no'));
     }
 
     function add(){
@@ -257,7 +269,7 @@ class NhapHangController extends Controller
             $thanhtoan->tong_thanh_tien = $thanh_toan;
             $thanhtoan->ngay_gio = ObjectController::setDate();
             $thanhtoan->loai_cong_no = 1;
-            $thanhtoan->ghi_chu = $ma_nhap_hang;
+            $thanhtoan->ghi_chu = 'Đã thanh toán khi tạo phiếu nhập hàng ' . $ma_nhap_hang;
             $thanhtoan->id_user = ObjectController::ObjectId($id_user);
             $thanhtoan->save();
         }
@@ -371,38 +383,32 @@ class NhapHangController extends Controller
     }
 
     function in_phieu_nhap_hang(Request $request, $id = '') {
-    $nh = NhapHang::findOrFail($id);
-    
-    // 1. Map thông tin Hàng hóa & Đơn vị tính (Tối ưu truy vấn)
-    $id_hh = collect($nh->hanghoa)->pluck('id_hanghoa')->unique()->map(fn($id) => ObjectController::ObjectId($id));
-    $id_dvt = collect($nh->hanghoa)->pluck('id_donvitinh')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+        $nh = NhapHang::findOrFail($id);
+        
+        // 1. Map thông tin Hàng hóa & Đơn vị tính (Tối ưu truy vấn)
+        $id_hh = collect($nh->hanghoa)->pluck('id_hanghoa')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+        $id_dvt = collect($nh->hanghoa)->pluck('id_donvitinh')->unique()->map(fn($id) => ObjectController::ObjectId($id));
 
-    $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(fn($i) => (string)$i->_id);
-    $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
+        $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(fn($i) => (string)$i->_id);
+        $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
-    $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
-        $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
-        $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
-        return $hh;
-    });
+        $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
+            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            return $hh;
+        });
 
-    // 2. Tính toán công nợ
-    $id_ncc = ObjectController::ObjectId($nh->id_nhacungcap);
-    $id_nh = ObjectController::ObjectId($nh->_id);
+        // 2. Tính toán công nợ
+        $id_ncc = ObjectController::ObjectId($nh->id_nhacungcap);
+        $id_nh = ObjectController::ObjectId($nh->_id);
 
-    // Tổng nợ phát sinh từ trước tới nay (không tính lô hiện tại)
-    $tong_no = CongNoNCC::where('id_nhacungcap', $id_ncc)->where('loai_cong_no', 0)->where('id_nhaphang', '!=', $id_nh)->sum('tong_thanh_tien');
-    // Tổng đã trả từ trước tới nay (không tính các khoản trả cho lô hiện tại)
-    $tong_tra = CongNoNCC::where('id_nhacungcap', $id_ncc)->where('loai_cong_no', 1)->where('id_nhaphang', '!=', $id_nh)->sum('tong_thanh_tien');
-    
-    $no_cu = $tong_no - $tong_tra;
-    $gia_tri_lo_nay = $nh->tong_thanh_tien;
-    $da_thanh_toan_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-    
-    $tong_no_moi = $no_cu + $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
+        $gia_tri_lo_nay = $nh->tong_thanh_tien;
+        $da_thanh_toan_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        
+        $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
 
-    return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'no_cu', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi'));
-}
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi'));
+    }
     function tra_no(Request $request) {
         $data = $request->all();
         $validator = Validator::make($request->all(), [
