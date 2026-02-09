@@ -147,7 +147,7 @@
                                     <td class="font-weight-medium">{{ $vtk['ten'] }}</td>
                                     <td class="text-center">{{ $units[(string)$vtk['id_donvitinh']] ?? '' }}</td>
                                     <td class="text-right">{{ number_format($vtk['gia_von'],0,",",".") }}</td>
-                                    <td class="text-right">{{ number_format($vtk['so_luong_ton'],0,",",".") }}</td>
+                                    <td class="text-right">{{ number_format($vtk['so_luong_ton'],2,",",".") }}</td>
                                     <td class="text-right font-weight-bold text-success">
                                         {{ number_format($vtk['so_luong_ton'] * ($vtk['gia_von'] ?? 0), 0, ",", ".") }}
                                     </td>

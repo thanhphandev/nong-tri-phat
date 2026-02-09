@@ -153,7 +153,7 @@ class NhapHangController extends Controller
         if($data['id_hanghoa_cart']){
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
-                $so_luong = intval($data['so_luong_cart'][$key]);
+                $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
                 $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
@@ -202,7 +202,7 @@ class NhapHangController extends Controller
                     // Recalculate Total Stock from Batches
                     $total_stock = 0;
                     foreach($current_batches as $b){
-                         $total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                         $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                     }
                     $hanghoa_update->so_luong_ton = $total_stock;
                     $hanghoa_update->save();
@@ -317,7 +317,7 @@ class NhapHangController extends Controller
                          // Recalculate Stock
                          $total_stock = 0;
                          foreach($new_batches as $b){
-                             $total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                             $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                          }
                          $hh->so_luong_ton = $total_stock;
                          $hh->save();

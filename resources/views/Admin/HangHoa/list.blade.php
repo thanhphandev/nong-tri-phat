@@ -77,12 +77,15 @@
         				<td>{{ $ds['ten'] }}</td>
                         <td class="text-center">
                             {{ $units[(string)$ds['id_donvitinh']] ?? '' }}
+                            @if(!empty($ds['cho_phep_ban_le']) && !empty($ds['don_vi_le']))
+                                <br><small class="badge badge-success" title="Có thể xả lẻ">{{ $ds['don_vi_le'] }} ({{ $ds['ty_le_quy_doi'] ?? 1 }})</small>
+                            @endif
                         </td>
                         <td class="text-right">{{ number_format($ds['gia_von'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_si'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_le'], 0,",",".") }}</td>
                         <td class="text-right">
-                             {{ number_format($ds['so_luong_ton'],0,",",".") }}
+                             {{ number_format($ds['so_luong_ton'],2,",",".") }}
                         </td>
 
                         {{-- <td class="text-right">0</td> --}}

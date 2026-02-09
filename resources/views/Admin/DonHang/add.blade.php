@@ -56,7 +56,7 @@
                     <label class="control-label col-md-1 text-right p-t-10">Số lượng</label>
                     <div class="col-12 col-md-2">
                         <div class="input-group">
-                            <input type="number" name="so_luong" id="so_luong" value="1" min="1" placeholder="Số lượng" class="form-control">
+                            <input type="number" name="so_luong" id="so_luong" value="1" min="0.01" step="0.01" placeholder="Số lượng" class="form-control">
                             <div class="input-group-append">
                                 <button id="addCart" class="btn btn-info waves-effect waves-light" type="button"><i class="fas fa-cart-plus"></i></button>
                             </div>

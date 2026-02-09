@@ -283,9 +283,14 @@
             @foreach($dh['hanghoa'] as $key => $hh)
             <tr>
                 <td class="text-center">{{ $key + 1 }}</td>
-                <td style="font-weight: 500;">{{ $hh['ten'] }}</td>
+                <td style="font-weight: 500;">
+                    {{ $hh['ten'] }}
+                    @if(!empty($hh['don_vi_le_info']))
+                        <br><small class="text-muted" style="font-size: 8pt;">{{ $hh['don_vi_le_info'] }}</small>
+                    @endif
+                </td>
                 <td class="text-center">{{ $hh['don_vi_tinh'] ?? '-' }}</td>
-                <td class="text-center">{{ number_format($hh['so_luong'], 0) }}</td>
+                <td class="text-center">{{ number_format($hh['so_luong'], 2) }}</td>
                 <td class="text-right">{{ number_format($hh['don_gia'], 0, ",", ".") }}</td>
                 <td class="text-right text-bold">{{ number_format($hh['thanh_tien'], 0, ",", ".") }}</td>
             </tr>

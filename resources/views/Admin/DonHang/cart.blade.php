@@ -2,8 +2,9 @@
 	$thanhtien = $hh[$kh['loai_khach_hang']] * $so_luong;
 	$loi_nhuan = $thanhtien - $gia_von_thuc_te;
 	$loi_nhuan_class = $loi_nhuan >= 0 ? 'text-success' : 'text-danger';
-	$so_luong_ton = isset($hh['so_luong_ton']) ? intval($hh['so_luong_ton']) : 0;
+	$so_luong_ton = isset($hh['so_luong_ton']) ? floatval($hh['so_luong_ton']) : 0;
 	$thieu_hang = $so_luong > $so_luong_ton;
+	$co_ban_le = !empty($hh['cho_phep_ban_le']) && !empty($hh['don_vi_le']);
 @endphp
 <tr class="item {{ $thieu_hang ? 'table-warning' : '' }}">
 	<td class="text-center">
@@ -13,9 +14,12 @@
 	</td>
 	<td>
 		{{ $hh['ten'] }}
+		@if($co_ban_le)
+			<span class="badge badge-success ml-1" title="Có thể xả lẻ">{{ $hh['don_vi_le'] }} (1={{ $hh['ty_le_quy_doi'] ?? 1 }})</span>
+		@endif
 		@if($thieu_hang)
 			<div class="alert alert-danger p-1 m-1" style="font-size: 11px;">
-				<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn {{ number_format($so_luong_ton,0,",",".") }}, sẽ trừ âm {{ number_format($so_luong - $so_luong_ton,0,",",".") }}
+				<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn {{ number_format($so_luong_ton,2,",",".") }}, sẽ trừ âm {{ number_format($so_luong - $so_luong_ton,2,",",".") }}
 			</div>
 		@endif
 		@if(isset($warning_info) && $warning_info)
@@ -39,7 +43,7 @@
 		</div>
 	</td>
 	<td class="text-center" align="center" style="width:100px;max-width:100px;">
-		<input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="Số lượng" class="so-luong cart-change form-control form-control-sm" min="1" data-max-ton="{{ $so_luong_ton }}" style="width:80px;">
+		<input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="Số lượng" class="so-luong cart-change form-control form-control-sm" min="0.01" step="0.01" data-max-ton="{{ $so_luong_ton }}" style="width:80px;">
 	</td>
 	<td class="text-right" style="width:130px;">
 		<input type="text" class="don-gia cart-change number form-control form-control-sm" name="don_gia_cart[]" value="{{ $hh[$kh['loai_khach_hang']] }}" placeholder="" style="width:100px;" data-gia-si="{{ $hh['gia_si'] }}" data-gia-le="{{ $hh['gia_le'] }}"/>

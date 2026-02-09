@@ -83,6 +83,43 @@
 	                		<input type="text" name="ghi_chu" id="ghi_chu" value="{{ old('ghi_chu') != null ? old('ghi_chu') : $ds['ghi_chu'] }}" placeholder="Ghi chú" class="form-control" />
 	                	</div>
 	                </div>
+                    
+                    <!-- Cấu hình Bán lẻ -->
+                    @php
+                        $cho_phep_ban_le = old('cho_phep_ban_le') !== null ? old('cho_phep_ban_le') : ($ds['cho_phep_ban_le'] ?? false);
+                        $don_vi_le = old('don_vi_le') ?? ($ds['don_vi_le'] ?? '');
+                        $ty_le_quy_doi = old('ty_le_quy_doi') ?? ($ds['ty_le_quy_doi'] ?? 1);
+                    @endphp
+                    <div class="row form-group">
+                        <label class="control-label col-md-2 text-right p-t-10">Quy đổi ĐVT</label>
+                        <div class="col-md-10">
+                            <div class="card border p-3 bg-light">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="cho_phep_ban_le" name="cho_phep_ban_le" value="1" {{ $cho_phep_ban_le ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="cho_phep_ban_le"><strong>Cho phép xả lẻ</strong></label>
+                                        </div>
+                                        <small class="text-muted">Bán số lượng nhỏ hơn đơn vị chính</small>
+                                    </div>
+                                    <div class="col-md-4" id="box-don-vi-le" style="{{ $cho_phep_ban_le ? '' : 'display:none;' }}">
+                                        <label>Đơn vị lẻ <span class="text-danger">*</span></label>
+                                        <input type="text" name="don_vi_le" id="don_vi_le" class="form-control" placeholder="VD: kg, lít, gói..." value="{{ $don_vi_le }}">
+                                        <small class="text-muted">Đơn vị khi bán lẻ</small>
+                                    </div>
+                                    <div class="col-md-5" id="box-ty-le" style="{{ $cho_phep_ban_le ? '' : 'display:none;' }}">
+                                        <label>Tỷ lệ quy đổi <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend"><span class="input-group-text">1 ĐVT chính =</span></div>
+                                            <input type="number" name="ty_le_quy_doi" id="ty_le_quy_doi" class="form-control" placeholder="50" value="{{ $ty_le_quy_doi }}" min="1" step="0.01">
+                                            <div class="input-group-append"><span class="input-group-text" id="span-don-vi-le">{{ $don_vi_le ?: 'đơn vị lẻ' }}</span></div>
+                                        </div>
+                                        <small class="text-muted">VD: 1 Bao = 50 kg</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 				</div>
 				<div class="form-actions">
                 <a href="{{ env('APP_URL') }}admin/hang-hoa" class="btn btn-light"><i class="fa fa-reply-all"></i> Trở về</a>
@@ -107,6 +144,19 @@
         	$(".select2").select2();
         	jQuery(".number").number(true, 2);
 
+            // Toggle hiển thị các field bán lẻ
+            $('#cho_phep_ban_le').on('change', function() {
+                if($(this).is(':checked')) {
+                    $('#box-don-vi-le, #box-ty-le').show();
+                } else {
+                    $('#box-don-vi-le, #box-ty-le').hide();
+                }
+            });
+
+            // Cập nhật label đơn vị lẻ
+            $('#don_vi_le').on('keyup', function() {
+                $('#span-don-vi-le').text($(this).val() || 'đơn vị lẻ');
+            });
         });
     </script>
 @endsection

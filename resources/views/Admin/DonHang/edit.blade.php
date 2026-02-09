@@ -39,9 +39,14 @@
                         <tr>
                             <td class="text-center">{{ $k+1 }}</td>
                             <td>{{ $hh['ma'] ?? '' }}</td>
-                            <td>{{ $hh['ten'] }}</td>
+                            <td>
+                                {{ $hh['ten'] }}
+                                @if(!empty($hh['don_vi_le_info']))
+                                    <br><small class="text-muted">{{ $hh['don_vi_le_info'] }}</small>
+                                @endif
+                            </td>
                             <td class="text-center">{{ $hh['don_vi_tinh'] }}</td>
-                            <td class="text-right">{{ number_format($hh['so_luong'], 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format($hh['so_luong'], 2, ',', '.') }}</td>
                             <td class="text-right">{{ number_format($hh['don_gia'], 0, ',', '.') }}</td>
                             <td class="text-right">{{ number_format($hh['chiet_khau'] ?? 0, 0, ',', '.') }}</td>
                             <td class="text-right font-weight-bold">{{ number_format($hh['thanh_tien'], 0, ',', '.') }}</td>
