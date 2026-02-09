@@ -292,7 +292,7 @@ class DonHangController extends Controller
             $thanhtoan->tong_thanh_tien = $thanh_toan;
             $thanhtoan->ngay_gio = ObjectController::setDate();
             $thanhtoan->loai_cong_no = 1;
-            $thanhtoan->ghi_chu = $ma_don_hang;
+            $thanhtoan->ghi_chu = 'Đã thanh toán khi tạo phiếu bán hàng ' . $ma_don_hang;
             $thanhtoan->id_user = ObjectController::ObjectId($id_user);
             $thanhtoan->save();
         }
