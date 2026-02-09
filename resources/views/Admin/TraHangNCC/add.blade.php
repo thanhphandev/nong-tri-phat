@@ -60,8 +60,10 @@
                                 @foreach($nhaphang['hanghoa'] as $key => $hh)
                                 @php
                                     $so_luong_nhap = $hh['so_luong'] ?? 0;
-                                    $da_tra = $hh['so_luong_tra'] ?? 0;
-                                    $con_lai = $so_luong_nhap - $da_tra;
+                                    $da_tra = $hh['da_tra'] ?? 0;
+                                    $ton_kho_lo = $hh['ton_kho_lo'] ?? 0;
+                                    // Max returnable is limited by what's actually in stock for this batch
+                                    $con_lai = $ton_kho_lo; 
                                     $don_gia_goc = $hh['don_gia'] ?? 0;
                                 @endphp
                                 <tr class="product-row">
@@ -83,6 +85,7 @@
                                         @if($da_tra > 0)
                                             <br><small class="text-danger">(Đã trả: {{ $da_tra }})</small>
                                         @endif
+                                        <br><small class="text-primary">(Tồn lô: {{ $ton_kho_lo }})</small>
                                     </td>
                                     <td class="text-right">
                                         <span class="gia-goc">{{ number_format($don_gia_goc, 0, ',', '.') }}</span>

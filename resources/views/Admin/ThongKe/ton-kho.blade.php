@@ -7,60 +7,152 @@
     <link href="{{ env('APP_URL') }}assets/libs/datatables/select.bootstrap4.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<div class="card-box">
-    <div class="row">
-        <div class="col-12">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a> Thống kê Số lượng Tồn kho</h3>
+
+@php
+    $total_stock_value = 0;
+    $total_potential_revenue = 0;
+    foreach($tonkho as $item) {
+        $qty = $item['so_luong_ton'];
+        $cost = isset($item['gia_von']) ? $item['gia_von'] : 0;
+        $price = isset($item['gia_le']) ? $item['gia_le'] : 0;
+        $total_stock_value += $qty * $cost;
+        $total_potential_revenue += $qty * $price;
+    }
+    $total_products = count($tonkho);
+    $out_of_stock_count = count($hethang);
+@endphp
+
+<div class="container-fluid">
+    <!-- Page Title & Actions -->
+    <div class="row align-items-center mb-3">
+        <div class="col-sm-6">
+            <h4 class="page-title text-uppercase font-weight-bold">Thống kê Tồn kho</h4>
+        </div>
+        <div class="col-sm-6 text-right">
+            <a href="{{ env('APP_URL') }}admin" class="btn btn-light btn-sm mr-1"><i class="fa fa-arrow-left"></i> Trở về</a>
+            <a href="{{ env('APP_URL') }}admin/thong-ke/export-ton-kho" class="btn btn-success btn-sm"><i class="fa fa-file-excel"></i> Xuất Excel</a>
         </div>
     </div>
+
+    <!-- Stats Widgets -->
     <div class="row">
+        <!-- Card 1: Total Quantity -->
         <div class="col-md-6 col-xl-3">
-            <div class="card-box widget-flat border-blue bg-blue text-white">
-                <i class="fe-tag"></i>
-                <h3 class="text-white">{{ number_format($tonkho_sum,0,",",".") }}</h3>
-                <p class="text-uppercase font-13 font-weight-bold">TỔNG HÀNG TỒN KHO</p>
+            <div class="card-box border-top border-primary h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="header-title text-muted mb-2">Tổng số lượng tồn</h4>
+                        <h2 class="font-weight-bold text-primary mb-0">{{ number_format($tonkho_sum, 0, ",", ".") }}</h2>
+                        <span class="text-muted font-13">Sản phẩm: {{ number_format($total_products) }} loại</span>
+                    </div>
+                    <div class="avatar-md bg-soft-primary rounded-circle text-center">
+                        <i class="fe-box font-24 avatar-title text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Total Stock Value -->
+        <div class="col-md-6 col-xl-3">
+            <div class="card-box border-top border-success h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="header-title text-muted mb-2">Tổng giá trị tồn (Vốn)</h4>
+                        <h2 class="font-weight-bold text-success mb-0">{{ number_format($total_stock_value, 0, ",", ".") }}</h2>
+                        <span class="text-muted font-13">Ước tính vốn bỏ ra</span>
+                    </div>
+                    <div class="avatar-md bg-soft-success rounded-circle text-center">
+                        <i class="fe-dollar-sign font-24 avatar-title text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Expired Stock -->
+        <div class="col-md-6 col-xl-3">
+            <div class="card-box border-top border-warning h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="header-title text-muted mb-2">Số lượng đã hết hạn</h4>
+                        <h2 class="font-weight-bold text-warning mb-0">{{ number_format($expired_quantity ?? 0, 0, ",", ".") }}</h2>
+                        <span class="text-muted font-13">Cần xử lý</span>
+                    </div>
+                    <div class="avatar-md bg-soft-warning rounded-circle text-center">
+                        <i class="fe-clock font-24 avatar-title text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Out of Stock -->
+        <div class="col-md-6 col-xl-3">
+            <div class="card-box border-top border-danger h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="header-title text-muted mb-2">Sản phẩm hết hàng</h4>
+                        <h2 class="font-weight-bold text-danger mb-0">{{ number_format($out_of_stock_count) }}</h2>
+                        <span class="text-muted font-13">Cần nhập thêm</span>
+                    </div>
+                    <div class="avatar-md bg-soft-danger rounded-circle text-center">
+                        <i class="fe-alert-circle font-24 avatar-title text-danger"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Tabs & Table -->
     <div class="row">
-        <div class="col-12 col-md-12">
+        <div class="col-12">
             <div class="card-box">
-                <ul class="nav nav-tabs">
+                <ul class="nav nav-tabs nav-bordered">
                     <li class="nav-item">
                         <a href="#home" data-toggle="tab" aria-expanded="true" class="nav-link active">
-                           <i class="fas fa-battery-full"></i><span class="d-none d-sm-inline-block ml-2">Tồn kho</span>
+                           <i class="fas fa-cubes mr-1 text-primary"></i> <span class="d-none d-sm-inline-block">Đang có hàng ({{ $total_products }})</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="#profile" data-toggle="tab" aria-expanded="false" class="nav-link">
-                            <i class="fas fa-battery-empty"></i> <span class="d-none d-sm-inline-block ml-2">Hết hàng</span>
+                            <i class="fas fa-exclamation-triangle mr-1 text-danger"></i> <span class="d-none d-sm-inline-block">Đã hết hàng ({{ $out_of_stock_count }})</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#expired" data-toggle="tab" aria-expanded="false" class="nav-link">
+                            <i class="fas fa-clock mr-1 text-warning"></i> <span class="d-none d-sm-inline-block">Đã hết hạn ({{ $expired_batch_count ?? 0 }})</span>
                         </a>
                     </li>
                 </ul>
-                <div class="tab-content">
+                <div class="tab-content pt-3">
+                    <!-- Tab: In Stock -->
                     <div class="tab-pane show active" id="home">
                         @if($tonkho)
-                        <table id="table-tonkho" class="table table-bordered table-striped table-hover table-sm dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
-                            <thead>
+                        <table id="table-tonkho" class="table table-hover table-striped dt-responsive nowrap w-100 font-14">
+                            <thead class="thead-light">
                                 <tr>
-                                    <th>STT</th>
+                                    <th class="text-center" width="5%">STT</th>
                                     <th>Mã</th>
                                     <th>Tên hàng hóa</th>
-                                    <th>Số lượng tồn</th>
-                                    <th>Chi tiết</th>
+                                    <th class="text-center">ĐVT</th>
+                                    <th class="text-right">Giá vốn</th>
+                                    <th class="text-right">SL Tồn</th>
+                                    <th class="text-right">Tổng giá trị</th>
+                                    <th class="text-center">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($tonkho as $ktk => $vtk)
                                 <tr>
-                                    <td>{{ $ktk+1 }}</td>
-                                    <td>{{ $vtk['ma'] }}</td>
-                                    <td>{{ $vtk['ten'] }}</td>
-                                    <td class="text-right font-weight-bold text-primary">
-                                        {{ number_format($vtk['so_luong_ton'],0,",",".") }}
+                                    <td class="text-center">{{ $ktk+1 }}</td>
+                                    <td><span class="badge badge-light-secondary">{{ $vtk['ma'] }}</span></td>
+                                    <td class="font-weight-medium">{{ $vtk['ten'] }}</td>
+                                    <td class="text-center">{{ $units[(string)$vtk['id_donvitinh']] ?? '' }}</td>
+                                    <td class="text-right">{{ number_format($vtk['gia_von'],0,",",".") }}</td>
+                                    <td class="text-right">{{ number_format($vtk['so_luong_ton'],0,",",".") }}</td>
+                                    <td class="text-right font-weight-bold text-success">
+                                        {{ number_format($vtk['so_luong_ton'] * ($vtk['gia_von'] ?? 0), 0, ",", ".") }}
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $vtk['id'] }}" class="btn btn-sm btn-info xem-ton-kho" data-toggle="modal" data-target="#modalTonKho" title="Xem chi tiết lô hàng">
+                                        <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $vtk['id'] }}" class="btn btn-sm btn-outline-info xem-ton-kho" data-toggle="modal" data-target="#modalTonKho" title="Xem chi tiết lô hàng">
                                             <i class="fe-eye"></i> Xem lô
                                         </a>
                                     </td>
@@ -70,28 +162,89 @@
                         </table>
                         @endif
                     </div>
+                    
+                    <!-- Tab: Out of Stock -->
                     <div class="tab-pane" id="profile">
                         @if($hethang)
-                        <table id="table-hethang" class="table table-bordered table-striped table-hover table-sm dt-responsive nowrap" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
-                            <thead>
+                        <table id="table-hethang" class="table table-hover table-striped dt-responsive nowrap w-100 font-14">
+                            <thead class="thead-light">
                                 <tr>
-                                    <th>STT</th>
+                                    <th class="text-center" width="5%">STT</th>
                                     <th>Mã</th>
                                     <th>Tên hàng hóa</th>
-                                    <th>Số lượng tồn</th>
+                                    <th class="text-center">ĐVT</th>
+                                    <th class="text-right">Giá vốn</th>
+                                    <th class="text-right">Giá bán (Lẻ)</th>
+                                    <th class="text-center">Trạng thái</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($hethang as $ktk => $vtk)
                                 <tr>
-                                    <td>{{ $ktk+1 }}</td>
-                                    <td>{{ $vtk['ma'] }}</td>
-                                    <td>{{ $vtk['ten'] }}</td>
-                                    <td class="text-right text-danger font-weight-bold">{{ $vtk['so_luong_ton'] }}</td>
+                                    <td class="text-center">{{ $ktk+1 }}</td>
+                                    <td><span class="badge badge-light-secondary">{{ $vtk['ma'] }}</span></td>
+                                    <td class="font-weight-medium">{{ $vtk['ten'] }}</td>
+                                    <td class="text-center">{{ $units[(string)$vtk['id_donvitinh']] ?? '' }}</td>
+                                    <td class="text-right">{{ number_format($vtk['gia_von'],0,",",".") }}</td>
+                                    <td class="text-right">{{ number_format($vtk['gia_le'],0,",",".") }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-danger font-12">Hết hàng</span>
+                                    </td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
+                        @endif
+                    </div>
+                    
+                    <!-- Tab: Expired Products -->
+                    <div class="tab-pane" id="expired">
+                        @if(isset($expired_batches) && count($expired_batches) > 0)
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            <strong>Cảnh báo:</strong> Có {{ $expired_batch_count }} lô hàng đã hết hạn sử dụng với tổng số lượng {{ number_format($expired_quantity, 0, ',', '.') }} sản phẩm. Vui lòng xử lý để tránh bán hàng hết hạn cho khách.
+                        </div>
+                        <table id="table-expired" class="table table-hover table-striped dt-responsive nowrap w-100 font-14">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th class="text-center" width="5%">STT</th>
+                                    <th>Mã SP</th>
+                                    <th>Tên hàng hóa</th>
+                                    <th class="text-center">ĐVT</th>
+                                    <th>Mã lô</th>
+                                    <th class="text-right">SL tồn</th>
+                                    <th class="text-right">Giá vốn</th>
+                                    <th class="text-center">Ngày hết hạn</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($expired_batches as $k => $batch)
+                                <tr>
+                                    <td class="text-center">{{ $k+1 }}</td>
+                                    <td><span class="badge badge-light-secondary">{{ $batch['ma_hanghoa'] }}</span></td>
+                                    <td class="font-weight-medium">{{ $batch['ten_hanghoa'] }}</td>
+                                    <td class="text-center">{{ $units[$batch['id_donvitinh']] ?? '' }}</td>
+                                    <td><span class="badge badge-soft-info">{{ $batch['ma_lo'] }}</span></td>
+                                    <td class="text-right font-weight-bold text-warning">{{ number_format($batch['so_luong'], 0, ',', '.') }}</td>
+                                    <td class="text-right">{{ number_format($batch['gia_von'], 0, ',', '.') }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-soft-danger font-12">{{ $batch['ngay_het_han'] }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $batch['id_hanghoa'] }}" class="btn btn-sm btn-outline-info xem-ton-kho" data-toggle="modal" data-target="#modalTonKho" title="Xem chi tiết lô hàng">
+                                            <i class="fe-eye"></i> Xem lô
+                                        </a>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        @else
+                        <div class="text-center p-4 text-muted">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p class="mb-0">Không có lô hàng nào hết hạn. Tuyệt vời!</p>
+                        </div>
                         @endif
                     </div>
                 </div>
@@ -154,25 +307,12 @@
                     }
                 },
                 responsive: true,
-                dom: 'Bfrtip',
-                buttons: [
-                    {
-                        extend: 'excel',
-                        exportOptions: {
-                            columns: [0, 1, 2, 3]
-                        }
-                    },
-                    {
-                        extend: 'pdf',
-                        exportOptions: {
-                            columns: [0, 1, 2, 3]
-                        }
-                    }
-                ]
+                responsive: true
             };
 
             $('#table-tonkho').DataTable(tableOptions);
             $('#table-hethang').DataTable(tableOptions);
+            $('#table-expired').DataTable(tableOptions);
 
             $('body').on('click', '.xem-ton-kho', function(e){
                 e.preventDefault();

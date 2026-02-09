@@ -8,7 +8,11 @@
 <div class="card-box">
     <div class="row">
         <div class="col-12">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a> Thống kê Nhập hàng</h3>
+            <h3 class="m-t-0">
+                <a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a>
+                <a href="{{ env('APP_URL') }}admin/thong-ke/nhap-hang" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
+                Thống kê Nhập hàng
+            </h3>
         </div>
     </div>
     <form action="{{ env('APP_URL') }}admin/thong-ke/nhap-hang" method="GET" id="FilterForm">
@@ -33,6 +37,18 @@
             <div class="col-12 col-md-2">
                 <button type="submit" name="submit" value="OK" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
             </div>
+        </div>
+        <div class="row mb-3">
+             <div class="col-12 text-center">
+                 <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y') }}" data-end="{{ date('d/m/Y') }}">Hôm nay</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('yesterday')) }}" data-end="{{ date('d/m/Y', strtotime('yesterday')) }}">Hôm qua</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('monday this week')) }}" data-end="{{ date('d/m/Y', strtotime('sunday this week')) }}">Tuần này</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y') }}" data-end="{{ date('t/m/Y') }}">Tháng này</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y', strtotime('last month')) }}" data-end="{{ date('t/m/Y', strtotime('last month')) }}">Tháng trước</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/01/Y') }}" data-end="{{ date('31/12/Y') }}">Năm nay</button>
+                 </div>
+             </div>
         </div>
     </form>
 </div>
@@ -215,6 +231,14 @@
         $(document).ready(function(){
             $(".select2").select2();
             jQuery(".datepicker").datepicker({autoclose:!0,todayHighlight:!0, format:"dd/mm/yyyy"});
+
+            $(".date-filter").click(function(){
+                var start = $(this).data('start');
+                var end = $(this).data('end');
+                $("#tu_ngay").val(start);
+                $("#den_ngay").val(end);
+                $("#FilterForm").submit();
+            });
         });
     </script>
 @endsection

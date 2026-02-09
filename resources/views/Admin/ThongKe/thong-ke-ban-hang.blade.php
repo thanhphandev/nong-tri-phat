@@ -8,7 +8,11 @@
 <div class="card-box">
     <div class="row">
         <div class="col-12">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a> Thống kê Bán hàng</h3>
+            <h3 class="m-t-0">
+                <a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a>
+                <a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
+                Thống kê Bán hàng
+            </h3>
         </div>
     </div>
     <form action="{{ env('APP_URL') }}admin/thong-ke/ban-hang" method="GET" id="FilterForm">
@@ -42,6 +46,18 @@
             <div class="col-12 col-md-1">
                 <button type="submit" name="submit" value="OK" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
             </div>
+        </div>
+        <div class="row mb-3">
+             <div class="col-12 text-center">
+                 <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y') }}" data-end="{{ date('d/m/Y') }}">Hôm nay</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('yesterday')) }}" data-end="{{ date('d/m/Y', strtotime('yesterday')) }}">Hôm qua</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('monday this week')) }}" data-end="{{ date('d/m/Y', strtotime('sunday this week')) }}">Tuần này</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y') }}" data-end="{{ date('t/m/Y') }}">Tháng này</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y', strtotime('last month')) }}" data-end="{{ date('t/m/Y', strtotime('last month')) }}">Tháng trước</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/01/Y') }}" data-end="{{ date('31/12/Y') }}">Năm nay</button>
+                 </div>
+             </div>
         </div>
     </form>
 </div>
@@ -133,6 +149,8 @@
                                 <th>Điện thoại</th>
                                 <th>SL SP</th>
                                 <th>Tổng tiền</th>
+                                <th>Thanh toán</th>
+                                <th>Nợ</th>
                                 <th>Giá vốn</th>
                                 <th>Lợi nhuận</th>
                                 <th>Trạng thái</th>
@@ -150,6 +168,10 @@
                                     }
                                     $loi_nhuan_don = $ds['tong_thanh_tien'] - $gia_von_don;
                                     
+                                    // Calculate payment and debt
+                                    $da_thanh_toan = $ds['thanh_toan'] ?? 0;
+                                    $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                    
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
                                     elseif($ds['tinh_trang'] == 1) $tt_badge = 'badge-success';
                                     else $tt_badge = 'badge-danger';
@@ -162,6 +184,8 @@
                                     <td>{{ $ds['dien_thoai'] }}</td>
                                     <td class="text-center">{{ number_format($so_luong,0,",",".") }}</td>
                                     <td class="text-right"><b>{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b></td>
+                                    <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
+                                    <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
                                     <td class="text-right {{ $loi_nhuan_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
                                     <td class="text-center"><span class="badge {{ $tt_badge }}">{{ $tinhtrang[$ds['tinh_trang']] ?? 'N/A' }}</span></td>
@@ -173,9 +197,11 @@
                             <tr>
                                 <td colspan="5" class="text-right">TỔNG BÁN:</td>
                                 <td class="text-center text-primary">{{ $so_san_pham_ban }}</td>
+                                <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
+                                <td colspan="2"></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                                <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
-                                <td colspan="3"></td>
+                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                <td colspan="2"></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -261,6 +287,14 @@
         $(document).ready(function(){
             $(".select2").select2();
             jQuery(".datepicker").datepicker({autoclose:!0,todayHighlight:!0, format:"dd/mm/yyyy"});
+            
+            $(".date-filter").click(function(){
+                var start = $(this).data('start');
+                var end = $(this).data('end');
+                $("#tu_ngay").val(start);
+                $("#den_ngay").val(end);
+                $("#FilterForm").submit();
+            });
         });
     </script>
 @endsection

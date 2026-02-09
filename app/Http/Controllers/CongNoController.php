@@ -14,18 +14,164 @@ class CongNoController extends Controller
 {
     //
     function list(Request $request){
-        $khachhang = KhachHang::All();
         $id_khachhang = $request->input('id_khachhang');
-        if($id_khachhang){
-            $id_khachhang = ObjectController::ObjectId($id_khachhang);
-            $congno = CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->get();
-            $thanhtoan = CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->get();
-            $congno_sum = CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-            $thanhtoan_sum = CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-        } else {
-            $congno='';$thanhtoan='';$congno_sum='';$thanhtoan_sum='';
+        $keywords = $request->input('keywords');
+        $q_kh = KhachHang::query();
+        if($keywords){
+            $q_kh->where(function($q) use ($keywords){
+                $q->where('ho_ten', 'regexp', '/'.$keywords.'/i')
+                  ->orWhere('dien_thoai', 'regexp', '/'.$keywords.'/i')
+                  ->orWhere('ma', 'regexp', '/'.$keywords.'/i');
+            });
         }
-        return view('Admin.CongNo.list')->with(compact('id_khachhang', 'khachhang', 'congno', 'thanhtoan', 'congno_sum', 'thanhtoan_sum'));
+        $khachhang = $q_kh->get();
+
+        // 1. Calculate Aggregate Debt Stats for Listing
+        // Only needed if we want to show debt summary in list
+        $raw_stats = CongNo::raw(function($collection) {
+            return $collection->aggregate([
+                ['$group' => [
+                    '_id' => '$id_khachhang',
+                    'tong_no' => ['$sum' => ['$cond' => [['$eq' => ['$loai_cong_no', 0]], '$tong_thanh_tien', 0]]],
+                    'tong_tra' => ['$sum' => ['$cond' => [['$eq' => ['$loai_cong_no', 1]], '$tong_thanh_tien', 0]]]
+                ]]
+            ]);
+        });
+        
+        $debt_map = [];
+        foreach($raw_stats as $stat) {
+            $debt_map[(string)$stat['_id']] = [
+                'tong_no' => $stat['tong_no'],
+                'tong_tra' => $stat['tong_tra'],
+                'con_no' => $stat['tong_no'] - $stat['tong_tra']
+            ];
+        }
+        
+        foreach($khachhang as $kh) {
+            $kh_id = (string)$kh['_id'];
+            if(isset($debt_map[$kh_id])) {
+                $kh->tong_no = $debt_map[$kh_id]['tong_no'];
+                $kh->tong_tra = $debt_map[$kh_id]['tong_tra'];
+                $kh->con_no = $debt_map[$kh_id]['con_no'];
+            } else {
+                $kh->tong_no = 0; $kh->tong_tra = 0; $kh->con_no = 0;
+            }
+        }
+        $khachhang = $khachhang->sortByDesc('con_no');
+
+        // 2. Fetch Details if ID selected
+        $customer_detail = null;
+        $transaction_history = []; // Merged History
+        $product_history = [];     // Product History
+        $congno_sum = 0;
+        $thanhtoan_sum = 0;
+        $from_date = $request->input('from_date');
+        $to_date = $request->input('to_date');
+        $start_date = null; $end_date = null;
+
+        if($id_khachhang){
+             $customer_detail = KhachHang::find($id_khachhang);
+             $id_khachhang_mongo = ObjectController::ObjectId($id_khachhang);
+             $q_cn = CongNo::where('id_khachhang', $id_khachhang_mongo);
+             
+             // Date Filter
+             if($from_date && $to_date){
+               $fd = \DateTime::createFromFormat('d/m/Y', $from_date);
+               $td = \DateTime::createFromFormat('d/m/Y', $to_date);
+               if($fd && $td){
+                   $fd->setTime(0,0,0);
+                   $td->setTime(23,59,59);
+                   $start_date = new \MongoDB\BSON\UTCDateTime($fd->getTimestamp() * 1000);
+                   $end_date = new \MongoDB\BSON\UTCDateTime($td->getTimestamp() * 1000);
+                   $q_cn->whereBetween('ngay_gio', [$start_date, $end_date]);
+               }
+             }
+
+             // Debt/Payment Sums
+             $congno_sum = (clone $q_cn)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+             $thanhtoan_sum = (clone $q_cn)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+             
+             // Merged Transaction List
+             $transaction_history = $q_cn->orderBy('ngay_gio', 'desc')->get();
+
+             // Product History (from DonHang)
+             $q_dh = \App\Models\DonHang::where('id_khachhang', $id_khachhang_mongo)
+                     ->where('tinh_trang', '!=', 2); // Exclude cancelled
+             
+             if($start_date && $end_date) {
+                 $q_dh->whereBetween('ngay_ban', [$start_date, $end_date]);
+             }
+             $orders = $q_dh->orderBy('ngay_ban', 'desc')->get();
+
+             // Collect all id_donvitinh from orders to lookup
+             $all_id_dvt = [];
+             $all_id_hh = [];
+             foreach($orders as $order) {
+                 if(isset($order['hanghoa']) && is_array($order['hanghoa'])) {
+                     foreach($order['hanghoa'] as $item) {
+                         if(isset($item['id_donvitinh']) && $item['id_donvitinh']) {
+                             $all_id_dvt[] = ObjectController::ObjectId($item['id_donvitinh']);
+                         }
+                         if(isset($item['id_hanghoa']) && $item['id_hanghoa']) {
+                             $all_id_hh[] = ObjectController::ObjectId($item['id_hanghoa']);
+                         }
+                     }
+                 }
+             }
+             
+             // Get DonViTinh mapping
+             $units = [];
+             if(count($all_id_dvt) > 0) {
+                 $dvt_list = \App\Models\DonViTinh::whereIn('_id', array_unique($all_id_dvt))->get();
+                 foreach($dvt_list as $dvt) {
+                     $units[(string)$dvt->_id] = $dvt->ten;
+                 }
+             }
+             
+             // Get HangHoa mapping for fallback id_donvitinh
+             $products = [];
+             if(count($all_id_hh) > 0) {
+                 $hh_list = \App\Models\HangHoa::whereIn('_id', array_unique($all_id_hh))->get();
+                 foreach($hh_list as $hh) {
+                     $products[(string)$hh->_id] = $hh;
+                 }
+             }
+
+             foreach($orders as $order) {
+                 if(isset($order['hanghoa']) && is_array($order['hanghoa'])) {
+                     foreach($order['hanghoa'] as $item) {
+                         // Lookup don_vi_tinh from id_donvitinh
+                         $id_dvt = $item['id_donvitinh'] ?? null;
+                         if(!$id_dvt && isset($item['id_hanghoa'])) {
+                             // Fallback: get from HangHoa
+                             $id_hh = (string)$item['id_hanghoa'];
+                             if(isset($products[$id_hh]) && isset($products[$id_hh]['id_donvitinh'])) {
+                                 $id_dvt = $products[$id_hh]['id_donvitinh'];
+                             }
+                         }
+                         $ten_dvt = isset($units[(string)$id_dvt]) ? $units[(string)$id_dvt] : '-';
+                         
+                         $product_history[] = [
+                             'ngay_ban' => $order['ngay_ban'],
+                             'ma_don_hang' => $order['ma_don_hang'] ?? '',
+                             'id_don_hang' => $order['_id'],
+                             'ma_sp' => $item['ma'] ?? '',
+                             'ten_sp' => $item['ten'] ?? '',
+                             'don_vi_tinh' => $ten_dvt,
+                             'so_luong' => $item['so_luong'] ?? 0,
+                             'don_gia' => $item['don_gia'] ?? 0,
+                             'thanh_tien' => $item['thanh_tien'] ?? 0
+                         ];
+                     }
+                 }
+             }
+        }
+
+        return view('Admin.CongNo.list')->with(compact(
+            'khachhang', 'id_khachhang', 'keywords', 
+            'transaction_history', 'product_history', 'congno_sum', 'thanhtoan_sum', 'customer_detail',
+            'from_date', 'to_date'
+        ));
     }
 
 
