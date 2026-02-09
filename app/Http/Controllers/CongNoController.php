@@ -187,31 +187,154 @@ class CongNoController extends Controller
         }
 
         $kh = KhachHang::find($data['id_khachhang']);
-        $id = ObjectController::Id();
         $id_user = $request->session()->get('user._id');
-        $congno =  new CongNo();
-        $congno->id_khachhang = ObjectController::ObjectId($kh['_id']);
-        $congno->ho_ten = $kh['ho_ten'];
-        $congno->dien_thoai = $kh['dien_thoai'];
-        $congno->dia_chi = $kh['dia_chi'];
-        $congno->email = $kh['email'];
-        $congno->loai_khach_hang = $kh['loai_khach_hang'];
-        $congno->id_donhang = '';
-        $congno->ma_don_hang = '';
-        $congno->tong_thanh_tien = ObjectController::convertStr2Number($data['so_tien']);
-        $congno->ngay_gio = ObjectController::setDate();
-        $congno->loai_cong_no = isset($data['loai_cong_no']) ? intval($data['loai_cong_no']) : 0;
-        $congno->ghi_chu = $data['ghi_chu'];
-        $congno->id_user = ObjectController::ObjectId($id_user);
-        $congno->save();
+        $loai_cong_no = isset($data['loai_cong_no']) ? intval($data['loai_cong_no']) : 1;
+        $so_tien = ObjectController::convertStr2Number($data['so_tien']);
+        
+        // Nếu loại là GHI NỢ THÊM (0), tạo 1 record đơn giản
+        if($loai_cong_no == 0) {
+            $congno = new CongNo();
+            $congno->id_khachhang = ObjectController::ObjectId($kh['_id']);
+            $congno->ho_ten = $kh['ho_ten'];
+            $congno->dien_thoai = $kh['dien_thoai'];
+            $congno->dia_chi = $kh['dia_chi'];
+            $congno->email = $kh['email'];
+            $congno->loai_khach_hang = $kh['loai_khach_hang'];
+            $congno->id_donhang = null;
+            $congno->ma_don_hang = '';
+            $congno->tong_thanh_tien = $so_tien;
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 0;
+            $congno->ghi_chu = $data['ghi_chu'] ?? 'Ghi nợ thêm';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
+            
+            $querLog = array(
+                'action' => 'Ghi nợ thêm KH ['.$kh['ho_ten'].'] - ' . number_format($so_tien, 0, ',', '.') . ' VND',
+                'id_collection' => $congno->_id,
+                'collection' => 'cong_no',
+                'data' => $data
+            );
+            LogController::addLog($querLog);
+            Session::flash('msg','Ghi nợ thêm thành công: ' . number_format($so_tien, 0, ',', '.') . ' VND');
+            return redirect($data['url']);
+        }
+        
+        // THANH TOÁN (1): Phân bổ tự động vào các đơn còn nợ
+        $id_khachhang_obj = ObjectController::ObjectId($data['id_khachhang']);
+        
+        // Lấy tất cả đơn hàng của KH này (loại trừ đơn hủy)
+        $don_hang_list = \App\Models\DonHang::where('id_khachhang', $id_khachhang_obj)
+            ->where('tinh_trang', '!=', 2) // Exclude cancelled
+            ->orderBy('ngay_ban', 'asc') // FIFO: đơn cũ nhất trước
+            ->get();
+        
+        // Tính công nợ cho từng đơn hàng
+        $ids = $don_hang_list->pluck('_id')->toArray();
+        $ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $ids);
+        
+        $payments_map = [];
+        if(count($ids) > 0) {
+            $raw_payments = CongNo::raw(function($collection) use ($ids) {
+                return $collection->aggregate([
+                    [
+                        '$match' => [
+                            'id_donhang' => ['$in' => $ids],
+                            'loai_cong_no' => 1
+                        ]
+                    ],
+                    [
+                        '$group' => [
+                            '_id' => '$id_donhang',
+                            'total_paid' => ['$sum' => '$tong_thanh_tien']
+                        ]
+                    ]
+                ]);
+            });
+            
+            foreach($raw_payments as $p) {
+                $payments_map[(string)$p['_id']] = $p['total_paid'];
+            }
+        }
+        
+        // Danh sách đơn còn nợ
+        $don_con_no = [];
+        foreach($don_hang_list as $dh) {
+            $da_tt = isset($payments_map[(string)$dh->_id]) ? $payments_map[(string)$dh->_id] : 0;
+            $con_no = $dh->tong_thanh_tien - $da_tt;
+            if($con_no > 0) {
+                $don_con_no[] = [
+                    'id' => $dh->_id,
+                    'ma' => $dh->ma_don_hang,
+                    'con_no' => $con_no
+                ];
+            }
+        }
+        
+        // Phân bổ thanh toán
+        $so_tien_con_lai = $so_tien;
+        $da_phan_bo = [];
+        
+        foreach($don_con_no as $don) {
+            if($so_tien_con_lai <= 0) break;
+            
+            $so_tien_tra_don_nay = min($so_tien_con_lai, $don['con_no']);
+            
+            // Tạo record thanh toán cho đơn này
+            $congno = new CongNo();
+            $congno->id_khachhang = $id_khachhang_obj;
+            $congno->ho_ten = $kh['ho_ten'];
+            $congno->dien_thoai = $kh['dien_thoai'];
+            $congno->dia_chi = $kh['dia_chi'];
+            $congno->email = $kh['email'];
+            $congno->loai_khach_hang = $kh['loai_khach_hang'];
+            $congno->id_donhang = ObjectController::ObjectId($don['id']);
+            $congno->ma_don_hang = $don['ma'];
+            $congno->tong_thanh_tien = $so_tien_tra_don_nay;
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 1;
+            $congno->ghi_chu = ($data['ghi_chu'] ?? 'Thanh toán') . ' - Phân bổ tự động';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
+            
+            $da_phan_bo[] = $don['ma'] . ': ' . number_format($so_tien_tra_don_nay, 0, ',', '.');
+            $so_tien_con_lai -= $so_tien_tra_don_nay;
+        }
+        
+        // Nếu còn tiền dư (trả hơn tổng nợ), tạo 1 record thanh toán chung
+        if($so_tien_con_lai > 0) {
+            $congno = new CongNo();
+            $congno->id_khachhang = $id_khachhang_obj;
+            $congno->ho_ten = $kh['ho_ten'];
+            $congno->dien_thoai = $kh['dien_thoai'];
+            $congno->dia_chi = $kh['dia_chi'];
+            $congno->email = $kh['email'];
+            $congno->loai_khach_hang = $kh['loai_khach_hang'];
+            $congno->id_donhang = null;
+            $congno->ma_don_hang = '';
+            $congno->tong_thanh_tien = $so_tien_con_lai;
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 1;
+            $congno->ghi_chu = ($data['ghi_chu'] ?? 'Thanh toán') . ' - Tiền dư/ứng trước';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
+            
+            $da_phan_bo[] = 'Tiền dư: ' . number_format($so_tien_con_lai, 0, ',', '.');
+        }
+        
         $querLog = array(
-            'action' => 'Thêm mới thanh toán ['.$kh['ho_ten'].']',
-            'id_collection' => $id,
+            'action' => 'Thanh toán KH ['.$kh['ho_ten'].'] - ' . number_format($so_tien, 0, ',', '.') . ' VND',
+            'id_collection' => $kh['_id'],
             'collection' => 'cong_no',
-            'data' => $data
+            'data' => array_merge($data, ['phan_bo' => $da_phan_bo])
         );
         LogController::addLog($querLog);
-        Session::flash('msg','Thanh toán thành công');
+        
+        $msg = 'Thanh toán thành công ' . number_format($so_tien, 0, ',', '.') . ' VND';
+        if(count($da_phan_bo) > 0) {
+            $msg .= ' (Phân bổ: ' . implode(', ', $da_phan_bo) . ')';
+        }
+        Session::flash('msg', $msg);
         return redirect($data['url']);
     }
 

@@ -6,40 +6,32 @@ function addCart(path) {
         if (id_khachhang && id_hanghoa && so_luong) {
             var existingItem = $("input[name='id_hanghoa_cart[]'][value='" + id_hanghoa + "']");
             if (existingItem.length > 0) {
+                // Sản phẩm đã tồn tại, cộng dồn số lượng (cho phép vượt tồn kho)
                 var row = existingItem.closest('.item');
                 var inputSoLuong = row.find('.so-luong');
                 var currentSoLuong = parseFloat(inputSoLuong.val());
-                var maxSoLuong = parseFloat(inputSoLuong.attr('max'));
                 var newSoLuong = currentSoLuong + parseFloat(so_luong);
-                if (newSoLuong <= maxSoLuong) {
-                    inputSoLuong.val(newSoLuong);
-                    inputSoLuong.trigger('change');
+                inputSoLuong.val(newSoLuong);
+                inputSoLuong.trigger('change');
+                // Reset input fields for next entry
+                $("#id_hanghoa").val(null).trigger('change');
+                $("#so_luong").val(1);
+                $("#thongtinhanghoa").html("Thông tin hàng hóa:");
+            } else {
+                var path_get = path + "admin/don-hang/get-add-cart?id_khachhang=" + id_khachhang + "&id_hanghoa=" + id_hanghoa + "&so_luong=" + so_luong;
+                $.get(path_get, function (hanghoa) {
+                    $("#HangHoaList tbody").prepend(hanghoa); delete_cart();
+                    tong_thanh_tien();
+                    $("#id_khachhang").prop('disabled', true);
+                    $("#updateCart").prop("disabled", false);
+
+                    $("#id_khachhang_cart").val(id_khachhang);
+                    change_so_luong(path); jQuery(".number").number(true, 0, ',', '.');
+                    update_prices_by_mode();
                     // Reset input fields for next entry
                     $("#id_hanghoa").val(null).trigger('change');
                     $("#so_luong").val(1);
                     $("#thongtinhanghoa").html("Thông tin hàng hóa:");
-                } else {
-                    alert('Số lượng tồn kho không đủ');
-                }
-            } else {
-                var path_get = path + "admin/don-hang/get-add-cart?id_khachhang=" + id_khachhang + "&id_hanghoa=" + id_hanghoa + "&so_luong=" + so_luong;
-                $.get(path_get, function (hanghoa) {
-                    if (jQuery.trim(hanghoa) == 'Số lượng tồn kho không đủ') {
-                        alert('Số lượng tồn kho không đủ');
-                    } else {
-                        $("#HangHoaList tbody").prepend(hanghoa); delete_cart();
-                        tong_thanh_tien();
-                        $("#id_khachhang").prop('disabled', true);
-                        $("#updateCart").prop("disabled", false);
-
-                        $("#id_khachhang_cart").val(id_khachhang);
-                        change_so_luong(path); jQuery(".number").number(true, 0, ',', '.');
-                        update_prices_by_mode();
-                        // Reset input fields for next entry
-                        $("#id_hanghoa").val(null).trigger('change');
-                        $("#so_luong").val(1);
-                        $("#thongtinhanghoa").html("Thông tin hàng hóa:");
-                    }
                 });
             }
         } else {
@@ -68,11 +60,37 @@ function update_prices_by_mode() {
 
 function tong_thanh_tien() {
     var tong_thanh_tien = 0;
+    var tong_gia_von = 0;
+
     $(".thanh-tien").each(function () {
         tong_thanh_tien += parseFloat($(this).val());
     });
+
+    // Tính tổng giá vốn từ các item
+    $(".gia-von-thuc-te").each(function () {
+        tong_gia_von += parseFloat($(this).val()) || 0;
+    });
+
+    var tong_loi_nhuan = tong_thanh_tien - tong_gia_von;
+
     $("#tong-thanh-tien").val(tong_thanh_tien);
     $("#tong-thanh-tien-show").html(currencyFormat(tong_thanh_tien));
+
+    // Cập nhật hiển thị tổng giá vốn và lợi nhuận
+    $("#tong-gia-von").val(tong_gia_von);
+    $("#tong-gia-von-show").html(currencyFormat(tong_gia_von));
+
+    $("#tong-loi-nhuan").val(tong_loi_nhuan);
+    $("#tong-loi-nhuan-show").html(currencyFormat(tong_loi_nhuan));
+
+    // Cập nhật màu sắc cho lợi nhuận
+    var loiNhuanContainer = $("#loi-nhuan-container");
+    loiNhuanContainer.removeClass('text-success text-danger');
+    if (tong_loi_nhuan >= 0) {
+        loiNhuanContainer.addClass('text-success');
+    } else {
+        loiNhuanContainer.addClass('text-danger');
+    }
 
     // Logic cập nhật thanh toán
     var hinh_thuc = $('input[name=hinh_thuc_thanh_toan]:checked').val();
@@ -86,7 +104,7 @@ $(document).ready(function () {
         var val = $(this).val();
         update_prices_by_mode();
         if (val == 'tien_mat') {
-            $("#thanh-toan").prop('readonly', true);
+            $("#thanh-toan").prop('readonly', false);
             var total = $("#tong-thanh-tien").val();
             $("#thanh-toan").val(total);
         } else {
@@ -123,14 +141,35 @@ function change_so_luong(path) {
             chiet_khau = 0;
             parent.find(".chiet-khau").val(0)
         }
+        if (isNaN(chiet_khau)) {
+            chiet_khau = 0;
+        }
         var tt = don_gia * so_luong;
         var ck = (don_gia * so_luong * chiet_khau) / 100;
         var thanh_tien = tt - ck;
         parent.find(".thanh-tien").val(thanh_tien);
         parent.find(".thanh-tien-show").html(currencyFormat(thanh_tien));
-        tong_thanh_tien();
 
-        // Check Batch Usage
+        // Kiểm tra và hiển thị cảnh báo tồn kho
+        var maxTon = parseFloat(parent.find(".so-luong").data('max-ton')) || 0;
+        var stockWarning = parent.find("td:eq(1) .alert-danger");
+        if (so_luong > maxTon) {
+            var tru_am = so_luong - maxTon;
+            var warningHtml = '<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn ' + currencyFormat(maxTon) + ', sẽ trừ âm ' + currencyFormat(tru_am);
+            if (stockWarning.length > 0) {
+                stockWarning.html(warningHtml);
+            } else {
+                parent.find("td:eq(1)").prepend('<div class="alert alert-danger p-1 m-1" style="font-size: 11px;">' + warningHtml + '</div>');
+            }
+            parent.addClass('table-warning');
+        } else {
+            if (stockWarning.length > 0) {
+                stockWarning.remove();
+            }
+            parent.removeClass('table-warning');
+        }
+
+        // Check Batch Usage & Update Profit
         var id_hanghoa = parent.find("input[name='id_hanghoa_cart[]']").val();
         if (path && id_hanghoa) {
             $.get(path + "admin/don-hang/check-batch-usage", {
@@ -142,14 +181,57 @@ function change_so_luong(path) {
                     if (warningName.length > 0) {
                         warningName.html(resp.warning_info);
                     } else {
-                        parent.find("td:eq(1)").append('<div class="alert alert-warning p-1 m-1" style="font-size: 11px;">' + resp.warning_info + '</div>');
+                        parent.find("td:eq(1) .profit-info").before('<div class="alert alert-warning p-1 m-1" style="font-size: 11px;">' + resp.warning_info + '</div>');
                     }
                 } else {
                     if (warningName.length > 0) {
                         warningName.remove();
                     }
                 }
+
+                // Cập nhật giá vốn thực tế và lợi nhuận
+                if (resp.gia_von_thuc_te !== undefined) {
+                    var gia_von_thuc_te = parseFloat(resp.gia_von_thuc_te);
+                    // Lấy lại thanh_tien hiện tại (có thể đã thay đổi)
+                    var current_thanh_tien = parseFloat(parent.find(".thanh-tien").val()) || 0;
+                    var loi_nhuan = current_thanh_tien - gia_von_thuc_te;
+
+                    // Update hidden input
+                    parent.find(".gia-von-thuc-te").val(gia_von_thuc_te);
+
+                    // Update display
+                    parent.find(".gia-von-show").html(currencyFormat(gia_von_thuc_te));
+                    parent.find(".loi-nhuan-show").html(currencyFormat(loi_nhuan));
+
+                    // Update badge color
+                    var loiNhuanBadge = parent.find(".loi-nhuan-badge");
+                    loiNhuanBadge.removeClass('badge-success badge-danger');
+                    if (loi_nhuan >= 0) {
+                        loiNhuanBadge.addClass('badge-success');
+                    } else {
+                        loiNhuanBadge.addClass('badge-danger');
+                    }
+
+                    // Cập nhật lại tổng sau khi có giá vốn mới
+                    tong_thanh_tien();
+                }
             });
+        } else {
+            // Tính lợi nhuận từ giá vốn hiện tại (khi không call API)
+            var gia_von_thuc_te = parseFloat(parent.find(".gia-von-thuc-te").val()) || 0;
+            var loi_nhuan = thanh_tien - gia_von_thuc_te;
+            parent.find(".loi-nhuan-show").html(currencyFormat(loi_nhuan));
+
+            var loiNhuanBadge = parent.find(".loi-nhuan-badge");
+            loiNhuanBadge.removeClass('badge-success badge-danger');
+            if (loi_nhuan >= 0) {
+                loiNhuanBadge.addClass('badge-success');
+            } else {
+                loiNhuanBadge.addClass('badge-danger');
+            }
+
+            // Cập nhật tổng
+            tong_thanh_tien();
         }
     });
 }

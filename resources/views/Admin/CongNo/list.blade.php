@@ -64,7 +64,7 @@
                         </td>
                         <td class="text-center">
                             <a href="{{ env('APP_URL') }}admin/cong-no?id_khachhang={{ $kh['_id'] }}" class="btn btn-sm btn-info"><i class="fa fa-eye"></i> Chi tiết</a>
-                            <a href="{{ env('APP_URL') }}admin/don-hang?keywords={{ $kh['dien_thoai'] }}" class="btn btn-sm btn-secondary"><i class="fa fa-list-alt"></i></a>
+                            <a href="{{ env('APP_URL') }}admin/don-hang?id_kh={{ $kh['_id'] }}" class="btn btn-sm btn-secondary"><i class="fa fa-list-alt"></i></a>
                         </td>
                     </tr>
                     @endif

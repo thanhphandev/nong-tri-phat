@@ -19,7 +19,7 @@
                 <div class="col-12 col-md-6">
                     <form method="GET" action="{{ env('APP_URL') }}admin/don-hang" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-5">
+                            <div class="col-12 col-md-3">
                                 <select name="id_kh" id="id_kh" class="form-control select2" style="width:100%;">
                                     <option value="">-- Tất cả KH --</option>
                                     @foreach($khachhang as $kh)
@@ -27,11 +27,18 @@
                                     @endforeach
                                 </select>
                             </div>
+                            <div class="col-12 col-md-3">
+                                <select name="trang_thai_no" id="trang_thai_no" class="form-control">
+                                    <option value="">Tất cả</option>
+                                    <option value="con_no" {{ (isset($trang_thai_no) && $trang_thai_no == 'con_no') ? 'selected' : '' }}>🔴 Còn nợ</option>
+                                    <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã thanh toán</option>
+                                </select>
+                            </div>
                             <div class="col-12 col-md-4">
                                 <input type="text" name="keywords" id="keywords" value="{{ $keywords }}" class="form-control" placeholder="Mã đơn/điện thoại" />
                             </div>
-                            <div class="col-12 col-md-3">
-                                <button type="submit" name="submit" value="Search" class="btn btn-primary btn-block"><i class="fa fa-search"></i> Lọc</button>
+                            <div class="col-12 col-md-2">
+                                <button type="submit" name="submit" value="Search" class="btn btn-primary btn-block"><i class="fa fa-filter"></i> Lọc</button>
                             </div>
                         </div>
 
@@ -72,9 +79,9 @@
                                         $tong_gia_von += $hh['so_luong'] * $gv;
                                     }
 								}
-								// Use stored thanh_toan field instead of calculating from CongNo
-								$da_thanh_toan = $ds['thanh_toan'] ?? 0;
-								$con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+								// Use calculated da_thanh_toan and con_no from controller (from CongNo table)
+								$da_thanh_toan = $ds->da_thanh_toan ?? 0;
+								$con_no = $ds->con_no ?? ($ds['tong_thanh_tien'] - $da_thanh_toan);
                                 $loi_nhuan = $ds['tong_thanh_tien'] - $tong_gia_von;
 							@endphp
 							<tr>

@@ -55,11 +55,11 @@
                         </tr>
                          <tr>
                             <td colspan="7" class="text-right font-weight-bold">ĐÃ THANH TOÁN:</td>
-                            <td class="text-right font-weight-bold text-success">{{ number_format($dh['thanh_toan'] ?? 0, 0, ',', '.') }}</td>
+                            <td class="text-right font-weight-bold text-success">{{ number_format($dh->da_thanh_toan ?? 0, 0, ',', '.') }}</td>
                         </tr>
                         <tr>
                             <td colspan="7" class="text-right font-weight-bold">CÒN LẠI:</td>
-                            <td class="text-right font-weight-bold">{{ number_format($dh['tong_thanh_tien'] - ($dh['thanh_toan'] ?? 0), 0, ',', '.') }}</td>
+                            <td class="text-right font-weight-bold {{ ($dh->con_no ?? 0) > 0 ? 'text-danger' : 'text-muted' }}">{{ number_format($dh->con_no ?? 0, 0, ',', '.') }}</td>
                         </tr>
                     </tfoot>
                 </table>

@@ -82,7 +82,19 @@
                 <div class="row">
                     <div class="col-12 col-md-12">
                         <input type="hidden" name="tong-thanh-tien" id="tong-thanh-tien" value="0" placeholder="">
-                        <h3 style="text-align:right;">Tổng thành tiền: <span id="tong-thanh-tien-show">0</span></h3>
+                        <input type="hidden" name="tong-gia-von" id="tong-gia-von" value="0" placeholder="">
+                        <input type="hidden" name="tong-loi-nhuan" id="tong-loi-nhuan" value="0" placeholder="">
+                        <h3 style="text-align:right;">
+                            <span class="text-muted" style="font-size: 14px;">
+                                <i class="fas fa-box"></i> Tổng vốn: <span id="tong-gia-von-show" class="font-weight-bold">0</span>
+                            </span>
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                            <span id="loi-nhuan-container" style="font-size: 14px;">
+                                <i class="fas fa-chart-line"></i> Lợi nhuận DK: <span id="tong-loi-nhuan-show" class="font-weight-bold">0</span>
+                            </span>
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                            Tổng thành tiền: <span id="tong-thanh-tien-show" class="text-primary font-weight-bold">0</span>
+                        </h3>
                     </div>
                 </div>
                 <div class="row form-group">
@@ -237,7 +249,7 @@
                         cache: true
                     },
                     placeholder: 'Tìm mặt hàng (Phím tắt F3, Mã, Tên, Mã vạch...)',
-                    minimumInputLength: 3, 
+                    minimumInputLength: 1, 
                     templateResult: formatRepo,
                     templateSelection: formatRepoSelection,
                     escapeMarkup: function (markup) { return markup; }

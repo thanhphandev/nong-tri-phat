@@ -299,7 +299,7 @@
             @if(env('BANK_STK'))
             <div style="font-weight: bold; margin-bottom: 2mm;">THÔNG TIN THANH TOÁN</div>
             <div style="margin-bottom: 2mm;">
-                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ $dh['tong_thanh_tien'] - $dh['thanh_toan'] }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 35mm;">
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ $dh->con_no ?? 0 }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 35mm;">
             </div>
             <div>
                 STK: <b>{{ env('BANK_STK') }}</b><br>
@@ -313,22 +313,22 @@
                 <td class="summary-label">Tổng cộng:</td>
                 <td class="summary-value text-bold">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
             </tr>
-            @if(isset($dh['thanh_toan']) && $dh['thanh_toan'] > 0)
+            @if(($dh->da_thanh_toan ?? 0) > 0)
             <tr>
                 <td class="summary-label">Đã thanh toán:</td>
-                <td class="summary-value">{{ number_format($dh['thanh_toan'], 0, ",", ".") }}</td>
+                <td class="summary-value">{{ number_format($dh->da_thanh_toan, 0, ",", ".") }}</td>
             </tr>
             @endif
             <tr class="summary-total">
                 <td class="summary-label">Còn lại:</td>
-                <td class="summary-value">{{ number_format($dh['tong_thanh_tien'] - $dh['thanh_toan'], 0, ",", ".") }}</td>
+                <td class="summary-value">{{ number_format($dh->con_no ?? 0, 0, ",", ".") }}</td>
             </tr>
         </table>
     </div>
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh['tong_thanh_tien'] - $dh['thanh_toan']) }}.</em>
+        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh->con_no ?? 0) }}.</em>
     </div>
 
     <!-- Signature Section -->

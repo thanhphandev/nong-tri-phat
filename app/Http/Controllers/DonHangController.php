@@ -20,6 +20,7 @@ class DonHangController extends Controller
         $tinhtrang = Config::get('app.tinh_trang_don_hang');
         $keywords = $request->input('keywords');
         $id_kh = $request->input('id_kh');
+        $trang_thai_no = $request->input('trang_thai_no');
         
         $query = DonHang::query();
         
@@ -39,9 +40,54 @@ class DonHangController extends Controller
         }
         
         $danhsach = $query->orderBy('ngay_ban', 'desc')->paginate(30);
+        
+        // Calculate Paid Amount for each order from CongNo table
+        $ids = $danhsach->pluck('_id')->toArray();
+        $ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $ids);
+        
+        $payments = [];
+        if(count($ids) > 0){
+            $raw_payments = CongNo::raw(function($collection) use ($ids) {
+                return $collection->aggregate([
+                    [
+                        '$match' => [
+                            'id_donhang' => ['$in' => $ids],
+                            'loai_cong_no' => 1 // Payment
+                        ]
+                    ],
+                    [
+                        '$group' => [
+                            '_id' => '$id_donhang',
+                            'total_paid' => ['$sum' => '$tong_thanh_tien']
+                        ]
+                    ]
+                ]);
+            });
+            
+            foreach($raw_payments as $p){
+                $payments[(string)$p['_id']] = $p['total_paid'];
+            }
+        }
+        
+        foreach($danhsach as $ds){
+            $ds->da_thanh_toan = isset($payments[(string)$ds->_id]) ? $payments[(string)$ds->_id] : 0;
+            $ds->con_no = $ds->tong_thanh_tien - $ds->da_thanh_toan;
+        }
+        
+        // Lọc theo trạng thái nợ (sau khi đã tính toán con_no)
+        if($trang_thai_no === 'con_no'){
+            $danhsach->setCollection($danhsach->getCollection()->filter(function($item){
+                return $item->con_no > 0;
+            }));
+        } elseif($trang_thai_no === 'da_tt'){
+            $danhsach->setCollection($danhsach->getCollection()->filter(function($item){
+                return $item->con_no <= 0;
+            }));
+        }
+        
         $khachhang = KhachHang::orderBy('ho_ten', 'asc')->get();
         
-    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh'));
+    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no'));
     }
 
     function add(Request $request){
@@ -74,7 +120,7 @@ class DonHangController extends Controller
                 $tong_gia_von_thuc_te = 0; // Total cost for this line item based on batches
                 $sl_da_tru = 0;
 
-                if($hanghoa_db && isset($hanghoa_db['ds_lo_hang']) && is_array($hanghoa_db['ds_lo_hang'])){
+                if($hanghoa_db && isset($hanghoa_db['ds_lo_hang']) && is_array($hanghoa_db['ds_lo_hang']) && count($hanghoa_db['ds_lo_hang']) > 0){
                     $batches = $hanghoa_db['ds_lo_hang'];
                     
                     // Sort batches: Expiry (Asc) -> Import Date (Asc)
@@ -87,7 +133,9 @@ class DonHangController extends Controller
                     });
 
                     $new_batches = [];
-                    foreach($batches as $batch){
+                    $last_valid_batch_index = -1; // Lưu index lô cuối cùng chưa hết hạn
+                    
+                    foreach($batches as $index => $batch){
                         $qty_deducted_from_batch = 0;
                         
                         // Check if batch is expired
@@ -98,71 +146,85 @@ class DonHangController extends Controller
                                 $is_expired = true;
                             }
                         }
+                        
+                        // Lưu lại lô cuối cùng chưa hết hạn để trừ âm nếu cần
+                        if(!$is_expired){
+                            $last_valid_batch_index = count($new_batches);
+                        }
 
                         if($sl_can_tru > 0 && !$is_expired){
-                        $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
-                        
-                        // ALLOW NEGATIVE INVENTORY: Process deduction even if stock is 0 or negative
-                        if($sl_ton_batch >= $sl_can_tru){
-                            // Take all remaining need from this batch
-                            $qty_deducted_from_batch = $sl_can_tru;
-                            $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
-                            $sl_can_tru = 0;
-                        } else {
-                            // Take all from this batch (may go negative)
-                            $qty_deducted_from_batch = $sl_can_tru; // Take all needed
-                            $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru; // Allow negative
-                            $sl_can_tru = 0; // All quantity allocated
+                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                            
+                            if($sl_ton_batch > 0){
+                                // Lô còn hàng
+                                if($sl_ton_batch >= $sl_can_tru){
+                                    // Đủ hàng trong lô này
+                                    $qty_deducted_from_batch = $sl_can_tru;
+                                    $batch['so_luong_con_lai'] = $sl_ton_batch - $sl_can_tru;
+                                    $sl_can_tru = 0;
+                                } else {
+                                    // Lấy hết từ lô này, còn thiếu
+                                    $qty_deducted_from_batch = $sl_ton_batch;
+                                    $batch['so_luong_con_lai'] = 0;
+                                    $sl_can_tru -= $sl_ton_batch;
+                                }
+                                
+                                // Accumulate Cost
+                                $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
+                                $tong_gia_von_thuc_te += $qty_deducted_from_batch * $batch_cost_price;
+                                $sl_da_tru += $qty_deducted_from_batch;
+                            }
                         }
                         
-                        // Accumulate Cost
-                        $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
-                        $tong_gia_von_thuc_te += $qty_deducted_from_batch * $batch_cost_price;
-                        $sl_da_tru += $qty_deducted_from_batch;
+                        $new_batches[] = $batch;
                     }
                     
-                    $new_batches[] = $batch;
-                }    
+                    // Nếu vẫn còn số lượng cần trừ (không đủ hàng), tính giá vốn cho phần thiếu
+                    $sl_thieu = $sl_can_tru; // Lưu lại số lượng thiếu để trừ vào so_luong_ton
+                    if($sl_can_tru > 0){
+                        // Dùng giá vốn mặc định cho phần thiếu
+                        $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
+                        $tong_gia_von_thuc_te += $sl_can_tru * $default_cost;
+                        $sl_da_tru += $sl_can_tru;
+                        $sl_can_tru = 0;
+                    }
                     
-                    // Update Product
-                    // Limit to 50 records (Prioritize Active Batches)
-                    // Note: Negative batches are kept as "active" for tracking
-                    $active_batches = [];
-                    $inactive_batches = [];
+                    // Lọc chỉ giữ các lô còn hàng (so_luong_con_lai > 0)
+                    $positive_batches = [];
                     foreach($new_batches as $b){
-                        // Keep batches with any stock (including negative) as active
-                        if(isset($b['so_luong_con_lai']) && intval($b['so_luong_con_lai']) != 0){
-                            $active_batches[] = $b;
-                        } else {
-                            $inactive_batches[] = $b;
+                        if(isset($b['so_luong_con_lai']) && intval($b['so_luong_con_lai']) > 0){
+                            $positive_batches[] = $b;
                         }
                     }
-
-                    if(count($active_batches) < 50){
-                        $needed = 50 - count($active_batches);
-                        // Take the ones with latest expiry (end of sorted inactive list)
-                        $taken_inactive = array_slice($inactive_batches, -$needed);
-                        $final_batches = array_merge($taken_inactive, $active_batches);
-                        
-                        // Re-sort checks
-                        usort($final_batches, function($a, $b) {
+                    
+                    // Giới hạn 50 lô (ưu tiên lô gần hết hạn)
+                    if(count($positive_batches) > 50){
+                        // Sắp xếp theo ngày hết hạn
+                        usort($positive_batches, function($a, $b) {
                             $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
                             $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
                             return $t1 - $t2;
                         });
-                        $new_batches = $final_batches;
-                    } else {
-                        // If we have > 50 active batches, keep them all to ensure stock accuracy
-                        $new_batches = $active_batches;
+                        $positive_batches = array_slice($positive_batches, 0, 50);
                     }
 
-                    $hanghoa_db->ds_lo_hang = $new_batches;
+                    $hanghoa_db->ds_lo_hang = $positive_batches;
+                    
+                    // Tính so_luong_ton = tổng các lô còn lại - số lượng thiếu
                     $current_total_stock = 0;
-                    foreach($new_batches as $b){
+                    foreach($positive_batches as $b){
                          $current_total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
                     }
-                    $hanghoa_db->so_luong_ton = $current_total_stock;
+                    // Trừ thêm phần thiếu để so_luong_ton có thể âm
+                    $hanghoa_db->so_luong_ton = $current_total_stock - $sl_thieu;
                     
+                    $hanghoa_db->save();
+                } else {
+                    // Không có lô hàng, trừ trực tiếp vào so_luong_ton
+                    $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
+                    $tong_gia_von_thuc_te = $so_luong * $default_cost;
+                    
+                    $hanghoa_db->so_luong_ton = intval($hanghoa_db->so_luong_ton) - $so_luong;
                     $hanghoa_db->save();
                 }
 
@@ -257,9 +319,13 @@ class DonHangController extends Controller
         $kh = KhachHang::find($id_khachhang);
         $hh = HangHoa::find($id_hanghoa);
 
-        // FEFO Simulation
+        // FEFO Simulation & Calculate Real Cost
         $warning_info = "";
         $batches_used = $this->resolveBatches($hh, $so_luong);
+        
+        // Tính giá vốn thực tế theo lô hàng
+        $gia_von_thuc_te = $this->calculateRealCost($hh, $so_luong);
+        
         if(count($batches_used) > 1){
             $warning_info = "Sử dụng từ nhiều lô: ";
             foreach($batches_used as $b){
@@ -271,7 +337,7 @@ class DonHangController extends Controller
              $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];
         }
 
-        return view('Admin.DonHang.cart')->with(compact('kh','hh','so_luong', 'warning_info'));
+        return view('Admin.DonHang.cart')->with(compact('kh','hh','so_luong', 'warning_info', 'gia_von_thuc_te', 'batches_used'));
     }
 
     function check_batch_usage(Request $request){
@@ -280,8 +346,12 @@ class DonHangController extends Controller
         $hh = HangHoa::find($id_hanghoa);
         
         $warning_info = "";
+        $gia_von_thuc_te = 0;
+        
         if($hh){
-             $batches_used = $this->resolveBatches($hh, $so_luong);
+            $batches_used = $this->resolveBatches($hh, $so_luong);
+            $gia_von_thuc_te = $this->calculateRealCost($hh, $so_luong);
+            
             if(count($batches_used) > 1){
                 $warning_info = "Sử dụng từ nhiều lô: ";
                 foreach($batches_used as $b){
@@ -292,7 +362,10 @@ class DonHangController extends Controller
             }
         }
         
-        return response()->json(['warning_info' => $warning_info]);
+        return response()->json([
+            'warning_info' => $warning_info,
+            'gia_von_thuc_te' => $gia_von_thuc_te
+        ]);
     }
 
     function hang_hoa(Request $request, $id = ''){
@@ -441,6 +514,12 @@ class DonHangController extends Controller
             return $hh;
         });
 
+        // 2. Tính đã thanh toán từ bảng CongNo
+        $id_dh = ObjectController::ObjectId($dh->_id);
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $dh->da_thanh_toan = $da_thanh_toan;
+        $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
+
         return view('Admin.DonHang.in-phieu-giao-hang', compact('dh'));
     }
 
@@ -463,6 +542,12 @@ class DonHangController extends Controller
             $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             return $hh;
         });
+
+        // 2. Tính đã thanh toán từ bảng CongNo
+        $id_dh = ObjectController::ObjectId($dh->_id);
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $dh->da_thanh_toan = $da_thanh_toan;
+        $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
 
         return view('Admin.DonHang.edit', compact('dh'));
     }
@@ -533,5 +618,62 @@ class DonHangController extends Controller
             }
         }
         return $batches_used;
+    }
+
+    /**
+     * Tính giá vốn thực tế theo logic lô hàng FEFO
+     * Trả về tổng giá vốn cho số lượng cần xuất
+     */
+    private function calculateRealCost($hanghoa, $sl_can_tru) {
+        $tong_gia_von = 0;
+        $sl_can_tru = intval($sl_can_tru);
+        $default_gia_von = isset($hanghoa['gia_von']) ? doubleval($hanghoa['gia_von']) : 0;
+
+        if($hanghoa && isset($hanghoa['ds_lo_hang']) && is_array($hanghoa['ds_lo_hang'])){
+            $batches = $hanghoa['ds_lo_hang'];
+            
+            // Sort batches: Expiry (Asc) - FEFO
+            usort($batches, function($a, $b) {
+                $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
+                return $t1 - $t2;
+            });
+
+            foreach($batches as $batch){
+                // Check if batch is expired
+                $is_expired = false;
+                if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                    $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                    if($expiry_timestamp < time()) {
+                        $is_expired = true;
+                    }
+                }
+
+                if($sl_can_tru > 0 && !$is_expired){
+                    $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                    if($sl_ton_batch > 0){
+                        $used = 0;
+                        if($sl_ton_batch >= $sl_can_tru){
+                            $used = $sl_can_tru;
+                            $sl_can_tru = 0;
+                        } else {
+                            $used = $sl_ton_batch;
+                            $sl_can_tru -= $sl_ton_batch;
+                        }
+
+                        // Get batch cost price, fallback to product default
+                        $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : $default_gia_von;
+                        $tong_gia_von += $used * $batch_cost_price;
+                    }
+                }
+            }
+        }
+
+        // If still need more (negative stock scenario), use default cost
+        if($sl_can_tru > 0){
+            $tong_gia_von += $sl_can_tru * $default_gia_von;
+        }
+
+        return $tong_gia_von;
     }
 }
