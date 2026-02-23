@@ -101,11 +101,21 @@ class DonHangController extends Controller
 
     function create(Request $request) {
         $data = $request->all();
-        $kh = KhachHang::find($data['id_khachhang_cart']);
+        
+        $id_khachhang_cart = isset($data['id_khachhang_cart']) && $data['id_khachhang_cart'] ? $data['id_khachhang_cart'] : (isset($data['id_khachhang']) ? $data['id_khachhang'] : null);
+        if (!$id_khachhang_cart) {
+            return redirect()->back()->withErrors(['Vui lòng chọn khách hàng'])->withInput();
+        }
+        
+        if (!isset($data['id_hanghoa_cart']) || empty($data['id_hanghoa_cart'])) {
+            return redirect()->back()->withErrors(['Giỏ hàng trống. Vui lòng thêm hàng hóa vào giỏ'])->withInput();
+        }
+
+        $kh = KhachHang::find($id_khachhang_cart);
         $arr_hanghoa = array();
         $tong_thanh_tien = ObjectController::convertStr2Number_1($data['tong-thanh-tien']);
         $thanh_toan = ObjectController::convertStr2Number_1($data['thanh-toan']);
-        if($data['id_hanghoa_cart']){
+        if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
                 $so_luong = floatval($data['so_luong_cart'][$key]);
@@ -114,9 +124,16 @@ class DonHangController extends Controller
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $id_hanghoa = ObjectController::ObjectId($value);
                 
+                // Đơn vị bán: main (chuẩn) hoặc retail (lẻ)
+                $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
+                $sl_can_tru_kho = $so_luong;
+                if ($don_vi_ban == 'retail' && isset($hh['ty_le_quy_doi']) && floatval($hh['ty_le_quy_doi']) > 0) {
+                    $sl_can_tru_kho = $so_luong / floatval($hh['ty_le_quy_doi']);
+                }
+                
                 // --- FEFO & Real Cost Calculation ---
                 $hanghoa_db = $hh; // Already found above
-                $sl_can_tru = $so_luong;
+                $sl_can_tru = $sl_can_tru_kho; // Trừ kho theo đơn vị chuẩn
                 $tong_gia_von_thuc_te = 0; // Total cost for this line item based on batches
                 $sl_da_tru = 0;
 
@@ -222,9 +239,9 @@ class DonHangController extends Controller
                 } else {
                     // Không có lô hàng, trừ trực tiếp vào so_luong_ton
                     $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
-                    $tong_gia_von_thuc_te = $so_luong * $default_cost;
+                    $tong_gia_von_thuc_te = $sl_can_tru_kho * $default_cost;
                     
-                    $hanghoa_db->so_luong_ton = floatval($hanghoa_db->so_luong_ton) - $so_luong;
+                    $hanghoa_db->so_luong_ton = floatval($hanghoa_db->so_luong_ton) - $sl_can_tru_kho;
                     $hanghoa_db->save();
                 }
 
@@ -240,6 +257,8 @@ class DonHangController extends Controller
                     'thanh_tien' => $thanh_tien,
                     'gia_von_thuc_te' => $tong_gia_von_thuc_te, // Total Cost for this line
                     // Thông tin bán lẻ
+                    'don_vi_ban' => $don_vi_ban,
+                    'so_luong_tru_kho' => $sl_can_tru_kho,
                     'cho_phep_ban_le' => $hh['cho_phep_ban_le'] ?? false,
                     'don_vi_le' => $hh['don_vi_le'] ?? '',
                     'ty_le_quy_doi' => $hh['ty_le_quy_doi'] ?? 1,
@@ -252,7 +271,7 @@ class DonHangController extends Controller
         $ma_don_hang = strtoupper(uniqid());
         $db->_id = $id;
         $db->ma_don_hang = $ma_don_hang;
-        $db->id_khachhang = ObjectController::ObjectId($data['id_khachhang_cart']);
+        $db->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);
         $db->ho_ten = $kh['ho_ten'];
         $db->dien_thoai = $kh['dien_thoai'];
         $db->dia_chi = $kh['dia_chi'];
@@ -268,7 +287,7 @@ class DonHangController extends Controller
         $db->save();
 
         $congno =  new CongNo();
-        $congno->id_khachhang = ObjectController::ObjectId($data['id_khachhang_cart']);
+        $congno->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);
         $congno->ho_ten = $kh['ho_ten'];
         $congno->dien_thoai = $kh['dien_thoai'];
         $congno->dia_chi = $kh['dia_chi'];
@@ -285,7 +304,7 @@ class DonHangController extends Controller
 
         if($thanh_toan > 0){
             $thanhtoan =  new CongNo();
-            $thanhtoan->id_khachhang = ObjectController::ObjectId($data['id_khachhang_cart']);
+            $thanhtoan->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);
             $thanhtoan->ho_ten = $kh['ho_ten'];
             $thanhtoan->dien_thoai = $kh['dien_thoai'];
             $thanhtoan->dia_chi = $kh['dia_chi'];
@@ -399,7 +418,7 @@ class DonHangController extends Controller
         if($data['tinh_trang'] == 2){
             foreach($db['hanghoa'] as $hh){
                 $id_hanghoa = ObjectController::ObjectId($hh['id_hanghoa']);
-                $so_luong = floatval($hh['so_luong']);
+                $so_luong = isset($hh['so_luong_tru_kho']) ? floatval($hh['so_luong_tru_kho']) : floatval($hh['so_luong']);
                 HangHoa::where('_id', '=', $id_hanghoa)->increment('so_luong_ton', $so_luong);
             }
         }
@@ -516,11 +535,10 @@ class DonHangController extends Controller
             $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
             $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             
-            // Kiểm tra có bán lẻ không - nếu có đơn vị lẻ thì hiển thị kèm
-            if(!empty($hh['cho_phep_ban_le']) && !empty($hh['don_vi_le'])) {
-                // Hiển thị dạng: "kg (Bao 50kg)" hoặc chỉ đơn vị lẻ
-                $hh['don_vi_tinh'] = $don_vi_chinh;
-                $hh['don_vi_le_info'] = $hh['don_vi_le'] . ' (1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
+            // Check if it was sold as retail
+            if(isset($hh['don_vi_ban']) && $hh['don_vi_ban'] == 'retail' && !empty($hh['don_vi_le'])) {
+                $hh['don_vi_tinh'] = $hh['don_vi_le'];
+                $hh['don_vi_le_info'] = '(1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
             } else {
                 $hh['don_vi_tinh'] = $don_vi_chinh;
                 $hh['don_vi_le_info'] = '';
@@ -555,10 +573,10 @@ class DonHangController extends Controller
             $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
             $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             
-            // Kiểm tra có bán lẻ không - nếu có đơn vị lẻ thì hiển thị kèm
-            if(!empty($hh['cho_phep_ban_le']) && !empty($hh['don_vi_le'])) {
-                $hh['don_vi_tinh'] = $don_vi_chinh;
-                $hh['don_vi_le_info'] = $hh['don_vi_le'] . ' (1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
+            // Check if it was sold as retail
+            if(isset($hh['don_vi_ban']) && $hh['don_vi_ban'] == 'retail' && !empty($hh['don_vi_le'])) {
+                $hh['don_vi_tinh'] = $hh['don_vi_le'];
+                $hh['don_vi_le_info'] = '(1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
             } else {
                 $hh['don_vi_tinh'] = $don_vi_chinh;
                 $hh['don_vi_le_info'] = '';

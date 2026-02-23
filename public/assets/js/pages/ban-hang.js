@@ -22,7 +22,7 @@ function addCart(path) {
                 $.get(path_get, function (hanghoa) {
                     $("#HangHoaList tbody").prepend(hanghoa); delete_cart();
                     tong_thanh_tien();
-                    $("#id_khachhang").prop('disabled', true);
+                    // $("#id_khachhang").prop('disabled', true);
                     $("#updateCart").prop("disabled", false);
 
                     $("#id_khachhang_cart").val(id_khachhang);
@@ -43,13 +43,23 @@ function addCart(path) {
 function update_prices_by_mode() {
     var hinh_thuc = $('input[name=hinh_thuc_thanh_toan]:checked').val();
     $(".don-gia").each(function () {
-
         var item = $(this);
-        var original_val = parseFloat(item.val());
+        var row = item.closest('.item');
+        var unitSelect = row.find('.don-vi-ban');
+        var isRetail = unitSelect.length && unitSelect.val() === 'retail';
+        var tyLe = parseFloat(unitSelect.data('ty-le')) || 1;
+
         // Only update if we have data attributes
         if (item.data('gia-si') !== undefined && item.data('gia-le') !== undefined) {
             var new_val = (hinh_thuc == 'tien_mat') ? parseFloat(item.data('gia-si')) : parseFloat(item.data('gia-le'));
-            if (new_val !== undefined && new_val != original_val) {
+
+            // Nếu bán lẻ, chia đơn giá cho tỷ lệ quy đổi
+            if (isRetail && tyLe > 0) {
+                new_val = new_val / tyLe;
+            }
+
+            var original_val = parseFloat(item.val()) || 0;
+            if (new_val !== undefined && Math.abs(new_val - original_val) > 0.01) {
                 item.val(new_val);
                 // Trigger change to recalculate row total
                 item.trigger('change');
@@ -128,7 +138,10 @@ function currencyFormat(num) {
 }
 
 function change_so_luong(path) {
-    $(".cart-change").off('change').change(function () {
+    $(".cart-change").off('change.cart').on('change.cart', function () {
+        if ($(this).hasClass('don-vi-ban')) {
+            update_prices_by_mode();
+        }
         var parent = $(this).parents(".item");
         var so_luong = parseFloat(parent.find(".so-luong").val());
         var don_gia = parseFloat(parent.find(".don-gia").val());
@@ -151,10 +164,19 @@ function change_so_luong(path) {
         parent.find(".thanh-tien-show").html(currencyFormat(thanh_tien));
 
         // Kiểm tra và hiển thị cảnh báo tồn kho
+        var unitSelect = parent.find('.don-vi-ban');
+        var isRetail = unitSelect.length && unitSelect.val() === 'retail';
+        var tyLe = parseFloat(unitSelect.data('ty-le')) || 1;
+
+        var sl_tru_kho = so_luong;
+        if (isRetail && tyLe > 0) {
+            sl_tru_kho = so_luong / tyLe;
+        }
+
         var maxTon = parseFloat(parent.find(".so-luong").data('max-ton')) || 0;
         var stockWarning = parent.find("td:eq(1) .alert-danger");
-        if (so_luong > maxTon) {
-            var tru_am = so_luong - maxTon;
+        if (sl_tru_kho > maxTon) {
+            var tru_am = sl_tru_kho - maxTon;
             var warningHtml = '<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn ' + currencyFormat(maxTon) + ', sẽ trừ âm ' + currencyFormat(tru_am);
             if (stockWarning.length > 0) {
                 stockWarning.html(warningHtml);
@@ -174,7 +196,7 @@ function change_so_luong(path) {
         if (path && id_hanghoa) {
             $.get(path + "admin/don-hang/check-batch-usage", {
                 id_hanghoa: id_hanghoa,
-                so_luong: so_luong
+                so_luong: sl_tru_kho
             }, function (resp) {
                 var warningName = parent.find("td:eq(1) .alert-warning");
                 if (resp.warning_info) {

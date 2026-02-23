@@ -36,14 +36,14 @@
 
 	                	<label class="control-label col-md-2 text-right p-t-10">Loại hàng</label>
 	                	@php
-	                		$id_loaihang = old('id_loaihang') != null ? old('id_loaihang') : $ds['id_loaihang'];
+	                		$id_loaihang = old('id_loaihang') ? (string)old('id_loaihang') : (isset($ds['id_loaihang']) ? (string)$ds['id_loaihang'] : '');
 	                	@endphp
 	                	<div class="col-md-4">
 	                		<select name="id_loaihang" id="id_loaihang" class="form-control select2" data-placeholder="Loại hàng">
 	                			<option value=""></option>
 	                			@if($loaihang)
 	                				@foreach($loaihang as $lh)
-	                					<option value="{{ $lh['_id'] }}" @if($lh['_id'] == $id_loaihang) selected @endif>{{ $lh['ten'] }}</option>
+	                					<option value="{{ (string)$lh['_id'] }}" @if((string)$lh['_id'] == $id_loaihang) selected @endif>{{ $lh['ten'] }}</option>
 	                				@endforeach
 	                			@endif
 	                		</select>
@@ -67,13 +67,13 @@
 	                	<label class="control-label col-md-2 text-right p-t-10">Đơn vị tính</label>
 	                	<div class="col-md-4">
                             @php
-                                $id_donvitinh = old('id_donvitinh') != null ? old('id_donvitinh') : $ds['id_donvitinh'];
+                                $id_donvitinh = old('id_donvitinh') ? (string)old('id_donvitinh') : (isset($ds['id_donvitinh']) ? (string)$ds['id_donvitinh'] : '');
                             @endphp
                             <select name="id_donvitinh" id="id_donvitinh" class="form-control select2" data-placeholder="Đơn vị tính">
                                 <option value=""></option>
                                 @if($donvitinh)
                                     @foreach($donvitinh as $nh)
-                                        <option value="{{ $nh['_id'] }}" @if($nh['_id'] == $id_donvitinh) selected @endif>{{ $nh['ten'] }}</option>
+                                        <option value="{{ (string)$nh['_id'] }}" @if((string)$nh['_id'] == $id_donvitinh) selected @endif>{{ $nh['ten'] }}</option>
                                     @endforeach
                                 @endif
                             </select>

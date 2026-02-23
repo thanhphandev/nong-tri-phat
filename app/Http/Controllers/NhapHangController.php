@@ -135,14 +135,24 @@ class NhapHangController extends Controller
 
     function create(Request $request){
         $data = $request->all();
-    	$validator = Validator::make($request->all(), [
+        
+        // Use id_nhacungcap if id_nhacungcap_cart is empty
+        $id_nhacungcap_cart = isset($data['id_nhacungcap_cart']) && $data['id_nhacungcap_cart'] ? $data['id_nhacungcap_cart'] : (isset($data['id_nhacungcap']) ? $data['id_nhacungcap'] : null);
+        if ($id_nhacungcap_cart) {
+            $data['id_nhacungcap_cart'] = $id_nhacungcap_cart;
+        }
+
+    	$validator = Validator::make($data, [
             'so_chung_tu' => 'nullable',
             'id_nhacungcap_cart' => 'required',
             'id_hanghoa_cart' => 'required',
             'so_luong_cart' => 'required'
+        ], [
+            'id_nhacungcap_cart.required' => 'Vui lòng chọn nhà cung cấp.',
+            'id_hanghoa_cart.required' => 'Giỏ hàng trống. Vui lòng thêm hàng hóa vào giỏ.'
         ]);
         if ($validator->fails()) {
-            Session::flash('msg', 'Có lỗi xảy ra, không thể nhập hàng');
+            Session::flash('msg', 'Có lỗi xảy ra, không thể tạo phiếu');
             return redirect(env('APP_URL') .'admin/nhap-hang/add')->withErrors($validator)->withInput();
         }
         $arr_hanghoa = array();

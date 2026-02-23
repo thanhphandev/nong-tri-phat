@@ -299,11 +299,12 @@ class HangHoaController extends Controller
                     'gia_si' => $item->gia_si,
                     'gia_le' => $item->gia_le,
                     'so_luong_ton' => $item->so_luong_ton,
+                    'id_donvitinh' => (string)$item->id_donvitinh,
                     'don_vi_tinh' => $ten_dvt,
                     // Thông tin bán lẻ
                     'cho_phep_ban_le' => $item->cho_phep_ban_le ?? false,
                     'don_vi_le' => $item->don_vi_le ?? '',
-                    'ty_le_quy_doi' => $item->ty_le_quy_doi ?? 1
+                    'ty_le_quy_doi' => (float)($item->ty_le_quy_doi ?? 1)
                 );
             }
         }

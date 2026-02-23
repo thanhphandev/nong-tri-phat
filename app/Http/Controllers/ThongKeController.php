@@ -185,14 +185,14 @@ class ThongKeController extends Controller
                     
                     if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
                         foreach($dh['hanghoa'] as $hh) {
-                            $so_san_pham_ban += isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0;
+                            $so_san_pham_ban += isset($hh['so_luong_tru_kho']) ? doubleval($hh['so_luong_tru_kho']) : (isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0);
                             // Calculate Cost properly
                             $item_cost = 0;
                             if (isset($hh['gia_von_thuc_te'])) {
                                 $item_cost = doubleval($hh['gia_von_thuc_te']);
                             } else {
                                 $base_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
-                                $item_qty = isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0;
+                                $item_qty = isset($hh['so_luong_tru_kho']) ? doubleval($hh['so_luong_tru_kho']) : (isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0);
                                 $item_cost = $base_cost * $item_qty;
                             }
                             $tong_gia_von_ban += $item_cost;
@@ -219,7 +219,6 @@ class ThongKeController extends Controller
                 $tong_doanh_thu_tra += isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : 0;
                 
                 // Subtract from Cost (Inventory value returned)
-                // If tong_gia_von is stored:
                 if (isset($th['tong_gia_von'])) {
                     $tong_gia_von_tra += doubleval($th['tong_gia_von']);
                 } else {
@@ -227,7 +226,7 @@ class ThongKeController extends Controller
                     if (isset($th['hanghoa']) && is_array($th['hanghoa'])) {
                         foreach($th['hanghoa'] as $hh_tra) {
                             $gv = isset($hh_tra['gia_von']) ? doubleval($hh_tra['gia_von']) : 0;
-                            $sl = isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
+                            $sl = isset($hh_tra['so_luong_tru_kho_tra']) ? doubleval($hh_tra['so_luong_tru_kho_tra']) : (isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0);
                             $tong_gia_von_tra += $gv * $sl;
                         }
                     }
@@ -235,7 +234,7 @@ class ThongKeController extends Controller
 
                 if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
                     foreach($th['hanghoa'] as $hh_tra) {
-                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
+                        $so_san_pham_tra += isset($hh_tra['so_luong_tru_kho_tra']) ? doubleval($hh_tra['so_luong_tru_kho_tra']) : (isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0);
                     }
                 }
             }

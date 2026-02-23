@@ -42,8 +42,25 @@
 			@endif
 		</div>
 	</td>
-	<td class="text-center" align="center" style="width:100px;max-width:100px;">
-		<input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="Số lượng" class="so-luong cart-change form-control form-control-sm" min="0.01" step="0.01" data-max-ton="{{ $so_luong_ton }}" style="width:80px;">
+	<td class="text-center" align="center" style="width:140px;max-width:140px;">
+        <div class="input-group input-group-sm">
+		    <input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="SL" class="so-luong cart-change form-control form-control-sm" min="0.01" step="0.01" data-max-ton="{{ $so_luong_ton }}" style="width:60px; padding: 0.25rem 0.3rem;">
+            @if($co_ban_le)
+                @php
+                    $ten_dvt_chinh = 'Bao/Chai';
+                    if(!empty($hh['id_donvitinh'])){
+                        $dvt = \App\Models\DonViTinh::find($hh['id_donvitinh']);
+                        if($dvt) $ten_dvt_chinh = $dvt['ten'];
+                    }
+                @endphp
+                <select name="don_vi_tinh_cart[]" class="don-vi-ban cart-change form-control form-control-sm" style="width:65px; padding:0 2px;" data-ty-le="{{ $hh['ty_le_quy_doi'] ?? 1 }}" data-ten-main="{{ $ten_dvt_chinh }}" data-ten-retail="{{ $hh['don_vi_le'] }}">
+                    <option value="main">{{ $ten_dvt_chinh }}</option>
+                    <option value="retail">{{ $hh['don_vi_le'] }}</option>
+                </select>
+            @else
+                <input type="hidden" name="don_vi_tinh_cart[]" class="don-vi-ban" data-ty-le="1" value="main" data-ten-main="">
+            @endif
+        </div>
 	</td>
 	<td class="text-right" style="width:130px;">
 		<input type="text" class="don-gia cart-change number form-control form-control-sm" name="don_gia_cart[]" value="{{ $hh[$kh['loai_khach_hang']] }}" placeholder="" style="width:100px;" data-gia-si="{{ $hh['gia_si'] }}" data-gia-le="{{ $hh['gia_le'] }}"/>
