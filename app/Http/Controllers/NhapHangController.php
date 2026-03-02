@@ -9,9 +9,11 @@ use App\Models\HangHoa;
 use App\Models\NhaCungCap;
 use App\Models\CongNoNCC;
 use App\Models\DonViTinh;
+use App\Traits\CodeGeneratorTrait;
 use Validator;use Session;
 class NhapHangController extends Controller
 {
+    use CodeGeneratorTrait;
     //
     function list(Request $request){
         $keywords = $request->input('keywords');
@@ -159,7 +161,11 @@ class NhapHangController extends Controller
         }
         $arr_hanghoa = array();
         $id = ObjectController::Id();
-        $ma_nhap_hang = strtoupper(uniqid());
+        
+        $ncc = NhaCungCap::find($data['id_nhacungcap_cart']);
+        $partnerId = isset($ncc['ma']) && $ncc['ma'] ? $ncc['ma'] : 'NCC' . substr($ncc['_id'], -5);
+        $ma_nhap_hang = $this->generateOrderCode('NH', $partnerId);
+        
         $ngay_nhap = ObjectController::setDate();
 
         if($data['id_hanghoa_cart']){
@@ -224,7 +230,6 @@ class NhapHangController extends Controller
 
         
         $id_user = $request->session()->get('user._id');
-        $ncc = NhaCungCap::find($data['id_nhacungcap_cart']);
         $db = new NhapHang();
         $db->_id = $id;
         $db->ma_nhap_hang = $ma_nhap_hang;

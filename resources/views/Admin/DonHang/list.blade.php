@@ -123,7 +123,7 @@
 							<th class="text-center">#</th>
 						</tr>
                         <tr class="bg-light text-dark summary-row">
-                            <th colspan="3" class="text-right text-uppercase"><b>Tổng cộng:</b></th>
+                            <th colspan="3" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</th>
                             <th class="text-right text-success font-weight-bold">{{ number_format($sum_da_tt, 0, ",", ".") }}</th>

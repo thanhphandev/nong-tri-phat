@@ -13,9 +13,11 @@ use App\Models\CongNoNCC;
 use Validator;
 use Session;
 use Carbon\Carbon;
+use App\Traits\CodeGeneratorTrait;
 
 class TraHangNCCController extends Controller
 {
+    use CodeGeneratorTrait;
     /**
      * List all supplier returns
      */
@@ -140,7 +142,9 @@ class TraHangNCCController extends Controller
         }
 
         // Generate return code
-        $ma_tra_hang = strtoupper(uniqid());
+        $ncc = NhaCungCap::find($nhaphang['id_nhacungcap']);
+        $partnerId = isset($ncc['ma']) && $ncc['ma'] ? $ncc['ma'] : 'NCC' . substr($nhaphang['id_nhacungcap'], -5);
+        $ma_tra_hang = $this->generateOrderCode('THN', $partnerId);
 
         // Calculate total
         $tong_tien_tra = 0;

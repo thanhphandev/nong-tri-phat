@@ -12,8 +12,11 @@ use App\Models\KhachHang;
 use Validator;
 use Session;
 use Config;
+use App\Traits\CodeGeneratorTrait;
+
 class KhachHangController extends Controller
 {
+    use CodeGeneratorTrait;
     //
     function list(){
     	$danhsach = KhachHang::paginate(30);
@@ -38,6 +41,7 @@ class KhachHangController extends Controller
         $db = new KhachHang();
         $id = ObjectController::Id();
         $db->_id = $id;
+        $db->ma_khach_hang = $this->generatePartnerCode('KH');
         $db->ho_ten = trim($data['ho_ten']);
         $db->dien_thoai = trim($data['dien_thoai']);
         $db->dia_chi = trim($data['dia_chi']);

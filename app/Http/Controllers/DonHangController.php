@@ -10,10 +10,12 @@ use App\Models\KhachHang;
 use App\Models\HangHoa;
 use App\Models\CongNo;
 use App\Models\DonViTinh;
+use App\Traits\CodeGeneratorTrait;
 use Validator;use Session;
 use Config;
 class DonHangController extends Controller
 {
+    use CodeGeneratorTrait;
     //
 
     function list(Request $request, $ma = ''){
@@ -272,7 +274,11 @@ class DonHangController extends Controller
         $db = new DonHang();
         $id = ObjectController::Id();
         $id_user = $request->session()->get('user._id');
-        $ma_don_hang = strtoupper(uniqid());
+        
+        // PartnerID rút gọn
+        $partnerId = isset($kh['ma_khach_hang']) && $kh['ma_khach_hang'] ? $kh['ma_khach_hang'] : 'K' . substr($kh['_id'], -5);
+        $ma_don_hang = $this->generateOrderCode('BH', $partnerId);
+        
         $db->_id = $id;
         $db->ma_don_hang = $ma_don_hang;
         $db->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);

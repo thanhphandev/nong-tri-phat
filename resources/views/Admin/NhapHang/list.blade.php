@@ -107,7 +107,7 @@
 							<th class="text-center">#</th>
 						</tr>
                         <tr class="bg-light text-dark summary-row">
-                            <th colspan="5" class="text-right text-uppercase"><b>Tổng cộng:</b></th>
+                            <th colspan="5" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
                             <th class="text-right">
                                 <span class="text-primary font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</span><br/>

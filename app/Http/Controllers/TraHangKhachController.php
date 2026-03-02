@@ -14,9 +14,11 @@ use Validator;
 use Session;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Traits\CodeGeneratorTrait;
 
 class TraHangKhachController extends Controller
 {
+    use CodeGeneratorTrait;
     /**
      * List all customer returns
      */
@@ -113,7 +115,9 @@ class TraHangKhachController extends Controller
             $tra_hang->_id = new \MongoDB\BSON\ObjectId(); // Pre-generate ID
             $id_tra_hang = $tra_hang->_id;
             
-            $ma_tra_hang = strtoupper(uniqid());
+            $kh = KhachHang::find($donhang['id_khachhang']);
+            $partnerId = isset($kh['ma_khach_hang']) && $kh['ma_khach_hang'] ? $kh['ma_khach_hang'] : 'K' . substr($donhang['id_khachhang'], -5);
+            $ma_tra_hang = $this->generateOrderCode('THK', $partnerId);
             $tra_hang->ma_tra_hang = $ma_tra_hang;
             
             // Calculate totals and validate quantities

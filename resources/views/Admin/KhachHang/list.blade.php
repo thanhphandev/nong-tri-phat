@@ -30,6 +30,7 @@
                     <thead>
                         <tr>
                             <th>STT</th>
+                            <th>Mã KH</th>
                             <th>Điện thoại</th>
                             <th>Tên Khách hàng</th>
                             <th>Địa chỉ</th>
@@ -43,6 +44,7 @@
                             @foreach($danhsach as $key => $ds)
                             <tr>
                                 <td>{{ $key+1 }}</td>
+                                <td>{{ isset($ds['ma_khach_hang']) ? $ds['ma_khach_hang'] : 'K' . substr($ds['_id'], -5) }}</td>
                                 <td>{{ $ds['dien_thoai'] }}</td>
                                 <td>{{ $ds['ho_ten'] }}</td>
                                 <td>{{ $ds['dia_chi'] }}</td>

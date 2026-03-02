@@ -262,7 +262,7 @@
                         cache: true
                     },
                     placeholder: 'Tìm mặt hàng (Phím tắt F3, Mã, Tên, Mã vạch...)',
-                    minimumInputLength: 3,
+                    minimumInputLength: 1,
                     templateResult: formatRepo,
                     templateSelection: formatRepoSelection,
                     escapeMarkup: function (markup) { return markup; }
