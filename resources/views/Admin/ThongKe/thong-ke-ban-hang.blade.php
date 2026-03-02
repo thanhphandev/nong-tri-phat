@@ -52,8 +52,18 @@
                     @endforeach
                 </select>
             </div>
+            <label class="control-label col-md-1 text-right p-t-10">Loại SP</label>
+            <div class="col-12 col-md-2">
+                <select name="loai_san_pham" id="loai_san_pham" class="form-control">
+                    <option value="all" {{ ($loai_san_pham ?? 'all') == 'all' ? 'selected' : '' }}>Tất cả</option>
+                    <option value="1" {{ ($loai_san_pham ?? 'all') == '1' ? 'selected' : '' }}>Hàng chương trình</option>
+                    <option value="0" {{ ($loai_san_pham ?? 'all') == '0' ? 'selected' : '' }}>VVTN / Hàng thường</option>
+                </select>
+            </div>
+        </div>
+        <div class="row form-group">
             <label class="control-label col-md-1 text-right p-t-10">Trạng thái</label>
-            <div class="col-12 col-md-1">
+            <div class="col-12 col-md-2">
                 <select name="tinh_trang" id="tinh_trang" class="form-control">
                     <option value="">Tất cả</option>
                     @foreach($tinhtrang as $kt => $vt)
@@ -94,46 +104,62 @@
 </div>
     <div id="stats-cards">
     <div class="row">
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="card-box widget-flat border-success bg-success text-white" title="Tổng bán: {{ number_format($tong_doanh_thu_ban,0,",",".") }} - Trả: {{ number_format($tong_doanh_thu_tra,0,",",".") }}">
                 <i class="fas fa-money-bill-wave"></i>
                 <h4 class="text-white">{{ number_format($tong_doanh_thu,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Doanh thu thực</p>
             </div>
         </div>
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="card-box bg-warning widget-flat border-warning text-white" title="Giá vốn bán: {{ number_format($tong_gia_von_ban,0,",",".") }} - Giá vốn trả: {{ number_format($tong_gia_von_tra,0,",",".") }}">
                 <i class="fas fa-boxes"></i>
                 <h4 class="text-white">{{ number_format($tong_gia_von,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Giá vốn thực</p>
             </div>
         </div>
-        <div class="col-md-6 col-xl-2">
-            <div class="card-box widget-flat border-info bg-info text-white">
-                <i class="fas fa-hand-holding-usd"></i>
-                <h4 class="text-white">{{ number_format($tong_loi_nhuan,0,",",".") }}</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Lợi nhuận gộp</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-2">
-            <div class="card-box widget-flat {{ $ty_le_loi_nhuan >= 0 ? 'border-purple bg-purple' : 'border-danger bg-danger' }} text-white">
-                <i class="fas fa-percent"></i>
-                <h4 class="text-white">{{ $ty_le_loi_nhuan }}%</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Tỷ lệ LN</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="card-box bg-primary widget-flat border-primary text-white">
                 <i class="fas fa-check-circle"></i>
                 <h4 class="text-white">{{ number_format($tong_da_thanh_toan,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Đã thanh toán</p>
             </div>
         </div>
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="card-box bg-danger widget-flat border-danger text-white">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h4 class="text-white">{{ number_format($tong_con_no,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Còn nợ</p>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat border-info bg-info text-white">
+                <i class="fas fa-hand-holding-usd"></i>
+                <h4 class="text-white">{{ number_format($tong_loi_nhuan,0,",",".") }}</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">LN Ước tính</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat {{ $ty_le_loi_nhuan >= 0 ? 'border-purple bg-purple' : 'border-danger bg-danger' }} text-white">
+                <i class="fas fa-percent"></i>
+                <h4 class="text-white">{{ $ty_le_loi_nhuan }}%</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Tỷ lệ LN Ước tính</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat bg-dark border-dark text-white">
+                <i class="fas fa-wallet"></i>
+                <h4 class="text-white">{{ number_format($tong_loi_nhuan_thuc_te ?? 0,0,",",".") }}</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">LN Thực tế</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat {{ ($ty_le_loi_nhuan_thuc_te ?? 0) >= 0 ? 'bg-secondary border-secondary' : 'bg-danger border-danger' }} text-white">
+                <i class="fas fa-percent"></i>
+                <h4 class="text-white">{{ $ty_le_loi_nhuan_thuc_te ?? 0 }}%</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Tỷ lệ LN TT</p>
             </div>
         </div>
     </div>
@@ -212,7 +238,8 @@
                                 <th class="text-right" style="white-space: nowrap">Thanh toán</th>
                                 <th class="text-right" style="white-space: nowrap">Nợ</th>
                                 <th class="text-right" style="white-space: nowrap">Giá vốn</th>
-                                <th class="text-right" style="white-space: nowrap">Lợi nhuận</th>
+                                <th class="text-right" style="white-space: nowrap">LN Ước tính</th>
+                                <th class="text-right" style="white-space: nowrap">LN Thực tế</th>
                                 <th class="text-center">Trạng thái</th>
                                 <th>Ghi chú</th>
                             </tr>
@@ -224,23 +251,44 @@
                                 <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
                                 <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-dark"><b>{{ number_format($tong_da_thanh_toan - $tong_gia_von_ban,0,",",".") }}</b></td>
                                 <td colspan="2"></td>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($danhsach as $key => $ds)
                                 @php
-                                    $so_luong = 0;
-                                    $gia_von_don = 0;
-                                    foreach($ds['hanghoa'] as $hh){
-                                        $so_luong += $hh['so_luong'];
-                                        $gia_von_don += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                                    // Use filtered values if available, else fallback to standard logic for backward compatibility
+                                    $so_luong = isset($ds['filtered_so_luong']) ? $ds['filtered_so_luong'] : 0;
+                                    $gia_von_don = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
+                                    $doanh_thu_don = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : 0;
+                                    
+                                    // If not filtered through the new controller logic (e.g. older code)
+                                    if(!isset($ds['filtered_tong_thanh_tien'])) {
+                                        foreach($ds['hanghoa'] as $hh){
+                                            $so_luong += $hh['so_luong'];
+                                            $gia_von_don += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                                        }
+                                        $doanh_thu_don = $ds['tong_thanh_tien'];
                                     }
-                                    $loi_nhuan_don = $ds['tong_thanh_tien'] - $gia_von_don;
+
+                                    $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
                                     
                                     // Calculate payment and debt
-                                    $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
-                                    $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                    if (isset($ds['filtered_da_thanh_toan'])) {
+                                        $da_thanh_toan = $ds['filtered_da_thanh_toan'];
+                                        $con_no = $ds['filtered_con_no'];
+                                    } else {
+                                        if (($loai_san_pham ?? 'all') === 'all') {
+                                            $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
+                                            $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                        } else {
+                                            $da_thanh_toan = 0;
+                                            $con_no = 0;
+                                        }
+                                    }
+                                    
+                                    $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
                                     
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
                                     elseif($ds['tinh_trang'] == 1) $tt_badge = 'badge-success';
@@ -253,11 +301,12 @@
                                     <td>{{ $ds['ho_ten'] }}</td>
                                     <td>{{ $ds['dien_thoai'] }}</td>
                                     <td class="text-center">{{ number_format($so_luong,0,",",".") }}</td>
-                                    <td class="text-right"><b>{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b></td>
+                                    <td class="text-right"><b>{{ number_format($doanh_thu_don,0,",",".") }}</b></td>
                                     <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
                                     <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
                                     <td class="text-right {{ $loi_nhuan_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
+                                    <td class="text-right {{ $loi_nhuan_thuc_te_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</b></td>
                                     <td class="text-center"><span class="badge {{ $tt_badge }}">{{ $tinhtrang[$ds['tinh_trang']] ?? 'N/A' }}</span></td>
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
                                 </tr>
@@ -291,18 +340,24 @@
                         <tbody>
                             @foreach($ds_tra_hang as $key => $th)
                                 @php
-                                    $sl_tra = 0;
-                                    $gv_tra = 0;
-                                    if(isset($th['hanghoa']) && is_array($th['hanghoa'])){
-                                        foreach($th['hanghoa'] as $hh){
-                                            $sl_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
+                                    $sl_tra = isset($th['filtered_so_luong']) ? $th['filtered_so_luong'] : 0;
+                                    $gv_tra = isset($th['filtered_tong_gia_von']) ? $th['filtered_tong_gia_von'] : 0;
+                                    $tien_tra_don = isset($th['filtered_tong_tien_tra']) ? $th['filtered_tong_tien_tra'] : 0;
+                                    
+                                    // Fallback if not filtered through new logic
+                                    if(!isset($th['filtered_tong_tien_tra'])) {
+                                        if(isset($th['hanghoa']) && is_array($th['hanghoa'])){
+                                            foreach($th['hanghoa'] as $hh){
+                                                $sl_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
+                                            }
                                         }
-                                    }
-                                    $gv_tra = $th['tong_gia_von'] ?? 0;
-                                    if ($gv_tra == 0 && isset($th['hanghoa'])) {
-                                         foreach($th['hanghoa'] as $hh) {
-                                            $gv_tra += (isset($hh['gia_von']) ? $hh['gia_von'] : 0) * (isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0);
-                                         }
+                                        $gv_tra = $th['tong_gia_von'] ?? 0;
+                                        if ($gv_tra == 0 && isset($th['hanghoa'])) {
+                                             foreach($th['hanghoa'] as $hh) {
+                                                $gv_tra += (isset($hh['gia_von']) ? $hh['gia_von'] : 0) * (isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0);
+                                             }
+                                        }
+                                        $tien_tra_don = $th['tong_tien_tra'] ?? 0;
                                     }
                                 @endphp
                                 <tr>
@@ -312,7 +367,7 @@
                                     <td class="text-center">{{ $th['ma_don_hang'] ?? '-' }}</td>
                                     <td>{{ $th['ho_ten'] }}</td>
                                     <td class="text-center">{{ number_format($sl_tra,0,",",".") }}</td>
-                                    <td class="text-right text-danger font-weight-bold">{{ number_format($th['tong_tien_tra'],0,",",".") }}</td>
+                                    <td class="text-right text-danger font-weight-bold">{{ number_format($tien_tra_don,0,",",".") }}</td>
                                     <td class="text-right">{{ number_format($gv_tra,0,",",".") }}</td>
                                     <td class="text-center">
                                         <a href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $th['_id'] }}" class="btn btn-sm btn-info" target="_blank"><i class="fa fa-eye"></i> Xem</a>
@@ -389,21 +444,23 @@
                 var loiNhuan = {{ $tong_loi_nhuan ?? 0 }};
                 var daThanhToan = {{ $tong_da_thanh_toan ?? 0 }};
                 var conNo = {{ $tong_con_no ?? 0 }};
+                var loiNhuanThucTe = {{ $tong_loi_nhuan_thuc_te ?? 0 }};
 
                 // Chart 1: Revenue vs Cost vs Profit (Bar)
                 new Chart(document.getElementById('chartRevenue'), {
                     type: 'bar',
                     data: {
-                        labels: ['Doanh thu bán', 'Trả hàng', 'Doanh thu thực', 'Giá vốn thực', 'Lợi nhuận gộp'],
+                        labels: ['Doanh thu bán', 'Trả hàng', 'Doanh thu thực', 'Giá vốn thực', 'Lợi nhuận gộp', 'Lợi nhuận TT'],
                         datasets: [{
                             label: 'Số tiền (VNĐ)',
-                            data: [doanhThuBan, doanhThuTra, doanhThuThuc, giaVonThuc, loiNhuan],
+                            data: [doanhThuBan, doanhThuTra, doanhThuThuc, giaVonThuc, loiNhuan, loiNhuanThucTe],
                             backgroundColor: [
                                 'rgba(40,167,69,0.8)',
                                 'rgba(255,193,7,0.8)',
                                 'rgba(0,123,255,0.8)',
                                 'rgba(253,126,20,0.8)',
-                                loiNhuan >= 0 ? 'rgba(23,162,184,0.8)' : 'rgba(220,53,69,0.8)'
+                                loiNhuan >= 0 ? 'rgba(23,162,184,0.8)' : 'rgba(220,53,69,0.8)',
+                                loiNhuanThucTe >= 0 ? 'rgba(52,58,64,0.8)' : 'rgba(220,53,69,0.8)'
                             ],
                             borderWidth: 0,
                             borderRadius: 6,

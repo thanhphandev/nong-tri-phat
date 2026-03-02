@@ -83,6 +83,19 @@
 	                		<input type="text" name="ghi_chu" id="ghi_chu" value="{{ old('ghi_chu') != null ? old('ghi_chu') : $ds['ghi_chu'] }}" placeholder="Ghi chú" class="form-control" />
 	                	</div>
 	                </div>
+
+                    <div class="row form-group">
+                        <label class="control-label col-md-2 text-right p-t-10">Thuộc tính</label>
+                        <div class="col-md-10">
+                            @php
+                                $hang_chuong_trinh = old('hang_chuong_trinh') !== null ? old('hang_chuong_trinh') : ($ds['hang_chuong_trinh'] ?? false);
+                            @endphp
+                            <div class="custom-control custom-switch mt-1">
+                                <input type="checkbox" class="custom-control-input" id="hang_chuong_trinh" name="hang_chuong_trinh" value="1" {{ $hang_chuong_trinh ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="hang_chuong_trinh"><strong>Là hàng chương trình</strong></label>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Cấu hình Bán lẻ -->
                     @php

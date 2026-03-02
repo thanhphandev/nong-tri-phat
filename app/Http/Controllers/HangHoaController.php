@@ -79,6 +79,8 @@ class HangHoaController extends Controller
     	$db->so_luong_ton = isset($data['so_luong']) ? intval($data['so_luong']) : 0;
         $db->id_donvitinh = isset($data['id_donvitinh']) ? ObjectController::ObjectId($data['id_donvitinh']) : '';
     	$db->ghi_chu = $data['ghi_chu'];
+        // Cấu hình hàng chương trình
+        $db->hang_chuong_trinh = isset($data['hang_chuong_trinh']) ? true : false;
         // Cấu hình bán lẻ
         $db->cho_phep_ban_le = isset($data['cho_phep_ban_le']) ? true : false;
         $db->don_vi_le = isset($data['don_vi_le']) ? trim($data['don_vi_le']) : '';
@@ -126,6 +128,8 @@ class HangHoaController extends Controller
         $db->gia_le = ObjectController::convertStr2Number($data['gia_le']);
         $db->id_donvitinh = isset($data['id_donvitinh']) ? ObjectController::ObjectId($data['id_donvitinh']) : '';
         $db->ghi_chu = $data['ghi_chu'];
+        // Cấu hình hàng chương trình
+        $db->hang_chuong_trinh = isset($data['hang_chuong_trinh']) ? true : false;
         // Cấu hình bán lẻ
         $db->cho_phep_ban_le = isset($data['cho_phep_ban_le']) ? true : false;
         $db->don_vi_le = isset($data['don_vi_le']) ? trim($data['don_vi_le']) : '';
@@ -222,6 +226,8 @@ class HangHoaController extends Controller
                 'cho_phep_ban_le' => $hh['cho_phep_ban_le'] ?? false,
                 'don_vi_le' => $hh['don_vi_le'] ?? '',
                 'ty_le_quy_doi' => $hh['ty_le_quy_doi'] ?? 1,
+                // Hàng chương trình
+                'hang_chuong_trinh' => $hh['hang_chuong_trinh'] ?? false,
             );
         } else {
             $arr = array(
@@ -258,7 +264,7 @@ class HangHoaController extends Controller
         $searchQuery = trim($search);
         
         // 1. Optimize Selection: Only get needed fields
-        $query = HangHoa::select('_id', 'ma', 'ten', 'gia_si', 'gia_le', 'so_luong_ton', 'gia_von', 'id_donvitinh', 'cho_phep_ban_le', 'don_vi_le', 'ty_le_quy_doi');
+        $query = HangHoa::select('_id', 'ma', 'ten', 'gia_si', 'gia_le', 'so_luong_ton', 'gia_von', 'id_donvitinh', 'cho_phep_ban_le', 'don_vi_le', 'ty_le_quy_doi', 'hang_chuong_trinh');
 
         // 2. Search Heuristic for Performance
         // Case A: Exact Match (Barcode/Code) - Fastest
@@ -304,7 +310,9 @@ class HangHoaController extends Controller
                     // Thông tin bán lẻ
                     'cho_phep_ban_le' => $item->cho_phep_ban_le ?? false,
                     'don_vi_le' => $item->don_vi_le ?? '',
-                    'ty_le_quy_doi' => (float)($item->ty_le_quy_doi ?? 1)
+                    'ty_le_quy_doi' => (float)($item->ty_le_quy_doi ?? 1),
+                    // Hàng chương trình
+                    'hang_chuong_trinh' => $item->hang_chuong_trinh ?? false
                 );
             }
         }

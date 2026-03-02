@@ -262,6 +262,8 @@ class DonHangController extends Controller
                     'cho_phep_ban_le' => $hh['cho_phep_ban_le'] ?? false,
                     'don_vi_le' => $hh['don_vi_le'] ?? '',
                     'ty_le_quy_doi' => $hh['ty_le_quy_doi'] ?? 1,
+                    // Cấu hình Hàng chương trình
+                    'hang_chuong_trinh' => isset($hh['hang_chuong_trinh']) ? $hh['hang_chuong_trinh'] : false,
                 ));
             }
         }

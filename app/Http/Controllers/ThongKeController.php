@@ -171,6 +171,7 @@ class ThongKeController extends Controller
         $den_ngay = $request->input('den_ngay');
         $id_khachhang = $request->input('id_khachhang');
         $tinh_trang = $request->input('tinh_trang');
+        $loai_san_pham = $request->input('loai_san_pham', 'all'); // 'all', '1' (promo), '0' (normal)
         
         // Get list of customers for filter dropdown
         $khachhang_list = KhachHang::orderBy('ho_ten', 'asc')->get();
@@ -187,6 +188,7 @@ class ThongKeController extends Controller
         $tong_doanh_thu = 0;     // Net Revenue
         $tong_gia_von = 0;       // Net Cost
         $tong_loi_nhuan = 0;
+        $tong_loi_nhuan_thuc_te = 0;
         
         $tong_da_thanh_toan = 0;
         $tong_con_no = 0;
@@ -234,28 +236,62 @@ class ThongKeController extends Controller
                 }
             }
             
+            $filtered_danhsach = collect();
             foreach($danhsach as $dh) {
                 // Ignore cancelled orders for financial stats if needed, or handle based on status
                 if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
-                    $tong_doanh_thu_ban += isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
-                    
+                    $has_matching_item = false;
+                    $dh_doanh_thu_ban = 0;
+                    $dh_gia_von_ban = 0;
+                    $dh_so_san_pham_ban = 0;
+
                     if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
                         foreach($dh['hanghoa'] as $hh) {
-                            $so_san_pham_ban += isset($hh['so_luong_tru_kho']) ? doubleval($hh['so_luong_tru_kho']) : (isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0);
+                            $is_promo = isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh'] ? true : false;
+                            
+                            if ($loai_san_pham === '1' && !$is_promo) continue;
+                            if ($loai_san_pham === '0' && $is_promo) continue;
+
+                            $has_matching_item = true;
+
+                            $item_qty = isset($hh['so_luong_tru_kho']) ? doubleval($hh['so_luong_tru_kho']) : (isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0);
+                            $dh_so_san_pham_ban += $item_qty;
+
+                            // Calculate Revenue
+                            $item_revenue = isset($hh['thanh_tien']) ? doubleval($hh['thanh_tien']) : 0;
+                            $dh_doanh_thu_ban += $item_revenue;
+                            
                             // Calculate Cost properly
                             $item_cost = 0;
                             if (isset($hh['gia_von_thuc_te'])) {
                                 $item_cost = doubleval($hh['gia_von_thuc_te']);
                             } else {
                                 $base_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
-                                $item_qty = isset($hh['so_luong_tru_kho']) ? doubleval($hh['so_luong_tru_kho']) : (isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0);
                                 $item_cost = $base_cost * $item_qty;
                             }
-                            $tong_gia_von_ban += $item_cost;
+                            $dh_gia_von_ban += $item_cost;
                         }
                     }
+
+                    if ($loai_san_pham === 'all') {
+                        $dh_doanh_thu_ban = isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
+                    }
+
+                    if ($has_matching_item || $loai_san_pham === 'all') {
+                        $tong_doanh_thu_ban += $dh_doanh_thu_ban;
+                        $tong_gia_von_ban += $dh_gia_von_ban;
+                        $so_san_pham_ban += $dh_so_san_pham_ban;
+
+                        $dh['filtered_tong_thanh_tien'] = $dh_doanh_thu_ban;
+                        $dh['filtered_tong_gia_von'] = $dh_gia_von_ban;
+                        $dh['filtered_so_luong'] = $dh_so_san_pham_ban;
+                        $filtered_danhsach->push($dh);
+                    }
+                } else {
+                    $filtered_danhsach->push($dh);
                 }
             }
+            $danhsach = $filtered_danhsach;
             
             // 2. CUSTOMER RETURN QUERY
             $query_tra = \App\Models\TraHangKhach::where('ngay_tra', '>=', $start_date)
@@ -270,35 +306,56 @@ class ThongKeController extends Controller
             $ds_tra_hang = $query_tra->orderBy('ngay_tra', 'desc')->get();
             $so_don_tra = count($ds_tra_hang);
 
+            $filtered_ds_tra_hang = collect();
             foreach($ds_tra_hang as $th) {
-                // Subtract from Revenue
-                $tong_doanh_thu_tra += isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : 0;
+                $has_matching_item = false;
+                $th_doanh_thu_tra = 0;
+                $th_gia_von_tra = 0;
+                $th_so_san_pham_tra = 0;
                 
-                // Subtract from Cost (Inventory value returned)
-                if (isset($th['tong_gia_von'])) {
-                    $tong_gia_von_tra += doubleval($th['tong_gia_von']);
-                } else {
-                    // Manual calc if not stored
-                    if (isset($th['hanghoa']) && is_array($th['hanghoa'])) {
-                        foreach($th['hanghoa'] as $hh_tra) {
-                            $gv = isset($hh_tra['gia_von']) ? doubleval($hh_tra['gia_von']) : 0;
-                            $sl = isset($hh_tra['so_luong_tru_kho_tra']) ? doubleval($hh_tra['so_luong_tru_kho_tra']) : (isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0);
-                            $tong_gia_von_tra += $gv * $sl;
-                        }
+                if (isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                    foreach($th['hanghoa'] as $hh_tra) {
+                        $is_promo = isset($hh_tra['hang_chuong_trinh']) && $hh_tra['hang_chuong_trinh'] ? true : false;
+                        
+                        if ($loai_san_pham === '1' && !$is_promo) continue;
+                        if ($loai_san_pham === '0' && $is_promo) continue;
+
+                        $has_matching_item = true;
+
+                        $sl = isset($hh_tra['so_luong_tru_kho_tra']) ? doubleval($hh_tra['so_luong_tru_kho_tra']) : (isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0);
+                        $th_so_san_pham_tra += $sl;
+
+                        // Estimate item-level return amount if not explicitly given (usually DonHang has it, TraHang might not, fallback to don_gia * sl)
+                        $item_revenue = isset($hh_tra['thanh_tien_tra']) ? doubleval($hh_tra['thanh_tien_tra']) : ((isset($hh_tra['don_gia']) ? doubleval($hh_tra['don_gia']) : 0) * $sl);
+                        $th_doanh_thu_tra += $item_revenue;
+
+                        $gv = isset($hh_tra['gia_von']) ? doubleval($hh_tra['gia_von']) : 0;
+                        $th_gia_von_tra += $gv * $sl;
                     }
                 }
 
-                if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
-                    foreach($th['hanghoa'] as $hh_tra) {
-                        $so_san_pham_tra += isset($hh_tra['so_luong_tru_kho_tra']) ? doubleval($hh_tra['so_luong_tru_kho_tra']) : (isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0);
-                    }
+                if ($loai_san_pham === 'all') {
+                    $th_doanh_thu_tra = isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : 0;
+                    $th_gia_von_tra = isset($th['tong_gia_von']) ? doubleval($th['tong_gia_von']) : $th_gia_von_tra;
+                }
+
+                if ($has_matching_item || $loai_san_pham === 'all') {
+                    $tong_doanh_thu_tra += $th_doanh_thu_tra;
+                    $tong_gia_von_tra += $th_gia_von_tra;
+                    $so_san_pham_tra += $th_so_san_pham_tra;
+
+                    $th['filtered_tong_tien_tra'] = $th_doanh_thu_tra;
+                    $th['filtered_tong_gia_von'] = $th_gia_von_tra;
+                    $th['filtered_so_luong'] = $th_so_san_pham_tra;
+                    $filtered_ds_tra_hang->push($th);
                 }
             }
+            $ds_tra_hang = $filtered_ds_tra_hang;
 
             // 3. NET CALCULATIONS
             $tong_doanh_thu = $tong_doanh_thu_ban - $tong_doanh_thu_tra;
             $tong_gia_von = $tong_gia_von_ban - $tong_gia_von_tra;
-            $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von;
+            $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von; // Lợi nhuận ước tính
             
             // Calculate payment & debt based on actual orders in the period
             // Use don_payments_map which already has total paid per order
@@ -306,13 +363,32 @@ class ThongKeController extends Controller
             foreach($danhsach as $dh) {
                 if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
                     $dh_id = (string)$dh['_id'];
-                    $tong_da_thanh_toan += isset($don_payments_map[$dh_id]) ? $don_payments_map[$dh_id] : 0;
+                    $paid_for_order = isset($don_payments_map[$dh_id]) ? doubleval($don_payments_map[$dh_id]) : 0;
+                    $dh_tong_tien = isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
+                    
+                    if ($loai_san_pham === 'all' || $dh_tong_tien == 0) {
+                        $filtered_paid = $paid_for_order;
+                    } else {
+                        // Tỉ lệ thanh toán cho phần hàng này
+                        $ty_le = $dh['filtered_tong_thanh_tien'] / $dh_tong_tien;
+                        $filtered_paid = $paid_for_order * $ty_le;
+                    }
+                    
+                    $dh['filtered_da_thanh_toan'] = $filtered_paid;
+                    $dh['filtered_con_no'] = $dh['filtered_tong_thanh_tien'] - $filtered_paid;
+                    
+                    $tong_da_thanh_toan += $filtered_paid;
                 }
             }
             $tong_con_no = $tong_doanh_thu_ban - $tong_da_thanh_toan;
+            
+            // Lợi nhuận thực tế (tiền mặt thu được - giá vốn)
+            // Lấy dòng tiền thu được từ KH (đã thanh toán - doanh thu trả) trừ lợi nhuận vốn
+            $tong_loi_nhuan_thuc_te = ($tong_da_thanh_toan - $tong_doanh_thu_tra) - $tong_gia_von;
         }
         
         $ty_le_loi_nhuan = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan / $tong_doanh_thu) * 100, 2) : 0;
+        $ty_le_loi_nhuan_thuc_te = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan_thuc_te / $tong_doanh_thu) * 100, 2) : 0;
         
         return view('Admin.ThongKe.thong-ke-ban-hang')->with(compact(
             'tu_ngay', 'den_ngay', 'id_khachhang', 'tinh_trang',
@@ -320,9 +396,10 @@ class ThongKeController extends Controller
             'tong_doanh_thu', 'tong_doanh_thu_ban', 'tong_doanh_thu_tra',
             'tong_gia_von', 'tong_gia_von_ban', 'tong_gia_von_tra',
             'tong_loi_nhuan', 'ty_le_loi_nhuan',
+            'tong_loi_nhuan_thuc_te', 'ty_le_loi_nhuan_thuc_te',
             'tong_da_thanh_toan', 'tong_con_no', 
             'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra',
-            'don_payments_map'
+            'don_payments_map', 'loai_san_pham'
         ));
     }
 
