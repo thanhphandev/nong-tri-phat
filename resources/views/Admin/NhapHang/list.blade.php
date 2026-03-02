@@ -3,6 +3,25 @@
 @section('css')
 	<link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+        .table-sticky-header thead th {
+            position: sticky;
+            top: -1px;
+            z-index: 10;
+        }
+        .table-sticky-header thead tr.summary-row th {
+            position: sticky;
+            top: 36px;
+            z-index: 9;
+            background-color: #f8f9fa !important;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="card-box">
@@ -19,7 +38,7 @@
                 <div class="col-12 col-md-6">
                     <form method="GET" action="{{ env('APP_URL') }}admin/nhap-hang" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-md-3">
                                 <select name="id_ncc" id="id_ncc" class="form-control select2" style="width:100%;">
                                     <option value="">-- Tất cả NCC --</option>
                                     @foreach($nhacungcap as $ncc)
@@ -27,15 +46,25 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-2">
                                 <select name="trang_thai_no" id="trang_thai_no" class="form-control">
                                     <option value="">Tất cả</option>
                                     <option value="con_no" {{ (isset($trang_thai_no) && $trang_thai_no == 'con_no') ? 'selected' : '' }}>🔴 Còn nợ</option>
-                                    <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã thanh toán</option>
+                                    <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã TT</option>
                                 </select>
                             </div>
                             <div class="col-12 col-md-3">
                                 <input type="text" name="keywords" id="keywords" value="{{ $keywords ?? '' }}" class="form-control" placeholder="Mã phiếu/chứng từ" />
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <select name="limit" id="limit" class="form-control" onchange="$('#SearchForm').submit();">
+                                    <option value="15" {{ (isset($limit) && $limit == '15') ? 'selected' : '' }}>15 dòng</option>
+                                    <option value="20" {{ (isset($limit) && $limit == '20') ? 'selected' : '' }}>20 dòng</option>
+                                    <option value="30" {{ (isset($limit) && $limit == '30') ? 'selected' : '' }}>30 dòng</option>
+                                    <option value="50" {{ (isset($limit) && $limit == '50') ? 'selected' : '' }}>50 dòng</option>
+                                    <option value="100" {{ (isset($limit) && $limit == '100') ? 'selected' : '' }}>100 dòng</option>
+                                    <option value="all" {{ (isset($limit) && $limit == 'all') ? 'selected' : '' }}>Tất cả</option>
+                                </select>
                             </div>
                             <div class="col-12 col-md-2">
                                 <button type="submit" name="submit" value="Search" class="btn btn-primary btn-block"><i class="fa fa-filter"></i> Lọc</button>
@@ -45,19 +74,48 @@
                 </div>
             </div>
 			@if($danhsach)
+                @php
+                    $sum_sl = 0;
+                    $sum_tong_tien = 0;
+                    $sum_da_tt = 0;
+                    $sum_con_no = 0;
+                    foreach($danhsach as $ds){
+                        $t_so_luong = 0;
+                        if(isset($ds['hanghoa'])){
+                            foreach($ds['hanghoa'] as $hh){
+                                $t_so_luong += $hh['so_luong'] ?? 0;
+                            }
+                        }
+                        $sum_sl += $t_so_luong;
+                        $sum_tong_tien += $ds['thanh_tien'] ?? 0;
+                        $sum_da_tt += $ds['da_thanh_toan'] ?? 0;
+                        $sum_con_no += $ds['con_no'] ?? 0;
+                    }
+                @endphp
+				<div class="table-responsive table-sticky-header">
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
-					<thead>
+					<thead class="thead-dark">
 						<tr>
-                            <th>Mã phiếu</th>
-							<th>Số chứng từ</th>
-                            <th>Ngày chứng từ</th>
-                            <th>Ngày giao</th>
-							<th>Nhà cung cấp</th>
-							<th>Số lượng hàng hóa</th>
-                            <th>Thành tiền</th>
-                            <th>Ghi chú</th>
-							<th>#</th>
+                            <th class="text-center">Mã phiếu</th>
+							<th class="text-center">Số C.Từ</th>
+                            <th class="text-center">Ngày CT</th>
+                            <th class="text-center">Ngày giao</th>
+							<th class="text-center">Nhà cung cấp</th>
+							<th class="text-center">SL</th>
+                            <th class="text-center">Thành tiền</th>
+                            <th class="text-center">Ghi chú</th>
+							<th class="text-center">#</th>
 						</tr>
+                        <tr class="bg-light text-dark summary-row">
+                            <th colspan="5" class="text-right text-uppercase"><b>Tổng cộng:</b></th>
+                            <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
+                            <th class="text-right">
+                                <span class="text-primary font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</span><br/>
+                                <small class="text-success">Đã TT: {{ number_format($sum_da_tt, 0, ",", ".") }}</small><br/>
+                                <small class="text-danger">Nợ: {{ number_format($sum_con_no, 0, ",", ".") }}</small>
+                            </th>
+                            <th colspan="2"></th>
+                        </tr>
 					</thead>
 					<tbody>
 						@foreach($danhsach as $ds)
@@ -108,6 +166,10 @@
 						@endforeach
 					</tbody>
 				</table>
+                </div>
+                <div class="mt-3">
+                    {{ $danhsach->appends(request()->all())->links() }}
+                </div>
 			@endif
 		</div>
 	</div>

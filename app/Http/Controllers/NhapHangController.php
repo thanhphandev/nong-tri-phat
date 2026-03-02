@@ -31,7 +31,9 @@ class NhapHangController extends Controller
             });
         }
         
-        $danhsach = $query->orderBy('ngay_nhap', 'desc')->paginate(30);
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        $danhsach = $query->orderBy('ngay_nhap', 'desc')->paginate($per_page);
         
         // Calculate Paid Amount for each item
         $ids = $danhsach->pluck('_id')->toArray();
@@ -79,7 +81,7 @@ class NhapHangController extends Controller
 
     	$hanghoa = HangHoa::All();
     	$nhacungcap = NhaCungCap::orderBy('ten', 'asc')->get();
-    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc', 'trang_thai_no'));
+    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc', 'trang_thai_no', 'limit'));
     }
 
     function add(){

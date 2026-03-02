@@ -22,16 +22,19 @@ class TraHangKhachController extends Controller
      */
     function list(Request $request) {
         $keywords = $request->input('keywords');
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        
         if ($keywords) {
             $danhsach = TraHangKhach::where('ma_tra_hang', 'regexp', '/.*'.$keywords.'/i')
                 ->orWhere('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
                 ->orWhere('ho_ten', 'regexp', '/.*'.$keywords.'/i')
-                ->orderBy('ngay_tra', 'desc')->paginate(30);
+                ->orderBy('ngay_tra', 'desc')->paginate($per_page);
         } else {
-            $danhsach = TraHangKhach::orderBy('ngay_tra', 'desc')->paginate(30);
+            $danhsach = TraHangKhach::orderBy('ngay_tra', 'desc')->paginate($per_page);
         }
         
-        return view('Admin.TraHangKhach.list')->with(compact('danhsach', 'keywords'));
+        return view('Admin.TraHangKhach.list')->with(compact('danhsach', 'keywords', 'limit'));
     }
 
     function in_phieu_tra_hang($id) {

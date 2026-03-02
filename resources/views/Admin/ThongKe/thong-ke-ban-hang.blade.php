@@ -15,8 +15,9 @@
         }
         .table-sticky-header thead tr.summary-row td {
             position: sticky;
-            top: 40px;
+            top: 55px; /* adjusted to overlap behind the th row without gaps */
             z-index: 9;
+            background-color: #e9ecef !important; /* solid background from generic bg-light to prevent transparency */
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
         }

@@ -3,6 +3,25 @@
 @section('css')
 	<link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+        .table-sticky-header thead th {
+            position: sticky;
+            top: -1px;
+            z-index: 10;
+        }
+        .table-sticky-header thead tr.summary-row th {
+            position: sticky;
+            top: 36px;
+            z-index: 9;
+            background-color: #f8f9fa !important;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="card-box">
@@ -27,15 +46,25 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-2">
                                 <select name="trang_thai_no" id="trang_thai_no" class="form-control">
                                     <option value="">Tất cả</option>
                                     <option value="con_no" {{ (isset($trang_thai_no) && $trang_thai_no == 'con_no') ? 'selected' : '' }}>🔴 Còn nợ</option>
-                                    <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã thanh toán</option>
+                                    <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã TT</option>
                                 </select>
                             </div>
-                            <div class="col-12 col-md-4">
-                                <input type="text" name="keywords" id="keywords" value="{{ $keywords }}" class="form-control" placeholder="Mã đơn/điện thoại" />
+                            <div class="col-12 col-md-3">
+                                <input type="text" name="keywords" id="keywords" value="{{ $keywords }}" class="form-control" placeholder="Mã đơn/SĐT" />
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <select name="limit" id="limit" class="form-control" onchange="$('#SearchForm').submit();">
+                                    <option value="15" {{ (isset($limit) && $limit == '15') ? 'selected' : '' }}>15 dòng</option>
+                                    <option value="20" {{ (isset($limit) && $limit == '20') ? 'selected' : '' }}>20 dòng</option>
+                                    <option value="30" {{ (isset($limit) && $limit == '30') ? 'selected' : '' }}>30 dòng</option>
+                                    <option value="50" {{ (isset($limit) && $limit == '50') ? 'selected' : '' }}>50 dòng</option>
+                                    <option value="100" {{ (isset($limit) && $limit == '100') ? 'selected' : '' }}>100 dòng</option>
+                                    <option value="all" {{ (isset($limit) && $limit == 'all') ? 'selected' : '' }}>Tất cả</option>
+                                </select>
                             </div>
                             <div class="col-12 col-md-2">
                                 <button type="submit" name="submit" value="Search" class="btn btn-primary btn-block"><i class="fa fa-filter"></i> Lọc</button>
@@ -77,9 +106,23 @@
                         $sum_loi_nhuan += $t_loi_nhuan;
                     }
                 @endphp
-				<table class="table table-border table-bordered table-striped table-hovered table-sm">
-					<thead>
-                        <tr class="bg-light">
+				<div class="table-responsive table-sticky-header">
+                <table class="table table-border table-bordered table-striped table-hovered table-sm">
+					<thead class="thead-dark">
+						<tr>
+							<th class="text-center">Mã Đơn hàng</th>
+							<th class="text-center">Khách hàng</th>
+							<th class="text-center">Điện thoại</th>
+							<th class="text-center">SL</th>
+							<th class="text-center">Tổng tiền</th>
+							<th class="text-center">Đã TT</th>
+							<th class="text-center">Còn nợ</th>
+                            <th class="text-center">Lợi nhuận</th>
+							<th class="text-center">Trạng thái</th>
+                            <th class="text-center">Ghi chú</th>
+							<th class="text-center">#</th>
+						</tr>
+                        <tr class="bg-light text-dark summary-row">
                             <th colspan="3" class="text-right text-uppercase"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</th>
@@ -88,19 +131,6 @@
                             <th class="text-right text-primary font-weight-bold">{{ number_format($sum_loi_nhuan, 0, ",", ".") }}</th>
                             <th colspan="3"></th>
                         </tr>
-						<tr>
-							<th>Mã Đơn hàng</th>
-							<th>Khách hàng</th>
-							<th>Điện thoại</th>
-							<th>SL</th>
-							<th>Tổng tiền</th>
-							<th>Đã TT</th>
-							<th>Còn nợ</th>
-                            <th>Lợi nhuận</th>
-							<th>Trạng thái</th>
-                            <th>Ghi chú</th>
-							<th>#</th>
-						</tr>
 					</thead>
 					<tbody>
 						@foreach($danhsach as $ds)

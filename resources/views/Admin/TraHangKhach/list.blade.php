@@ -2,6 +2,25 @@
 @section('title', 'Danh sách trả hàng')
 @section('css')
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+        .table-sticky-header thead th {
+            position: sticky;
+            top: -1px;
+            z-index: 10;
+        }
+        .table-sticky-header thead tr.summary-row th {
+            position: sticky;
+            top: 36px;
+            z-index: 9;
+            background-color: #f8f9fa !important;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="card-box">
@@ -17,30 +36,52 @@
                 <div class="col-12 col-md-6">
                     <form method="GET" action="{{ env('APP_URL') }}admin/tra-hang-khach" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-9">
+                            <div class="col-12 col-md-6">
                                 <input type="text" name="keywords" value="{{ $keywords ?? '' }}" class="form-control" placeholder="Mã phiếu trả/Mã đơn/Khách hàng" />
                             </div>
                             <div class="col-12 col-md-3">
-                                <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> Tìm kiếm</button>
+                                <select name="limit" id="limit" class="form-control" onchange="$('#SearchForm').submit();">
+                                    <option value="15" {{ (isset($limit) && $limit == '15') ? 'selected' : '' }}>15 dòng</option>
+                                    <option value="20" {{ (isset($limit) && $limit == '20') ? 'selected' : '' }}>20 dòng</option>
+                                    <option value="30" {{ (isset($limit) && $limit == '30') ? 'selected' : '' }}>30 dòng</option>
+                                    <option value="50" {{ (isset($limit) && $limit == '50') ? 'selected' : '' }}>50 dòng</option>
+                                    <option value="100" {{ (isset($limit) && $limit == '100') ? 'selected' : '' }}>100 dòng</option>
+                                    <option value="all" {{ (isset($limit) && $limit == 'all') ? 'selected' : '' }}>Tất cả</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <button type="submit" class="btn btn-primary btn-block"><i class="fa fa-search"></i> Tìm kiếm</button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 			@if($danhsach && count($danhsach) > 0)
-				<table class="table table-bordered table-striped table-hover table-sm">
-					<thead class="bg-primary text-white">
+                @php
+                    $sum_tong_tien = 0;
+                    foreach($danhsach as $ds){
+                        $sum_tong_tien += floatval($ds['tong_tien_tra'] ?? 0);
+                    }
+                @endphp
+				<div class="table-responsive table-sticky-header">
+				<table class="table table-border table-bordered table-striped table-hovered table-sm">
+					<thead class="thead-dark">
 						<tr>
-							<th>Mã phiếu trả</th>
-							<th>Mã đơn gốc</th>
-                            <th>Ngày trả</th>
-							<th>Khách hàng</th>
-							<th>Điện thoại</th>
-							<th class="text-right">Giá trị trả</th>
-                            <th>Hình thức</th>
+							<th class="text-center">Mã phiếu trả</th>
+							<th class="text-center">Mã đơn gốc</th>
+                            <th class="text-center">Ngày trả</th>
+							<th class="text-center">Khách hàng</th>
+							<th class="text-center">Điện thoại</th>
+							<th class="text-center">Giá trị trả</th>
+                            <th class="text-center">Hình thức</th>
                             <th class="text-center">Trạng thái</th>
 							<th class="text-center">#</th>
 						</tr>
+                        <tr class="bg-light text-dark summary-row">
+                            <th colspan="5" class="text-right text-uppercase"><b>Tổng cộng:</b></th>
+                            <th class="text-right text-danger font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</th>
+                            <th colspan="3"></th>
+                        </tr>
 					</thead>
 					<tbody>
 						@foreach($danhsach as $ds)
@@ -88,7 +129,10 @@
 						@endforeach
 					</tbody>
 				</table>
-                {{ $danhsach->links() }}
+                </div>
+                <div class="mt-3">
+                    {{ $danhsach->appends(request()->all())->links() }}
+                </div>
 			@else
                 <div class="alert alert-info text-center">
                     <i class="fas fa-info-circle"></i> Chưa có phiếu trả hàng nào

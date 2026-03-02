@@ -39,7 +39,9 @@ class DonHangController extends Controller
             }
         }
         
-        $danhsach = $query->orderBy('ngay_ban', 'desc')->paginate(30);
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        $danhsach = $query->orderBy('ngay_ban', 'desc')->paginate($per_page);
         
         // Calculate Paid Amount for each order from CongNo table
         $ids = $danhsach->pluck('_id')->toArray();
@@ -87,7 +89,7 @@ class DonHangController extends Controller
         
         $khachhang = KhachHang::orderBy('ho_ten', 'asc')->get();
         
-    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no'));
+    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no', 'limit'));
     }
 
     function add(Request $request){
