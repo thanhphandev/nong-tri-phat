@@ -7,7 +7,12 @@
 <div class="row">
     <div class="col-12">
         <div class="card-box">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/nhap-hang" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a> Chi tiết Ấn phẩm nhập: {{ $nh['ma_nhap_hang'] }}</h3>
+            <h3 class="m-t-0">
+                <a href="{{ url()->previous() }}" class="btn btn-primary btn-sm">
+                    <i class="fa fa-reply-all"></i> Trở về
+                </a> 
+                Chi tiết Ấn phẩm nhập: {{ $nh['ma_nhap_hang'] }}
+            </h3>
             <hr>
             <div class="row">
                 <div class="col-md-6">

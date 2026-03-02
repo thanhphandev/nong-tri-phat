@@ -184,7 +184,7 @@
                             <td>{{ $trans['ghi_chu'] }}</td>
                             <td class="text-center">
                                 @if(isset($trans['id_nhaphang']) && $trans['id_nhaphang'] && $trans['loai_cong_no'] == 0)
-                                    <a href="{{ env('APP_URL') }}admin/nhap-hang/xem-hang-hoa/{{ $trans['id_nhaphang'] }}" class="btn btn-xs btn-info xem-hang-hoa" data-toggle="modal" data-target="#modalHangHoa"><i class="fa fa-eye"></i></a>
+                                    <a href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $trans['id_nhaphang'] }}" class="btn btn-xs btn-info"><i class="fa fa-eye"></i></a>
                                 @else
                                     -
                                 @endif
@@ -237,23 +237,6 @@
     @endif
 </div>
 
-<!-- Modal Hang Hoa -->
-<div class="modal fade" id="modalHangHoa" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Chi tiết Lô hàng nhập</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <div class="modal-body p-0" id="ListHangHoa">
-                <div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x text-primary"></i></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Modal Thanh Toan -->
 <div class="modal fade" id="modalThanhToan" tabindex="-1" role="dialog">
@@ -323,11 +306,7 @@
                 order: [[5, 'desc']],
                 pageLength: 15
             });
-            $('body').on('click', '.xem-hang-hoa', function(e){
-                e.preventDefault();
-                $("#ListHangHoa").html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin"></i></div>');
-                $("#ListHangHoa").load($(this).attr("href"));
-            });
+
             @if(Session::get('msg'))
                 $.toast({ heading:"Thông báo", text:"{{ Session::get('msg') }}", icon:"success", hideAfter:3000, position:"top-right" });
             @endif

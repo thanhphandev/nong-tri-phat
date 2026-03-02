@@ -419,7 +419,53 @@ class DonHangController extends Controller
             foreach($db['hanghoa'] as $hh){
                 $id_hanghoa = ObjectController::ObjectId($hh['id_hanghoa']);
                 $so_luong = isset($hh['so_luong_tru_kho']) ? floatval($hh['so_luong_tru_kho']) : floatval($hh['so_luong']);
-                HangHoa::where('_id', '=', $id_hanghoa)->increment('so_luong_ton', $so_luong);
+                $sp = HangHoa::find($id_hanghoa);
+                if($sp){
+                    $sp->so_luong_ton = floatval($sp->so_luong_ton) + $so_luong;
+                    
+                    if(isset($sp->ds_lo_hang) && is_array($sp->ds_lo_hang) && count($sp->ds_lo_hang) > 0){
+                        $batches = $sp->ds_lo_hang;
+                        
+                        // Tìm lô gần hết hạn nhất nhưng vẫn CÒN HẠN để cộng vào (đảo ngược lại FEFO)
+                        $target_index = -1;
+                        $closest_expiry = PHP_INT_MAX;
+                        $latest_expiry_overall = 0;
+                        $latest_index = -1;
+                        
+                        foreach($batches as $index => $batch){
+                            if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                                $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                                
+                                // Tìm lô mới nhất làm backup nếu không có lô nào đủ chuẩn
+                                if($expiry_timestamp > $latest_expiry_overall){
+                                    $latest_expiry_overall = $expiry_timestamp;
+                                    $latest_index = $index;
+                                }
+                                
+                                // Tìm lô gần hết hạn nhất nhưng chưa hết hạn (vì lúc bán FEFO ưu tiên trừ lô này)
+                                if($expiry_timestamp >= time()) {
+                                    if($expiry_timestamp < $closest_expiry){
+                                        $closest_expiry = $expiry_timestamp;
+                                        $target_index = $index;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if($target_index !== -1){
+                            $batches[$target_index]['so_luong_con_lai'] = floatval($batches[$target_index]['so_luong_con_lai'] ?? 0) + $so_luong;
+                        } elseif($latest_index !== -1) {
+                            $batches[$latest_index]['so_luong_con_lai'] = floatval($batches[$latest_index]['so_luong_con_lai'] ?? 0) + $so_luong;
+                        } else {
+                            // Mặc định cộng vào lô cuối cùng nếu không có đủ thông tin
+                            $last_index = count($batches) - 1;
+                            $batches[$last_index]['so_luong_con_lai'] = floatval($batches[$last_index]['so_luong_con_lai'] ?? 0) + $so_luong;
+                        }
+                        
+                        $sp->ds_lo_hang = $batches;
+                    }
+                    $sp->save();
+                }
             }
         }
         $querLog = array(
