@@ -336,6 +336,44 @@
         Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh->con_no ?? 0) }}.</em>
     </div>
 
+    @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+    <!-- Transaction History -->
+    <div class="transaction-history" style="margin-bottom: 5mm; border: 1px solid #ddd; border-radius: 4px; padding: 2mm 3mm; background: #fafafa;">
+        <div style="font-weight: bold; font-size: 10pt; margin-bottom: 2mm; color: #333; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 1.5mm;">Liệt Kê Thanh Toán</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 9pt;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; padding: 1.5mm 1mm; border-bottom: 1px solid #ccc; color: #555;">Thời gian</th>
+                    <th style="text-align: right; padding: 1.5mm 1mm; border-bottom: 1px solid #ccc; color: #555;">Thanh toán</th>
+                    <th style="text-align: right; padding: 1.5mm 1mm; border-bottom: 1px solid #ccc; color: #555;">Còn nợ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $running_con_no = $dh['tong_thanh_tien'];
+                @endphp
+                @foreach($lich_su_thanh_toan as $ls)
+                @php
+                    $running_con_no -= $ls['tong_thanh_tien'];
+                @endphp
+                <tr>
+                    <td style="padding: 1.5mm 1mm; border-bottom: 1px dotted #ccc; color: #444;">
+                        {{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y H:i") }}
+                    </td>
+                    <td style="text-align: right; padding: 1.5mm 1mm; border-bottom: 1px dotted #ccc; font-weight: bold; color: #28a745;">
+                        {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
+                    </td>
+                    <td style="text-align: right; padding: 1.5mm 1mm; border-bottom: 1px dotted #ccc; font-weight: bold; color: #d71a21;">
+                        {{ number_format($running_con_no, 0, ",", ".") }}
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
+
+
     <!-- Signature Section -->
     <div class="signature-section">
         <div class="signature-box">

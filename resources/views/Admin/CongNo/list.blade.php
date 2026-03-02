@@ -143,7 +143,7 @@
                 <a href="#transactions" data-toggle="tab" class="nav-link active"><i class="fas fa-history"></i> Lịch sử Giao dịch</a>
             </li>
             <li class="nav-item">
-                <a href="#products" data-toggle="tab" class="nav-link"><i class="fas fa-box-open"></i> Chi tiết Hàng hóa</a>
+                <a href="#orders" data-toggle="tab" class="nav-link"><i class="fas fa-file-invoice-dollar"></i> Danh sách Đơn còn nợ</a>
             </li>
         </ul>
         <div class="tab-content pt-3">
@@ -189,36 +189,38 @@
                 </table>
             </div>
 
-            <!-- Products Tab -->
-            <div class="tab-pane" id="products">
+            <!-- Orders Tab -->
+            <div class="tab-pane" id="orders">
                 <table class="table table-bordered table-striped table-sm">
                     <thead class="thead-light">
                         <tr>
-                            <th>Ngày mua</th>
-                            <th>Mã Đơn</th>
-                            <th>Mã SP</th>
-                            <th>Tên hàng hóa</th>
-                            <th class="text-center">ĐVT</th>
-                            <th class="text-right">SL</th>
-                            <th class="text-right">Đơn giá</th>
-                            <th class="text-right">Thành tiền</th>
+                            <th class="text-center" width="5%">STT</th>
+                            <th class="text-center">Ngày mua</th>
+                            <th class="text-center">Mã Đơn</th>
+                            <th class="text-right">Tổng thanh toán</th>
+                            <th class="text-right">Đã trả</th>
+                            <th class="text-right">Còn nợ</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($product_history as $prod)
-                        <tr>
-                            <td>{{ App\Http\Controllers\ObjectController::getDate($prod['ngay_ban'], "d/m/Y") }}</td>
-                            <td class="text-center">
-                                <a href="{{ env('APP_URL') }}admin/don-hang/hang-hoa/{{ $prod['id_don_hang'] }}" class="font-weight-bold xem-hang-hoa" data-toggle="modal" data-target="#modalHangHoa">{{ $prod['ma_don_hang'] }}</a>
-                            </td>
-                            <td>{{ $prod['ma_sp'] }}</td>
-                            <td>{{ $prod['ten_sp'] }}</td>
-                            <td class="text-center">{{ $prod['don_vi_tinh'] ?? '-' }}</td>
-                            <td class="text-right">{{ number_format($prod['so_luong'], 2, ',', '.') }}</td>
-                            <td class="text-right">{{ number_format($prod['don_gia'], 0, ',', '.') }}</td>
-                            <td class="text-right font-weight-bold">{{ number_format($prod['thanh_tien'], 0, ',', '.') }}</td>
-                        </tr>
-                        @endforeach
+                        @if(isset($don_no_list) && count($don_no_list) > 0)
+                            @foreach($don_no_list as $k => $don)
+                            <tr>
+                                <td class="text-center">{{ $k + 1 }}</td>
+                                <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($don['ngay_ban'], "d/m/Y H:i") }}</td>
+                                <td class="text-center">
+                                    <a href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $don['id_don_hang'] }}" class="font-weight-bold text-primary" target="_blank">{{ $don['ma_don_hang'] }}</a>
+                                </td>
+                                <td class="text-right font-weight-bold">{{ number_format($don['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                <td class="text-right text-success">{{ number_format($don['da_thanh_toan'], 0, ',', '.') }}</td>
+                                <td class="text-right text-danger font-weight-bold">{{ number_format($don['con_no'], 0, ',', '.') }}</td>
+                            </tr>
+                            @endforeach
+                        @else
+                            <tr>
+                                <td colspan="6" class="text-center text-muted font-italic">Không có đơn hàng nào còn nợ.</td>
+                            </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>

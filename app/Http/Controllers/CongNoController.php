@@ -63,6 +63,7 @@ class CongNoController extends Controller
         $customer_detail = null;
         $transaction_history = []; // Merged History
         $product_history = [];     // Product History
+        $don_no_list = [];         // Error Fix
         $congno_sum = 0;
         $thanhtoan_sum = 0;
         $from_date = $request->input('from_date');
@@ -137,39 +138,55 @@ class CongNoController extends Controller
                  }
              }
 
-             foreach($orders as $order) {
-                 if(isset($order['hanghoa']) && is_array($order['hanghoa'])) {
-                     foreach($order['hanghoa'] as $item) {
-                         // Lookup don_vi_tinh from id_donvitinh
-                         $id_dvt = $item['id_donvitinh'] ?? null;
-                         if(!$id_dvt && isset($item['id_hanghoa'])) {
-                             // Fallback: get from HangHoa
-                             $id_hh = (string)$item['id_hanghoa'];
-                             if(isset($products[$id_hh]) && isset($products[$id_hh]['id_donvitinh'])) {
-                                 $id_dvt = $products[$id_hh]['id_donvitinh'];
-                             }
-                         }
-                         $ten_dvt = isset($units[(string)$id_dvt]) ? $units[(string)$id_dvt] : '-';
-                         
-                         $product_history[] = [
-                             'ngay_ban' => $order['ngay_ban'],
-                             'ma_don_hang' => $order['ma_don_hang'] ?? '',
-                             'id_don_hang' => $order['_id'],
-                             'ma_sp' => $item['ma'] ?? '',
-                             'ten_sp' => $item['ten'] ?? '',
-                             'don_vi_tinh' => $ten_dvt,
-                             'so_luong' => $item['so_luong'] ?? 0,
-                             'don_gia' => $item['don_gia'] ?? 0,
-                             'thanh_tien' => $item['thanh_tien'] ?? 0
-                         ];
-                     }
+             // --- Lấy danh sách Đơn Hàng Còn Nợ ---
+             // Tính công nợ cho từng đơn hàng của Khách Hàng này
+             $don_no_list = [];
+             $dh_ids = $orders->pluck('_id')->toArray();
+             $dh_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $dh_ids);
+             
+             $payments_map = [];
+             if(count($dh_ids) > 0) {
+                 $raw_payments = CongNo::raw(function($collection) use ($dh_ids) {
+                     return $collection->aggregate([
+                         [
+                             '$match' => [
+                                 'id_donhang' => ['$in' => $dh_ids],
+                                 'loai_cong_no' => 1
+                             ]
+                         ],
+                         [
+                             '$group' => [
+                                 '_id' => '$id_donhang',
+                                 'total_paid' => ['$sum' => '$tong_thanh_tien']
+                             ]
+                         ]
+                     ]);
+                 });
+                 
+                 foreach($raw_payments as $p) {
+                     $payments_map[(string)$p['_id']] = $p['total_paid'];
+                 }
+             }
+
+             foreach($orders as $dh) {
+                 $da_tt = isset($payments_map[(string)$dh->_id]) ? $payments_map[(string)$dh->_id] : 0;
+                 $con_no = $dh->tong_thanh_tien - $da_tt;
+                 if($con_no > 0) {
+                     $don_no_list[] = [
+                         'id_don_hang' => (string)$dh->_id,
+                         'ngay_ban' => $dh->ngay_ban,
+                         'ma_don_hang' => $dh->ma_don_hang,
+                         'tong_thanh_tien' => $dh->tong_thanh_tien,
+                         'da_thanh_toan' => $da_tt,
+                         'con_no' => $con_no
+                     ];
                  }
              }
         }
 
         return view('Admin.CongNo.list')->with(compact(
             'khachhang', 'id_khachhang', 'keywords', 
-            'transaction_history', 'product_history', 'congno_sum', 'thanhtoan_sum', 'customer_detail',
+            'transaction_history', 'don_no_list', 'congno_sum', 'thanhtoan_sum', 'customer_detail',
             'from_date', 'to_date'
         ));
     }

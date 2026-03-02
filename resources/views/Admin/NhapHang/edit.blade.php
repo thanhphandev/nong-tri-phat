@@ -54,8 +54,50 @@
                             <td class="text-right font-weight-bold text-danger">{{ number_format($nh['tong_thanh_tien'], 0, ',', '.') }}</td>
                         </tr>
                          <tr>
-                            <td colspan="6" class="text-right font-weight-bold">ĐÃ THANH TOÁN:</td>
+                            <td colspan="6" class="text-right font-weight-bold">
+                                <a href="#paymentHistory" data-toggle="collapse" class="text-success" aria-expanded="false" aria-controls="paymentHistory" title="Bấm để xem chi tiết lịch sử thanh toán">
+                                    ĐÃ THANH TOÁN <i class="fa fa-caret-down"></i>:
+                                </a>
+                            </td>
                             <td class="text-right font-weight-bold text-success">{{ number_format($nh['da_thanh_toan'] ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                        <tr class="collapse" id="paymentHistory">
+                            <td colspan="7" class="p-0">
+                                <div class="px-3 py-2" style="background-color: #f1f5f7;">
+                                    <h5 class="font-14 mt-1 mb-2 text-info"><i class="fas fa-history"></i> LỊCH SỬ THANH TOÁN</h5>
+                                    <table class="table table-sm table-bordered bg-white mb-2">
+                                        <thead class="bg-light">
+                                            <tr>
+                                                <th class="text-center" width="20%">Thời gian</th>
+                                                <th class="text-right" width="20%">Số tiền</th>
+                                                <th>Ghi chú</th>
+                                                <th width="20%">Người xử lý</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+                                                @foreach($lich_su_thanh_toan as $ls)
+                                                    <tr>
+                                                        <td class="text-center">{{ \App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'] ?? '', "d/m/Y H:i") }}</td>
+                                                        <td class="text-right text-success font-weight-bold">+{{ number_format($ls['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                                        <td>{{ $ls['ghi_chu'] ?? '' }}</td>
+                                                        <td>
+                                                            @php
+                                                                if(isset($ls['id_user']) && $ls['id_user']){
+                                                                    $user = \App\Models\User::find($ls['id_user']);
+                                                                    echo $user ? $user['fullname'] : '';
+                                                                }
+                                                            @endphp
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <tr><td colspan="4" class="text-center text-muted font-italic">Chưa có lịch sử thanh toán</td></tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
                         </tr>
                         <tr>
                             <td colspan="6" class="text-right font-weight-bold">CÒN LẠI:</td>

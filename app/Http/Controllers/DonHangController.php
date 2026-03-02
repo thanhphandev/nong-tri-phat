@@ -532,7 +532,7 @@ class DonHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $dh->hanghoa = collect($dh->hanghoa)->map(function($hh) use ($products, $units) {
-            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
             $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             
             // Check if it was sold as retail
@@ -552,7 +552,12 @@ class DonHangController extends Controller
         $dh->da_thanh_toan = $da_thanh_toan;
         $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
 
-        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh'));
+        $lich_su_thanh_toan = CongNo::where('id_donhang', $id_dh)
+                                    ->where('loai_cong_no', 1)
+                                    ->orderBy('ngay_gio', 'asc')
+                                    ->get();
+
+        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'lich_su_thanh_toan'));
     }
 
     function edit($id) {
@@ -570,7 +575,7 @@ class DonHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $dh->hanghoa = collect($dh->hanghoa)->map(function($hh) use ($products, $units) {
-            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
             $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             
             // Check if it was sold as retail
@@ -587,10 +592,15 @@ class DonHangController extends Controller
         // 2. Tính đã thanh toán từ bảng CongNo
         $id_dh = ObjectController::ObjectId($dh->_id);
         $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $lich_su_thanh_toan = CongNo::where('id_donhang', $id_dh)
+                                    ->where('loai_cong_no', 1)
+                                    ->orderBy('ngay_gio', 'asc')
+                                    ->get();
+
         $dh->da_thanh_toan = $da_thanh_toan;
         $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
 
-        return view('Admin.DonHang.edit', compact('dh'));
+        return view('Admin.DonHang.edit', compact('dh', 'lich_su_thanh_toan'));
     }
 
     static function check_HangHoa($id = ''){

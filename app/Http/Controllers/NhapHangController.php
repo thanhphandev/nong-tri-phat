@@ -381,15 +381,20 @@ class NhapHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
-             $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+             $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
              $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
              return $hh;
         });
 
         $da_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $lich_su_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))
+                                       ->where('loai_cong_no', 1)
+                                       ->orderBy('ngay_gio', 'asc')
+                                       ->get();
+        
         $nh->da_thanh_toan = $da_thanh_toan;
 
-        return view('Admin.NhapHang.edit', compact('nh'));
+        return view('Admin.NhapHang.edit', compact('nh', 'lich_su_thanh_toan'));
     }
 
     function in_phieu_nhap_hang(Request $request, $id = '') {
@@ -403,7 +408,7 @@ class NhapHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
-            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
             $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             return $hh;
         });
@@ -414,10 +419,13 @@ class NhapHangController extends Controller
 
         $gia_tri_lo_nay = $nh->tong_thanh_tien;
         $da_thanh_toan_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-        
+        $lich_su_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))
+                                       ->where('loai_cong_no', 1)
+                                       ->orderBy('ngay_gio', 'asc')
+                                       ->get();
         $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
 
-        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi'));
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan'));
     }
     function tra_no(Request $request) {
         $data = $request->all();
