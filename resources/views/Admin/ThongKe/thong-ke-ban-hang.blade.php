@@ -3,6 +3,24 @@
 @section('css')
     <link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+        .table-sticky-header thead th {
+            position: sticky;
+            top: -1px;
+            z-index: 10;
+        }
+        .table-sticky-header thead tr.summary-row td {
+            position: sticky;
+            top: 40px;
+            z-index: 9;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="card-box">
@@ -74,6 +92,7 @@
         Dữ liệu thực tế <span class="text-danger font-weight-bold">(Đã trừ trả hàng)</span>
     </p>
 </div>
+    <div id="stats-cards">
     <div class="row">
         <div class="col-md-6 col-xl-2">
             <div class="card-box widget-flat border-success bg-success text-white" title="Tổng bán: {{ number_format($tong_doanh_thu_ban,0,",",".") }} - Trả: {{ number_format($tong_doanh_thu_tra,0,",",".") }}">
@@ -118,6 +137,47 @@
             </div>
         </div>
     </div>
+    </div>
+
+    <!-- Toggle View Buttons -->
+    <div class="text-right mb-3">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-primary view-toggle active" data-target="#stats-cards"><i class="fas fa-th-large"></i> Thẻ tổng hợp</button>
+            <button type="button" class="btn btn-sm btn-outline-primary view-toggle" data-target="#stats-charts"><i class="fas fa-chart-bar"></i> Biểu đồ phân tích</button>
+        </div>
+    </div>
+
+    <!-- Charts Section (Hidden by default) -->
+    <div id="stats-charts" style="display:none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-bar mr-1"></i> So sánh Doanh thu - Giá vốn - Lợi nhuận</h5>
+                    <div style="position:relative; height:350px;">
+                        <canvas id="chartRevenue"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-pie mr-1"></i> Thanh toán vs Nợ</h5>
+                    <div style="position:relative; height:300px;">
+                        <canvas id="chartPayment"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-pie mr-1"></i> Bán vs Trả hàng</h5>
+                    <div style="position:relative; height:300px;">
+                        <canvas id="chartSaleReturn"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <hr>
     
@@ -138,23 +198,33 @@
         <!-- Tab Đơn bán hàng -->
         <div class="tab-pane active" id="tab-don-hang">
             @if(count($danhsach) > 0)
-                <div class="table-responsive mt-3">
+                <div class="table-responsive table-sticky-header mt-3">
                     <table class="table table-border table-bordered table-striped table-hovered table-sm">
                         <thead class="thead-dark">
                             <tr>
-                                <th>STT</th>
-                                <th>Mã Đơn hàng</th>
-                                <th>Ngày bán</th>
+                                <th class="text-center">STT</th>
+                                <th class="text-center">Mã Đơn hàng</th>
+                                <th class="text-center">Ngày bán</th>
                                 <th>Khách hàng</th>
                                 <th>Điện thoại</th>
-                                <th>SL SP</th>
-                                <th>Tổng tiền</th>
-                                <th>Thanh toán</th>
-                                <th>Nợ</th>
-                                <th>Giá vốn</th>
-                                <th>Lợi nhuận</th>
-                                <th>Trạng thái</th>
+                                <th class="text-center" style="white-space: nowrap">SL SP</th>
+                                <th class="text-right" style="white-space: nowrap">Tổng tiền</th>
+                                <th class="text-right" style="white-space: nowrap">Thanh toán</th>
+                                <th class="text-right" style="white-space: nowrap">Nợ</th>
+                                <th class="text-right" style="white-space: nowrap">Giá vốn</th>
+                                <th class="text-right" style="white-space: nowrap">Lợi nhuận</th>
+                                <th class="text-center">Trạng thái</th>
                                 <th>Ghi chú</th>
+                            </tr>
+                            <tr class="bg-light text-dark font-weight-bold summary-row">
+                                <td colspan="5" class="text-right text-uppercase">TỔNG BÁN:</td>
+                                <td class="text-center text-primary">{{ $so_san_pham_ban }}</td>
+                                <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
+                                <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
+                                <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
+                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                <td colspan="2"></td>
                             </tr>
                         </thead>
                         <tbody>
@@ -169,7 +239,7 @@
                                     $loi_nhuan_don = $ds['tong_thanh_tien'] - $gia_von_don;
                                     
                                     // Calculate payment and debt
-                                    $da_thanh_toan = $ds['thanh_toan'] ?? 0;
+                                    $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
                                     $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
                                     
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
@@ -193,17 +263,6 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                        <tfoot class="bg-light font-weight-bold">
-                            <tr>
-                                <td colspan="5" class="text-right">TỔNG BÁN:</td>
-                                <td class="text-center text-primary">{{ $so_san_pham_ban }}</td>
-                                <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
-                                <td colspan="2"></td>
-                                <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             @else
@@ -283,6 +342,7 @@
 @section('js')
     <script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
     <script src="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script type="text/javascript">
         $(document).ready(function(){
             $(".select2").select2();
@@ -295,6 +355,157 @@
                 $("#den_ngay").val(end);
                 $("#FilterForm").submit();
             });
+
+            // --- Toggle View ---
+            $('.view-toggle').on('click', function(){
+                $('.view-toggle').removeClass('active btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('active btn-primary');
+                var target = $(this).data('target');
+                if(target === '#stats-charts'){
+                    $('#stats-cards').hide();
+                    $('#stats-charts').show();
+                    initCharts();
+                } else {
+                    $('#stats-charts').hide();
+                    $('#stats-cards').show();
+                }
+            });
+
+            // Wrap existing stats cards
+            // (cards are inside .row with col-md-6)
+
+            var chartsInitialized = false;
+            function initCharts() {
+                if(chartsInitialized) return;
+                chartsInitialized = true;
+
+                // Data from PHP
+                var doanhThuBan = {{ $tong_doanh_thu_ban ?? 0 }};
+                var doanhThuTra = {{ $tong_doanh_thu_tra ?? 0 }};
+                var giaVonBan = {{ $tong_gia_von_ban ?? 0 }};
+                var giaVonTra = {{ $tong_gia_von_tra ?? 0 }};
+                var doanhThuThuc = {{ $tong_doanh_thu ?? 0 }};
+                var giaVonThuc = {{ $tong_gia_von ?? 0 }};
+                var loiNhuan = {{ $tong_loi_nhuan ?? 0 }};
+                var daThanhToan = {{ $tong_da_thanh_toan ?? 0 }};
+                var conNo = {{ $tong_con_no ?? 0 }};
+
+                // Chart 1: Revenue vs Cost vs Profit (Bar)
+                new Chart(document.getElementById('chartRevenue'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Doanh thu bán', 'Trả hàng', 'Doanh thu thực', 'Giá vốn thực', 'Lợi nhuận gộp'],
+                        datasets: [{
+                            label: 'Số tiền (VNĐ)',
+                            data: [doanhThuBan, doanhThuTra, doanhThuThuc, giaVonThuc, loiNhuan],
+                            backgroundColor: [
+                                'rgba(40,167,69,0.8)',
+                                'rgba(255,193,7,0.8)',
+                                'rgba(0,123,255,0.8)',
+                                'rgba(253,126,20,0.8)',
+                                loiNhuan >= 0 ? 'rgba(23,162,184,0.8)' : 'rgba(220,53,69,0.8)'
+                            ],
+                            borderWidth: 0,
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return ctx.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(v) {
+                                        if(v >= 1000000) return (v/1000000).toFixed(1) + 'tr';
+                                        if(v >= 1000) return (v/1000).toFixed(0) + 'k';
+                                        return v;
+                                    },
+                                    font: { size: 13 }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: {
+                                ticks: { font: { size: 13, weight: 'bold' } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 2: Payment vs Debt (Doughnut)
+                new Chart(document.getElementById('chartPayment'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Đã thanh toán', 'Còn nợ'],
+                        datasets: [{
+                            data: [daThanhToan, Math.max(conNo, 0)],
+                            backgroundColor: ['rgba(0,123,255,0.85)', 'rgba(220,53,69,0.85)'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, font: { size: 13 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                                        var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 3: Sale vs Return (Doughnut)
+                new Chart(document.getElementById('chartSaleReturn'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Doanh thu bán', 'Trả hàng'],
+                        datasets: [{
+                            data: [doanhThuBan, doanhThuTra],
+                            backgroundColor: ['rgba(40,167,69,0.85)', 'rgba(255,193,7,0.85)'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, font: { size: 13 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                                        var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         });
     </script>
 @endsection

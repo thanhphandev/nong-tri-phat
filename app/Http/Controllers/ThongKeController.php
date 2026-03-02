@@ -30,33 +30,54 @@ class ThongKeController extends Controller
         $tonkho = HangHoa::where('so_luong_ton', '>', 0)->get();
         $hethang = HangHoa::where('so_luong_ton', '=', 0)->get();
         
-        // Load all units once to avoid N+1 queries
+        // Load all units & categories for filters
         $units = \App\Models\DonViTinh::pluck('ten', '_id')->toArray();
+        $loaihang_list = LoaiHang::orderBy('ten', 'asc')->get();
+        $donvitinh_list = \App\Models\DonViTinh::orderBy('ten', 'asc')->get();
+        
+        // Build loaihang map for display
+        $loaihang_map = [];
+        foreach($loaihang_list as $lh) {
+            $loaihang_map[(string)$lh->_id] = $lh->ten;
+        }
         
         // Calculate expired products quantity and collect expired batches
         $expired_quantity = 0;
         $expired_batches = [];
+        $expiring_soon_batches = [];
         $all_products = HangHoa::all();
         $now = time();
         
         foreach($all_products as $product) {
-            if(isset($product->ton_kho) && is_array($product->ton_kho)) {
-                foreach($product->ton_kho as $batch) {
-                    if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']) {
-                        $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
-                        if($expiry_timestamp < $now && isset($batch['so_luong']) && $batch['so_luong'] > 0) {
-                            $expired_quantity += $batch['so_luong'];
-                            $expired_batches[] = [
-                                'id_hanghoa' => (string)$product->_id,
-                                'ma_hanghoa' => $product->ma ?? '',
-                                'ten_hanghoa' => $product->ten ?? '',
-                                'id_donvitinh' => (string)($product->id_donvitinh ?? ''),
-                                'ma_lo' => $batch['ma_lo'] ?? '',
-                                'so_luong' => $batch['so_luong'],
-                                'gia_von' => $batch['gia_von'] ?? 0,
-                                'ngay_het_han' => date('d/m/Y', $expiry_timestamp),
-                                'ngay_het_han_ts' => $expiry_timestamp,
-                            ];
+            if(isset($product->ds_lo_hang) && is_array($product->ds_lo_hang)) {
+                foreach($product->ds_lo_hang as $batch) {
+                    $batch_qty = isset($batch['so_luong_con_lai']) ? floatval($batch['so_luong_con_lai']) : 0;
+                    if(isset($batch['ngay_het_han']) && $batch['ngay_het_han'] && $batch_qty > 0) {
+                        try {
+                            $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                        } catch(\Exception $e) {
+                            continue;
+                        }
+                        $batch_info = [
+                            'id_hanghoa' => (string)$product->_id,
+                            'ma_hanghoa' => $product->ma ?? '',
+                            'ten_hanghoa' => $product->ten ?? '',
+                            'id_donvitinh' => (string)($product->id_donvitinh ?? ''),
+                            'id_loaihang' => (string)($product->id_loaihang ?? ''),
+                            'ma_lo' => $batch['ma_nhap_hang'] ?? ($batch['ma_lo'] ?? ''),
+                            'so_luong' => $batch_qty,
+                            'gia_von' => $batch['gia_von'] ?? 0,
+                            'ngay_het_han' => date('d/m/Y', $expiry_timestamp),
+                            'ngay_het_han_ts' => $expiry_timestamp,
+                        ];
+                        
+                        if($expiry_timestamp < $now) {
+                            // Đã hết hạn
+                            $expired_quantity += $batch_qty;
+                            $expired_batches[] = $batch_info;
+                        } else {
+                            // Chưa hết hạn nhưng sắp hết hạn (trong tương lai)
+                            $expiring_soon_batches[] = $batch_info;
                         }
                     }
                 }
@@ -67,10 +88,29 @@ class ThongKeController extends Controller
         usort($expired_batches, function($a, $b) {
             return $a['ngay_het_han_ts'] - $b['ngay_het_han_ts'];
         });
+        usort($expiring_soon_batches, function($a, $b) {
+            return $a['ngay_het_han_ts'] - $b['ngay_het_han_ts'];
+        });
         
         $expired_batch_count = count($expired_batches);
         
-        return view('Admin.ThongKe.ton-kho')->with(compact('tonkho_sum','tonkho', 'hethang', 'expired_quantity', 'expired_batches', 'expired_batch_count', 'units'));
+        // Tính số lượng sắp hết hạn theo mốc thời gian
+        $now_ts = time();
+        $expiring_1w = 0; $expiring_1m = 0; $expiring_3m = 0; $expiring_6m = 0;
+        foreach($expiring_soon_batches as $b) {
+            $days_left = ($b['ngay_het_han_ts'] - $now_ts) / 86400;
+            if($days_left <= 7) $expiring_1w += $b['so_luong'];
+            if($days_left <= 30) $expiring_1m += $b['so_luong'];
+            if($days_left <= 90) $expiring_3m += $b['so_luong'];
+            if($days_left <= 180) $expiring_6m += $b['so_luong'];
+        }
+        
+        return view('Admin.ThongKe.ton-kho')->with(compact(
+            'tonkho_sum','tonkho', 'hethang', 
+            'expired_quantity', 'expired_batches', 'expired_batch_count', 
+            'expiring_soon_batches', 'expiring_1w', 'expiring_1m', 'expiring_3m', 'expiring_6m',
+            'units', 'loaihang_list', 'donvitinh_list', 'loaihang_map'
+        ));
     }
 
     function doanh_so(Request $request) {
@@ -178,6 +218,22 @@ class ThongKeController extends Controller
             $danhsach = $query->orderBy('ngay_ban', 'desc')->get();
             $so_don_hang = count($danhsach);
             
+            // --- Map Payments cho từng đơn bán ---
+            $dh_ids = $danhsach->pluck('_id')->toArray();
+            $dh_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $dh_ids);
+            $don_payments_map = [];
+            if(count($dh_ids) > 0) {
+                $raw_payments = CongNo::raw(function($collection) use ($dh_ids) {
+                    return $collection->aggregate([
+                        ['$match' => ['id_donhang' => ['$in' => $dh_ids], 'loai_cong_no' => 1]],
+                        ['$group' => ['_id' => '$id_donhang', 'total_paid' => ['$sum' => '$tong_thanh_tien']]]
+                    ]);
+                });
+                foreach($raw_payments as $p) {
+                    $don_payments_map[(string)$p['_id']] = $p['total_paid'];
+                }
+            }
+            
             foreach($danhsach as $dh) {
                 // Ignore cancelled orders for financial stats if needed, or handle based on status
                 if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
@@ -244,16 +300,16 @@ class ThongKeController extends Controller
             $tong_gia_von = $tong_gia_von_ban - $tong_gia_von_tra;
             $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von;
             
-            // Calculate debt from CongNo
-            $congno_query = CongNo::where('ngay_gio', '>=', $start_date)
-                ->where('ngay_gio', '<=', $end_date);
-            if($id_khachhang) {
-                $congno_query->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
+            // Calculate payment & debt based on actual orders in the period
+            // Use don_payments_map which already has total paid per order
+            $tong_da_thanh_toan = 0;
+            foreach($danhsach as $dh) {
+                if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
+                    $dh_id = (string)$dh['_id'];
+                    $tong_da_thanh_toan += isset($don_payments_map[$dh_id]) ? $don_payments_map[$dh_id] : 0;
+                }
             }
-            
-            $tong_phat_sinh_no = (clone $congno_query)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
-            $tong_da_thanh_toan = (clone $congno_query)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-            $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
+            $tong_con_no = $tong_doanh_thu_ban - $tong_da_thanh_toan;
         }
         
         $ty_le_loi_nhuan = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan / $tong_doanh_thu) * 100, 2) : 0;
@@ -265,7 +321,8 @@ class ThongKeController extends Controller
             'tong_gia_von', 'tong_gia_von_ban', 'tong_gia_von_tra',
             'tong_loi_nhuan', 'ty_le_loi_nhuan',
             'tong_da_thanh_toan', 'tong_con_no', 
-            'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra'
+            'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra',
+            'don_payments_map'
         ));
     }
 
@@ -315,6 +372,22 @@ class ThongKeController extends Controller
             $danhsach = $query->orderBy('ngay_nhap', 'desc')->get();
             $so_phieu_nhap = count($danhsach);
             
+            // --- Map Payments cho từng phiếu nhập ---
+            $nh_ids = $danhsach->pluck('_id')->toArray();
+            $nh_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $nh_ids);
+            $nhap_payments_map = [];
+            if(count($nh_ids) > 0) {
+                $raw_payments_ncc = \App\Models\CongNoNCC::raw(function($collection) use ($nh_ids) {
+                    return $collection->aggregate([
+                        ['$match' => ['id_nhaphang' => ['$in' => $nh_ids], 'loai_cong_no' => 1]],
+                        ['$group' => ['_id' => '$id_nhaphang', 'total_paid' => ['$sum' => '$tong_thanh_tien']]]
+                    ]);
+                });
+                foreach($raw_payments_ncc as $p) {
+                    $nhap_payments_map[(string)$p['_id']] = $p['total_paid'];
+                }
+            }
+            
             foreach($danhsach as $nh) {
                 // Total import value
                 $tong_gia_tri_nhap_goc += isset($nh['tong_thanh_tien']) ? doubleval($nh['tong_thanh_tien']) : 0;
@@ -351,16 +424,14 @@ class ThongKeController extends Controller
             // 3. NET VALUES
             $tong_gia_tri_nhap = $tong_gia_tri_nhap_goc - $tong_gia_tri_tra;
             
-            // Calculate debt from CongNoNCC
-            $congno_query = \App\Models\CongNoNCC::where('ngay_gio', '>=', $start_date)
-                ->where('ngay_gio', '<=', $end_date);
-            if($id_nhacungcap) {
-                $congno_query->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
-            }
-            
-            $tong_phat_sinh_no = (clone $congno_query)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
-            $tong_da_thanh_toan = (clone $congno_query)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-            $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
+            // Calculate payment & debt based on actual import orders in the period
+        // Use nhap_payments_map which already has total paid per import
+        $tong_da_thanh_toan = 0;
+        foreach($danhsach as $nh) {
+            $nh_id = (string)$nh['_id'];
+            $tong_da_thanh_toan += isset($nhap_payments_map[$nh_id]) ? $nhap_payments_map[$nh_id] : 0;
+        }
+        $tong_con_no = $tong_gia_tri_nhap_goc - $tong_da_thanh_toan;
         }
         
         $so_san_pham = $so_san_pham_nhap - $so_san_pham_tra;
@@ -369,7 +440,8 @@ class ThongKeController extends Controller
             'nhacungcap_list', 'danhsach', 'ds_tra_hang_ncc',
             'tong_gia_tri_nhap', 'tong_gia_tri_nhap_goc', 'tong_gia_tri_tra',
             'tong_da_thanh_toan', 'tong_con_no',
-            'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham'
+            'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham',
+            'nhap_payments_map'
         ));
     }
     function export_ton_kho(){
