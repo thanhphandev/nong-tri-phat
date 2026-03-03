@@ -332,11 +332,22 @@
                 <td class="summary-label">Tổng cộng:</td>
                 <td class="summary-value text-bold">{{ number_format($gia_tri_lo_nay, 0, ",", ".") }}</td>
             </tr>
-            @if($da_thanh_toan_lo_nay > 0)
-            <tr>
-                <td class="summary-label">Đã thanh toán:</td>
-                <td class="summary-value">{{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}</td>
-            </tr>
+            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+                @foreach($lich_su_thanh_toan as $ls)
+                <tr>
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt;">
+                        - Chi tiền ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+                    </td>
+                    <td class="summary-value">-{{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
+                </tr>
+                @endforeach
+            @else
+                @if($da_thanh_toan_lo_nay > 0)
+                <tr>
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt;">- Đã thanh toán:</td>
+                    <td class="summary-value">-{{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}</td>
+                </tr>
+                @endif
             @endif
             <tr class="summary-total">
                 <td class="summary-label">Dư nợ hiện tại:</td>
@@ -347,8 +358,9 @@
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_no_moi) }}.</em>
+        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_no_moi) }} đồng.</em>
     </div>
+
 
     <!-- Signature Section -->
     <div class="signature-section">

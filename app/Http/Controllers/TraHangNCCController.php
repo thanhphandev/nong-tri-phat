@@ -13,24 +13,29 @@ use App\Models\CongNoNCC;
 use Validator;
 use Session;
 use Carbon\Carbon;
+use App\Traits\CodeGeneratorTrait;
 
 class TraHangNCCController extends Controller
 {
+    use CodeGeneratorTrait;
     /**
      * List all supplier returns
      */
     function list(Request $request) {
         $keywords = $request->input('keywords');
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        
         if ($keywords) {
             $danhsach = TraHangNCC::where('ma_tra_hang', 'regexp', '/.*'.$keywords.'/i')
                 ->orWhere('ma_nhap_hang', 'regexp', '/.*'.$keywords.'/i')
                 ->orWhere('ten_ncc', 'regexp', '/.*'.$keywords.'/i')
-                ->orderBy('ngay_tra', 'desc')->paginate(30);
+                ->orderBy('ngay_tra', 'desc')->paginate($per_page);
         } else {
-            $danhsach = TraHangNCC::orderBy('ngay_tra', 'desc')->paginate(30);
+            $danhsach = TraHangNCC::orderBy('ngay_tra', 'desc')->paginate($per_page);
         }
         
-        return view('Admin.TraHangNCC.list')->with(compact('danhsach', 'keywords'));
+        return view('Admin.TraHangNCC.list')->with(compact('danhsach', 'keywords', 'limit'));
     }
 
     /**
@@ -137,7 +142,9 @@ class TraHangNCCController extends Controller
         }
 
         // Generate return code
-        $ma_tra_hang = strtoupper(uniqid());
+        $ncc = NhaCungCap::find($nhaphang['id_nhacungcap']);
+        $partnerId = isset($ncc['ma']) && $ncc['ma'] ? $ncc['ma'] : 'NCC' . substr($nhaphang['id_nhacungcap'], -5);
+        $ma_tra_hang = $this->generateOrderCode('THN', $partnerId);
 
         // Calculate total
         $tong_tien_tra = 0;

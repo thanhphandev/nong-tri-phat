@@ -5,6 +5,14 @@
     <link href="{{ env('APP_URL') }}assets/libs/datatables/responsive.bootstrap4.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/datatables/buttons.bootstrap4.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/datatables/select.bootstrap4.css" rel="stylesheet" type="text/css" />
+    <link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .filter-bar { background: #f8f9fa; border-radius: 6px; padding: 12px 15px; margin-bottom: 15px; border: 1px solid #e9ecef; }
+        .expiry-filter-btn { transition: all 0.2s; }
+        .expiry-filter-btn.active { box-shadow: 0 0 0 3px rgba(0,123,255,0.25); }
+        .badge-expiry-warn { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .badge-expiry-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
 @endsection
 @section('body')
 
@@ -101,6 +109,37 @@
         </div>
     </div>
 
+    <!-- Filter Bar -->
+    <div class="row">
+        <div class="col-12">
+            <div class="filter-bar">
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <label class="font-weight-bold mb-1"><i class="fas fa-tags mr-1"></i> Loại hàng</label>
+                        <select id="filter-loaihang" class="form-control select2" style="width:100%;">
+                            <option value="">-- Tất cả Loại hàng --</option>
+                            @foreach($loaihang_list as $lh)
+                                <option value="{{ (string)$lh['_id'] }}">{{ $lh['ten'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="font-weight-bold mb-1"><i class="fas fa-balance-scale mr-1"></i> Đơn vị tính</label>
+                        <select id="filter-donvitinh" class="form-control select2" style="width:100%;">
+                            <option value="">-- Tất cả ĐVT --</option>
+                            @foreach($donvitinh_list as $dvt)
+                                <option value="{{ $dvt['ten'] }}">{{ $dvt['ten'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-4 text-right mt-2 mt-md-0">
+                        <button class="btn btn-secondary btn-sm" id="btn-reset-filter"><i class="fa fa-sync-alt"></i> Xoá bộ lọc</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabs & Table -->
     <div class="row">
         <div class="col-12">
@@ -121,6 +160,11 @@
                             <i class="fas fa-clock mr-1 text-warning"></i> <span class="d-none d-sm-inline-block">Đã hết hạn ({{ $expired_batch_count ?? 0 }})</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="#expiring-soon" data-toggle="tab" aria-expanded="false" class="nav-link">
+                            <i class="fas fa-hourglass-half mr-1 text-info"></i> <span class="d-none d-sm-inline-block">Sắp hết hạn ({{ count($expiring_soon_batches) }})</span>
+                        </a>
+                    </li>
                 </ul>
                 <div class="tab-content pt-3">
                     <!-- Tab: In Stock -->
@@ -132,6 +176,7 @@
                                     <th class="text-center" width="5%">STT</th>
                                     <th>Mã</th>
                                     <th>Tên hàng hóa</th>
+                                    <th class="text-center">Loại hàng</th>
                                     <th class="text-center">ĐVT</th>
                                     <th class="text-right">Giá vốn</th>
                                     <th class="text-right">SL Tồn</th>
@@ -141,13 +186,14 @@
                             </thead>
                             <tbody>
                                 @foreach($tonkho as $ktk => $vtk)
-                                <tr>
+                                <tr data-loaihang="{{ (string)($vtk['id_loaihang'] ?? '') }}" data-donvitinh="{{ $units[(string)($vtk['id_donvitinh'] ?? '')] ?? '' }}">
                                     <td class="text-center">{{ $ktk+1 }}</td>
                                     <td><span class="badge badge-light-secondary">{{ $vtk['ma'] }}</span></td>
                                     <td class="font-weight-medium">{{ $vtk['ten'] }}</td>
-                                    <td class="text-center">{{ $units[(string)$vtk['id_donvitinh']] ?? '' }}</td>
+                                    <td class="text-center">{{ $loaihang_map[(string)($vtk['id_loaihang'] ?? '')] ?? '' }}</td>
+                                    <td class="text-center">{{ $units[(string)($vtk['id_donvitinh'] ?? '')] ?? '' }}</td>
                                     <td class="text-right">{{ number_format($vtk['gia_von'],0,",",".") }}</td>
-                                    <td class="text-right">{{ number_format($vtk['so_luong_ton'],0,",",".") }}</td>
+                                    <td class="text-right">{{ number_format($vtk['so_luong_ton'],2,",",".") }}</td>
                                     <td class="text-right font-weight-bold text-success">
                                         {{ number_format($vtk['so_luong_ton'] * ($vtk['gia_von'] ?? 0), 0, ",", ".") }}
                                     </td>
@@ -172,6 +218,7 @@
                                     <th class="text-center" width="5%">STT</th>
                                     <th>Mã</th>
                                     <th>Tên hàng hóa</th>
+                                    <th class="text-center">Loại hàng</th>
                                     <th class="text-center">ĐVT</th>
                                     <th class="text-right">Giá vốn</th>
                                     <th class="text-right">Giá bán (Lẻ)</th>
@@ -180,11 +227,12 @@
                             </thead>
                             <tbody>
                                 @foreach($hethang as $ktk => $vtk)
-                                <tr>
+                                <tr data-loaihang="{{ (string)($vtk['id_loaihang'] ?? '') }}" data-donvitinh="{{ $units[(string)($vtk['id_donvitinh'] ?? '')] ?? '' }}">
                                     <td class="text-center">{{ $ktk+1 }}</td>
                                     <td><span class="badge badge-light-secondary">{{ $vtk['ma'] }}</span></td>
                                     <td class="font-weight-medium">{{ $vtk['ten'] }}</td>
-                                    <td class="text-center">{{ $units[(string)$vtk['id_donvitinh']] ?? '' }}</td>
+                                    <td class="text-center">{{ $loaihang_map[(string)($vtk['id_loaihang'] ?? '')] ?? '' }}</td>
+                                    <td class="text-center">{{ $units[(string)($vtk['id_donvitinh'] ?? '')] ?? '' }}</td>
                                     <td class="text-right">{{ number_format($vtk['gia_von'],0,",",".") }}</td>
                                     <td class="text-right">{{ number_format($vtk['gia_le'],0,",",".") }}</td>
                                     <td class="text-center">
@@ -220,7 +268,7 @@
                             </thead>
                             <tbody>
                                 @foreach($expired_batches as $k => $batch)
-                                <tr>
+                                <tr data-loaihang="{{ $batch['id_loaihang'] ?? '' }}" data-donvitinh="{{ $units[$batch['id_donvitinh']] ?? '' }}">
                                     <td class="text-center">{{ $k+1 }}</td>
                                     <td><span class="badge badge-light-secondary">{{ $batch['ma_hanghoa'] }}</span></td>
                                     <td class="font-weight-medium">{{ $batch['ten_hanghoa'] }}</td>
@@ -244,6 +292,84 @@
                         <div class="text-center p-4 text-muted">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <p class="mb-0">Không có lô hàng nào hết hạn. Tuyệt vời!</p>
+                        </div>
+                        @endif
+                    </div>
+
+                    <!-- Tab: Expiring Soon -->
+                    <div class="tab-pane" id="expiring-soon">
+                        <!-- Fixed period filter buttons -->
+                        <div class="mb-3">
+                            <span class="font-weight-bold mr-2"><i class="fas fa-filter"></i> Lọc theo thời hạn:</span>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-danger expiry-filter-btn active" data-days="7">
+                                    1 tuần <span class="badge badge-danger ml-1">{{ number_format($expiring_1w) }}</span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning expiry-filter-btn" data-days="30">
+                                    1 tháng <span class="badge badge-warning ml-1">{{ number_format($expiring_1m) }}</span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info expiry-filter-btn" data-days="90">
+                                    3 tháng <span class="badge badge-info ml-1">{{ number_format($expiring_3m) }}</span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary expiry-filter-btn" data-days="180">
+                                    6 tháng <span class="badge badge-primary ml-1">{{ number_format($expiring_6m) }}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if(count($expiring_soon_batches) > 0)
+                        <table id="table-expiring" class="table table-hover table-striped dt-responsive nowrap w-100 font-14">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th class="text-center" width="5%">STT</th>
+                                    <th>Mã SP</th>
+                                    <th>Tên hàng hóa</th>
+                                    <th class="text-center">ĐVT</th>
+                                    <th class="text-center">Mã lô</th>
+                                    <th class="text-right">SL tồn</th>
+                                    <th class="text-right">Giá vốn</th>
+                                    <th class="text-center">Ngày hết hạn</th>
+                                    <th class="text-center">Còn lại</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $now_ts = time(); @endphp
+                                @foreach($expiring_soon_batches as $k => $batch)
+                                @php 
+                                    $days_left = round(($batch['ngay_het_han_ts'] - $now_ts) / 86400);
+                                    if($days_left <= 7) $urgency_class = 'badge-danger';
+                                    elseif($days_left <= 30) $urgency_class = 'badge-warning';
+                                    elseif($days_left <= 90) $urgency_class = 'badge-info';
+                                    else $urgency_class = 'badge-secondary';
+                                @endphp
+                                <tr class="expiry-row" data-days-left="{{ $days_left }}" data-loaihang="{{ $batch['id_loaihang'] ?? '' }}" data-donvitinh="{{ $units[$batch['id_donvitinh']] ?? '' }}">
+                                    <td class="text-center">{{ $k+1 }}</td>
+                                    <td><span class="badge badge-light-secondary">{{ $batch['ma_hanghoa'] }}</span></td>
+                                    <td class="font-weight-medium">{{ $batch['ten_hanghoa'] }}</td>
+                                    <td class="text-center">{{ $units[$batch['id_donvitinh']] ?? '' }}</td>
+                                    <td class="text-center"><span class="badge badge-info">{{ $batch['ma_lo'] }}</span></td>
+                                    <td class="text-right font-weight-bold text-warning">{{ number_format($batch['so_luong'], 0, ',', '.') }}</td>
+                                    <td class="text-right">{{ number_format($batch['gia_von'], 0, ',', '.') }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-warning font-12">{{ $batch['ngay_het_han'] }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {{ $urgency_class }} font-12">{{ $days_left }} ngày</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $batch['id_hanghoa'] }}" class="btn btn-sm btn-outline-info xem-ton-kho" data-toggle="modal" data-target="#modalTonKho" title="Xem chi tiết lô hàng">
+                                            <i class="fe-eye"></i> Xem lô
+                                        </a>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        @else
+                        <div class="text-center p-4 text-muted">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p class="mb-0">Không có lô hàng nào sắp hết hạn.</p>
                         </div>
                         @endif
                     </div>
@@ -284,9 +410,17 @@
     <script src="{{ env('APP_URL') }}assets/libs/pdfmake/vfs_fonts.js"></script>
     <script src="{{ env('APP_URL') }}assets/libs/datatables/buttons.html5.min.js"></script>
     <script src="{{ env('APP_URL') }}assets/libs/datatables/buttons.print.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
 
     <script type="text/javascript">
         $(document).ready(function(){
+            $(".select2").select2({ allowClear: true, placeholder: "-- Chọn --" });
+
+            // Global filter variables
+            var filterLH = '';
+            var filterDVT = '';
+            var filterExpiryDays = 7;
+
             // Vietnamese translation
             var tableOptions = {
                 language: {
@@ -307,13 +441,64 @@
                     }
                 },
                 responsive: true,
-                responsive: true
+                pageLength: 25
             };
 
-            $('#table-tonkho').DataTable(tableOptions);
-            $('#table-hethang').DataTable(tableOptions);
-            $('#table-expired').DataTable(tableOptions);
+            // Register ONE global custom search function
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                var row = $(settings.nTable).DataTable().row(dataIndex).node();
+                if (!row) return true;
+                var rowLH = $(row).attr('data-loaihang') || '';
+                var rowDVT = $(row).attr('data-donvitinh') || '';
 
+                if (filterLH && rowLH != filterLH) return false;
+                if (filterDVT && rowDVT != filterDVT) return false;
+
+                // For expiring table only: also filter by days
+                if (settings.nTable.id === 'table-expiring') {
+                    var daysLeft = parseInt($(row).attr('data-days-left') || '9999');
+                    if (daysLeft > filterExpiryDays) return false;
+                }
+
+                return true;
+            });
+
+            // Init DataTables (check if table exists first)
+            var dt_tonkho = $('#table-tonkho').length ? $('#table-tonkho').DataTable(tableOptions) : null;
+            var dt_hethang = $('#table-hethang').length ? $('#table-hethang').DataTable(tableOptions) : null;
+            var dt_expired = $('#table-expired').length ? $('#table-expired').DataTable(tableOptions) : null;
+            var dt_expiring = $('#table-expiring').length ? $('#table-expiring').DataTable(tableOptions) : null;
+
+            function redrawAll() {
+                if (dt_tonkho) dt_tonkho.draw();
+                if (dt_hethang) dt_hethang.draw();
+                if (dt_expired) dt_expired.draw();
+                if (dt_expiring) dt_expiring.draw();
+            }
+
+            // --- Filter: Loại hàng & ĐVT ---
+            $('#filter-loaihang').on('change', function() {
+                filterLH = $(this).val() || '';
+                redrawAll();
+            });
+            $('#filter-donvitinh').on('change', function() {
+                filterDVT = $(this).val() || '';
+                redrawAll();
+            });
+            $('#btn-reset-filter').on('click', function() {
+                $('#filter-loaihang').val('').trigger('change');
+                $('#filter-donvitinh').val('').trigger('change');
+            });
+
+            // --- Expiry Period Filter ---
+            $('.expiry-filter-btn').on('click', function() {
+                filterExpiryDays = parseInt($(this).data('days'));
+                $('.expiry-filter-btn').removeClass('active');
+                $(this).addClass('active');
+                if (dt_expiring) dt_expiring.draw();
+            });
+
+            // --- Modal Xem Lô ---
             $('body').on('click', '.xem-ton-kho', function(e){
                 e.preventDefault();
                 var _link = $(this).attr("href");

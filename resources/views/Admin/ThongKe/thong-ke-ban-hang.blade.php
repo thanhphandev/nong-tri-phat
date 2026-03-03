@@ -3,6 +3,34 @@
 @section('css')
     <link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow: auto;
+        }
+        
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .table-sticky-header thead th {
+            position: sticky;
+            top: 0;
+            z-index: 15;
+            background-color: #343a40 !important;
+            color: white;
+        }
+        
+        .table-sticky-header thead tr.summary-row td {
+            position: sticky;
+            top: 40px; /* Sẽ cập nhật bằng JS để chuẩn xác 100% */
+            z-index: 14;
+            background-color: #e9ecef !important;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="card-box">
@@ -34,8 +62,10 @@
                     @endforeach
                 </select>
             </div>
+        </div>
+        <div class="row form-group">
             <label class="control-label col-md-1 text-right p-t-10">Trạng thái</label>
-            <div class="col-12 col-md-1">
+            <div class="col-12 col-md-2">
                 <select name="tinh_trang" id="tinh_trang" class="form-control">
                     <option value="">Tất cả</option>
                     @foreach($tinhtrang as $kt => $vt)
@@ -43,8 +73,10 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-1">
-                <button type="submit" name="submit" value="OK" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+            <div class="col-12 col-md-3">
+                <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+                <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
+                <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
             </div>
         </div>
         <div class="row mb-3">
@@ -74,47 +106,112 @@
         Dữ liệu thực tế <span class="text-danger font-weight-bold">(Đã trừ trả hàng)</span>
     </p>
 </div>
+    <div id="stats-cards">
     <div class="row">
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-2">
             <div class="card-box widget-flat border-success bg-success text-white" title="Tổng bán: {{ number_format($tong_doanh_thu_ban,0,",",".") }} - Trả: {{ number_format($tong_doanh_thu_tra,0,",",".") }}">
                 <i class="fas fa-money-bill-wave"></i>
                 <h4 class="text-white">{{ number_format($tong_doanh_thu,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Doanh thu thực</p>
             </div>
         </div>
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-2">
+            <div class="card-box widget-flat border-info bg-info text-white" title="Tổng HCT bán: {{ number_format($tong_tien_hang_ct,0,",",".") }} - Trả HCT: {{ number_format($tong_tien_hang_ct_tra,0,",",".") }}">
+                <i class="fas fa-gift"></i>
+                <h4 class="text-white">{{ number_format($tong_tien_hang_ct - $tong_tien_hang_ct_tra,0,",",".") }}</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Tiền Hàng CT</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-2">
             <div class="card-box bg-warning widget-flat border-warning text-white" title="Giá vốn bán: {{ number_format($tong_gia_von_ban,0,",",".") }} - Giá vốn trả: {{ number_format($tong_gia_von_tra,0,",",".") }}">
                 <i class="fas fa-boxes"></i>
                 <h4 class="text-white">{{ number_format($tong_gia_von,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Giá vốn thực</p>
             </div>
         </div>
-        <div class="col-md-6 col-xl-2">
-            <div class="card-box widget-flat border-info bg-info text-white">
-                <i class="fas fa-hand-holding-usd"></i>
-                <h4 class="text-white">{{ number_format($tong_loi_nhuan,0,",",".") }}</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Lợi nhuận gộp</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-2">
-            <div class="card-box widget-flat {{ $ty_le_loi_nhuan >= 0 ? 'border-purple bg-purple' : 'border-danger bg-danger' }} text-white">
-                <i class="fas fa-percent"></i>
-                <h4 class="text-white">{{ $ty_le_loi_nhuan }}%</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Tỷ lệ LN</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="card-box bg-primary widget-flat border-primary text-white">
                 <i class="fas fa-check-circle"></i>
                 <h4 class="text-white">{{ number_format($tong_da_thanh_toan,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Đã thanh toán</p>
             </div>
         </div>
-        <div class="col-md-6 col-xl-2">
+        <div class="col-md-4 col-xl-3">
             <div class="card-box bg-danger widget-flat border-danger text-white">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h4 class="text-white">{{ number_format($tong_con_no,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Còn nợ</p>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat border-info bg-info text-white">
+                <i class="fas fa-hand-holding-usd"></i>
+                <h4 class="text-white">{{ number_format($tong_loi_nhuan,0,",",".") }}</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">LN Ước tính</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat {{ $ty_le_loi_nhuan >= 0 ? 'border-purple bg-purple' : 'border-danger bg-danger' }} text-white">
+                <i class="fas fa-percent"></i>
+                <h4 class="text-white">{{ $ty_le_loi_nhuan }}%</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Tỷ lệ LN Ước tính</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat bg-dark border-dark text-white">
+                <i class="fas fa-wallet"></i>
+                <h4 class="text-white">{{ number_format($tong_loi_nhuan_thuc_te ?? 0,0,",",".") }}</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">LN Thực tế</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card-box widget-flat {{ ($ty_le_loi_nhuan_thuc_te ?? 0) >= 0 ? 'bg-secondary border-secondary' : 'bg-danger border-danger' }} text-white">
+                <i class="fas fa-percent"></i>
+                <h4 class="text-white">{{ $ty_le_loi_nhuan_thuc_te ?? 0 }}%</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Tỷ lệ LN TT</p>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Toggle View Buttons -->
+    <div class="text-right mb-3">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-primary view-toggle active" data-target="#stats-cards"><i class="fas fa-th-large"></i> Thẻ tổng hợp</button>
+            <button type="button" class="btn btn-sm btn-outline-primary view-toggle" data-target="#stats-charts"><i class="fas fa-chart-bar"></i> Biểu đồ phân tích</button>
+        </div>
+    </div>
+
+    <!-- Charts Section (Hidden by default) -->
+    <div id="stats-charts" style="display:none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-bar mr-1"></i> So sánh Doanh thu - Giá vốn - Lợi nhuận</h5>
+                    <div style="position:relative; height:350px;">
+                        <canvas id="chartRevenue"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-pie mr-1"></i> Thanh toán vs Nợ</h5>
+                    <div style="position:relative; height:300px;">
+                        <canvas id="chartPayment"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-pie mr-1"></i> Bán vs Trả hàng</h5>
+                    <div style="position:relative; height:300px;">
+                        <canvas id="chartSaleReturn"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -138,39 +235,68 @@
         <!-- Tab Đơn bán hàng -->
         <div class="tab-pane active" id="tab-don-hang">
             @if(count($danhsach) > 0)
-                <div class="table-responsive mt-3">
+                <div class="table-responsive table-sticky-header mt-3">
                     <table class="table table-border table-bordered table-striped table-hovered table-sm">
                         <thead class="thead-dark">
                             <tr>
-                                <th>STT</th>
-                                <th>Mã Đơn hàng</th>
-                                <th>Ngày bán</th>
+                                <th class="text-center">STT</th>
+                                <th class="text-center">Mã Đơn hàng</th>
+                                <th class="text-center">Ngày bán</th>
                                 <th>Khách hàng</th>
                                 <th>Điện thoại</th>
-                                <th>SL SP</th>
-                                <th>Tổng tiền</th>
-                                <th>Thanh toán</th>
-                                <th>Nợ</th>
-                                <th>Giá vốn</th>
-                                <th>Lợi nhuận</th>
-                                <th>Trạng thái</th>
+                                <th class="text-center" style="white-space: nowrap">SL SP</th>
+                                <th class="text-right" style="white-space: nowrap">Tổng tiền</th>
+                                <th class="text-right text-info" style="white-space: nowrap">Tiền Hàng CT</th>
+                                <th class="text-right" style="white-space: nowrap">Thanh toán</th>
+                                <th class="text-right" style="white-space: nowrap">Nợ</th>
+                                <th class="text-right" style="white-space: nowrap">Giá vốn</th>
+                                <th class="text-right" style="white-space: nowrap">LN Ước tính</th>
+                                <th class="text-right" style="white-space: nowrap">LN Thực tế</th>
+                                <th class="text-center">Trạng thái</th>
                                 <th>Ghi chú</th>
+                            </tr>
+                            <tr class="bg-light text-dark font-weight-bold summary-row">
+                                <td colspan="5" class="text-right text-uppercase">TỔNG BÁN:</td>
+                                <td class="text-center text-primary">{{ number_format($so_san_pham_ban,0,",",".") }}</td>
+                                <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-info"><b>{{ number_format($tong_tien_hang_ct,0,",",".") }}</b></td>
+                                <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
+                                <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
+                                <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
+                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-dark"><b>{{ number_format($tong_da_thanh_toan - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                <td colspan="2"></td>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($danhsach as $key => $ds)
                                 @php
-                                    $so_luong = 0;
-                                    $gia_von_don = 0;
-                                    foreach($ds['hanghoa'] as $hh){
-                                        $so_luong += $hh['so_luong'];
-                                        $gia_von_don += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                                    // Use filtered values if available, else fallback to standard logic for backward compatibility
+                                    $so_luong = isset($ds['filtered_so_luong']) ? $ds['filtered_so_luong'] : 0;
+                                    $gia_von_don = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
+                                    $doanh_thu_don = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : 0;
+                                    
+                                    // If not filtered through the new controller logic (e.g. older code)
+                                    if(!isset($ds['filtered_tong_thanh_tien'])) {
+                                        foreach($ds['hanghoa'] as $hh){
+                                            $so_luong += $hh['so_luong'];
+                                            $gia_von_don += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                                        }
+                                        $doanh_thu_don = $ds['tong_thanh_tien'];
                                     }
-                                    $loi_nhuan_don = $ds['tong_thanh_tien'] - $gia_von_don;
+
+                                    $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
                                     
                                     // Calculate payment and debt
-                                    $da_thanh_toan = $ds['thanh_toan'] ?? 0;
-                                    $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                    if (isset($ds['filtered_da_thanh_toan'])) {
+                                        $da_thanh_toan = $ds['filtered_da_thanh_toan'];
+                                        $con_no = $ds['filtered_con_no'];
+                                    } else {
+                                        $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
+                                        $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                    }
+                                    
+                                    $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
                                     
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
                                     elseif($ds['tinh_trang'] == 1) $tt_badge = 'badge-success';
@@ -183,27 +309,18 @@
                                     <td>{{ $ds['ho_ten'] }}</td>
                                     <td>{{ $ds['dien_thoai'] }}</td>
                                     <td class="text-center">{{ number_format($so_luong,0,",",".") }}</td>
-                                    <td class="text-right"><b>{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b></td>
+                                    <td class="text-right"><b>{{ number_format($doanh_thu_don,0,",",".") }}</b></td>
+                                    <td class="text-right text-info font-weight-bold">{{ number_format($ds['tien_hang_ct'] ?? 0,0,",",".") }}</td>
                                     <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
                                     <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
                                     <td class="text-right {{ $loi_nhuan_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
+                                    <td class="text-right {{ $loi_nhuan_thuc_te_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</b></td>
                                     <td class="text-center"><span class="badge {{ $tt_badge }}">{{ $tinhtrang[$ds['tinh_trang']] ?? 'N/A' }}</span></td>
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
-                        <tfoot class="bg-light font-weight-bold">
-                            <tr>
-                                <td colspan="5" class="text-right">TỔNG BÁN:</td>
-                                <td class="text-center text-primary">{{ $so_san_pham_ban }}</td>
-                                <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
-                                <td colspan="2"></td>
-                                <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             @else
@@ -225,6 +342,7 @@
                                 <th>Khách hàng</th>
                                 <th>SL Trả</th>
                                 <th>Tiền trả lại</th>
+                                <th class="text-info">Tiền Hàng CT trả</th>
                                 <th>Tổng giá vốn</th>
                                 <th>Chi tiết</th>
                             </tr>
@@ -232,18 +350,24 @@
                         <tbody>
                             @foreach($ds_tra_hang as $key => $th)
                                 @php
-                                    $sl_tra = 0;
-                                    $gv_tra = 0;
-                                    if(isset($th['hanghoa']) && is_array($th['hanghoa'])){
-                                        foreach($th['hanghoa'] as $hh){
-                                            $sl_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
+                                    $sl_tra = isset($th['filtered_so_luong']) ? $th['filtered_so_luong'] : 0;
+                                    $gv_tra = isset($th['filtered_tong_gia_von']) ? $th['filtered_tong_gia_von'] : 0;
+                                    $tien_tra_don = isset($th['filtered_tong_tien_tra']) ? $th['filtered_tong_tien_tra'] : 0;
+                                    
+                                    // Fallback if not filtered through new logic
+                                    if(!isset($th['filtered_tong_tien_tra'])) {
+                                        if(isset($th['hanghoa']) && is_array($th['hanghoa'])){
+                                            foreach($th['hanghoa'] as $hh){
+                                                $sl_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
+                                            }
                                         }
-                                    }
-                                    $gv_tra = $th['tong_gia_von'] ?? 0;
-                                    if ($gv_tra == 0 && isset($th['hanghoa'])) {
-                                         foreach($th['hanghoa'] as $hh) {
-                                            $gv_tra += (isset($hh['gia_von']) ? $hh['gia_von'] : 0) * (isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0);
-                                         }
+                                        $gv_tra = $th['tong_gia_von'] ?? 0;
+                                        if ($gv_tra == 0 && isset($th['hanghoa'])) {
+                                             foreach($th['hanghoa'] as $hh) {
+                                                $gv_tra += (isset($hh['gia_von']) ? $hh['gia_von'] : 0) * (isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0);
+                                             }
+                                        }
+                                        $tien_tra_don = $th['tong_tien_tra'] ?? 0;
                                     }
                                 @endphp
                                 <tr>
@@ -253,7 +377,8 @@
                                     <td class="text-center">{{ $th['ma_don_hang'] ?? '-' }}</td>
                                     <td>{{ $th['ho_ten'] }}</td>
                                     <td class="text-center">{{ number_format($sl_tra,0,",",".") }}</td>
-                                    <td class="text-right text-danger font-weight-bold">{{ number_format($th['tong_tien_tra'],0,",",".") }}</td>
+                                    <td class="text-right text-danger font-weight-bold">{{ number_format($tien_tra_don,0,",",".") }}</td>
+                                    <td class="text-right text-info font-weight-bold">{{ number_format($th['tien_hang_ct_tra'] ?? 0,0,",",".") }}</td>
                                     <td class="text-right">{{ number_format($gv_tra,0,",",".") }}</td>
                                     <td class="text-center">
                                         <a href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $th['_id'] }}" class="btn btn-sm btn-info" target="_blank"><i class="fa fa-eye"></i> Xem</a>
@@ -264,8 +389,9 @@
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
                                 <td colspan="5" class="text-right">TỔNG TRẢ:</td>
-                                <td class="text-center text-danger">{{ $so_san_pham_tra }}</td>
+                                <td class="text-center text-danger">{{ number_format($so_san_pham_tra,0,",",".") }}</td>
                                 <td class="text-right text-danger">{{ number_format($tong_doanh_thu_tra,0,",",".") }}</td>
+                                <td class="text-right text-info">{{ number_format($tong_tien_hang_ct_tra,0,",",".") }}</td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
                                 <td></td>
                             </tr>
@@ -283,6 +409,7 @@
 @section('js')
     <script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
     <script src="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script type="text/javascript">
         $(document).ready(function(){
             $(".select2").select2();
@@ -295,6 +422,177 @@
                 $("#den_ngay").val(end);
                 $("#FilterForm").submit();
             });
+
+            // --- Toggle View ---
+            $('.view-toggle').on('click', function(){
+                $('.view-toggle').removeClass('active btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('active btn-primary');
+                var target = $(this).data('target');
+                if(target === '#stats-charts'){
+                    $('#stats-cards').hide();
+                    $('#stats-charts').show();
+                    initCharts();
+                } else {
+                    $('#stats-charts').hide();
+                    $('#stats-cards').show();
+                }
+            });
+
+            // Adjust sticky summary row top dynamically 
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th').outerHeight();
+                if (headerHeight) {
+                    $('.table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+                }
+            }
+            // Run on load and window resize
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
+            
+            // Re-run after switching tabs just in case table visibility changes height calculations
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                adjustStickySummary();
+            });
+
+            // Wrap existing stats cards
+            // (cards are inside .row with col-md-6)
+
+            var chartsInitialized = false;
+            function initCharts() {
+                if(chartsInitialized) return;
+                chartsInitialized = true;
+
+                // Data from PHP
+                var doanhThuBan = {{ $tong_doanh_thu_ban ?? 0 }};
+                var doanhThuTra = {{ $tong_doanh_thu_tra ?? 0 }};
+                var giaVonBan = {{ $tong_gia_von_ban ?? 0 }};
+                var giaVonTra = {{ $tong_gia_von_tra ?? 0 }};
+                var doanhThuThuc = {{ $tong_doanh_thu ?? 0 }};
+                var giaVonThuc = {{ $tong_gia_von ?? 0 }};
+                var loiNhuan = {{ $tong_loi_nhuan ?? 0 }};
+                var daThanhToan = {{ $tong_da_thanh_toan ?? 0 }};
+                var conNo = {{ $tong_con_no ?? 0 }};
+                var loiNhuanThucTe = {{ $tong_loi_nhuan_thuc_te ?? 0 }};
+                var tienHangCT = {{ isset($tong_tien_hang_ct) ? $tong_tien_hang_ct - ($tong_tien_hang_ct_tra ?? 0) : 0 }};
+
+                // Chart 1: Revenue vs Cost vs Profit (Bar)
+                new Chart(document.getElementById('chartRevenue'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Doanh thu bán', 'Trả hàng', 'Tiền HCT', 'Doanh thu thực', 'Giá vốn thực', 'Lợi nhuận gộp', 'Lợi nhuận TT'],
+                        datasets: [{
+                            label: 'Số tiền (VNĐ)',
+                            data: [doanhThuBan, doanhThuTra, tienHangCT, doanhThuThuc, giaVonThuc, loiNhuan, loiNhuanThucTe],
+                            backgroundColor: [
+                                'rgba(40,167,69,0.8)',
+                                'rgba(255,193,7,0.8)',
+                                'rgba(23,162,184,0.8)', // Info color for HCT
+                                'rgba(0,123,255,0.8)',
+                                'rgba(253,126,20,0.8)',
+                                loiNhuan >= 0 ? 'rgba(23,162,184,0.8)' : 'rgba(220,53,69,0.8)',
+                                loiNhuanThucTe >= 0 ? 'rgba(52,58,64,0.8)' : 'rgba(220,53,69,0.8)'
+                            ],
+                            borderWidth: 0,
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return ctx.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(v) {
+                                        if(v >= 1000000) return (v/1000000).toFixed(1) + 'tr';
+                                        if(v >= 1000) return (v/1000).toFixed(0) + 'k';
+                                        return v;
+                                    },
+                                    font: { size: 13 }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: {
+                                ticks: { font: { size: 13, weight: 'bold' } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 2: Payment vs Debt (Doughnut)
+                new Chart(document.getElementById('chartPayment'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Đã thanh toán', 'Còn nợ'],
+                        datasets: [{
+                            data: [daThanhToan, Math.max(conNo, 0)],
+                            backgroundColor: ['rgba(0,123,255,0.85)', 'rgba(220,53,69,0.85)'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, font: { size: 13 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                                        var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 3: Sale vs Return (Doughnut)
+                new Chart(document.getElementById('chartSaleReturn'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Doanh thu bán', 'Trả hàng'],
+                        datasets: [{
+                            data: [doanhThuBan, doanhThuTra],
+                            backgroundColor: ['rgba(40,167,69,0.85)', 'rgba(255,193,7,0.85)'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, font: { size: 13 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                                        var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         });
     </script>
 @endsection

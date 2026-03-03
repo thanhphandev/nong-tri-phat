@@ -36,14 +36,14 @@
 
 	                	<label class="control-label col-md-2 text-right p-t-10">Loại hàng</label>
 	                	@php
-	                		$id_loaihang = old('id_loaihang') != null ? old('id_loaihang') : $ds['id_loaihang'];
+	                		$id_loaihang = old('id_loaihang') ? (string)old('id_loaihang') : (isset($ds['id_loaihang']) ? (string)$ds['id_loaihang'] : '');
 	                	@endphp
 	                	<div class="col-md-4">
 	                		<select name="id_loaihang" id="id_loaihang" class="form-control select2" data-placeholder="Loại hàng">
 	                			<option value=""></option>
 	                			@if($loaihang)
 	                				@foreach($loaihang as $lh)
-	                					<option value="{{ $lh['_id'] }}" @if($lh['_id'] == $id_loaihang) selected @endif>{{ $lh['ten'] }}</option>
+	                					<option value="{{ (string)$lh['_id'] }}" @if((string)$lh['_id'] == $id_loaihang) selected @endif>{{ $lh['ten'] }}</option>
 	                				@endforeach
 	                			@endif
 	                		</select>
@@ -67,13 +67,13 @@
 	                	<label class="control-label col-md-2 text-right p-t-10">Đơn vị tính</label>
 	                	<div class="col-md-4">
                             @php
-                                $id_donvitinh = old('id_donvitinh') != null ? old('id_donvitinh') : $ds['id_donvitinh'];
+                                $id_donvitinh = old('id_donvitinh') ? (string)old('id_donvitinh') : (isset($ds['id_donvitinh']) ? (string)$ds['id_donvitinh'] : '');
                             @endphp
                             <select name="id_donvitinh" id="id_donvitinh" class="form-control select2" data-placeholder="Đơn vị tính">
                                 <option value=""></option>
                                 @if($donvitinh)
                                     @foreach($donvitinh as $nh)
-                                        <option value="{{ $nh['_id'] }}" @if($nh['_id'] == $id_donvitinh) selected @endif>{{ $nh['ten'] }}</option>
+                                        <option value="{{ (string)$nh['_id'] }}" @if((string)$nh['_id'] == $id_donvitinh) selected @endif>{{ $nh['ten'] }}</option>
                                     @endforeach
                                 @endif
                             </select>
@@ -83,6 +83,56 @@
 	                		<input type="text" name="ghi_chu" id="ghi_chu" value="{{ old('ghi_chu') != null ? old('ghi_chu') : $ds['ghi_chu'] }}" placeholder="Ghi chú" class="form-control" />
 	                	</div>
 	                </div>
+
+                    <div class="row form-group">
+                        <label class="control-label col-md-2 text-right p-t-10">Thuộc tính</label>
+                        <div class="col-md-10">
+                            @php
+                                $hang_chuong_trinh = old('hang_chuong_trinh') !== null ? old('hang_chuong_trinh') : ($ds['hang_chuong_trinh'] ?? false);
+                            @endphp
+                            <div class="custom-control custom-switch mt-1">
+                                <input type="checkbox" class="custom-control-input" id="hang_chuong_trinh" name="hang_chuong_trinh" value="1" {{ $hang_chuong_trinh ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="hang_chuong_trinh"><strong>Là hàng chương trình</strong></label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cấu hình Bán lẻ -->
+                    @php
+                        $cho_phep_ban_le = old('cho_phep_ban_le') !== null ? old('cho_phep_ban_le') : ($ds['cho_phep_ban_le'] ?? false);
+                        $don_vi_le = old('don_vi_le') ?? ($ds['don_vi_le'] ?? '');
+                        $ty_le_quy_doi = old('ty_le_quy_doi') ?? ($ds['ty_le_quy_doi'] ?? 1);
+                    @endphp
+                    <div class="row form-group">
+                        <label class="control-label col-md-2 text-right p-t-10">Quy đổi ĐVT</label>
+                        <div class="col-md-10">
+                            <div class="card border p-3 bg-light">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="cho_phep_ban_le" name="cho_phep_ban_le" value="1" {{ $cho_phep_ban_le ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="cho_phep_ban_le"><strong>Cho phép xả lẻ</strong></label>
+                                        </div>
+                                        <small class="text-muted">Bán số lượng nhỏ hơn đơn vị chính</small>
+                                    </div>
+                                    <div class="col-md-4" id="box-don-vi-le" style="{{ $cho_phep_ban_le ? '' : 'display:none;' }}">
+                                        <label>Đơn vị lẻ <span class="text-danger">*</span></label>
+                                        <input type="text" name="don_vi_le" id="don_vi_le" class="form-control" placeholder="VD: kg, lít, gói..." value="{{ $don_vi_le }}">
+                                        <small class="text-muted">Đơn vị khi bán lẻ</small>
+                                    </div>
+                                    <div class="col-md-5" id="box-ty-le" style="{{ $cho_phep_ban_le ? '' : 'display:none;' }}">
+                                        <label>Tỷ lệ quy đổi <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend"><span class="input-group-text">1 ĐVT chính =</span></div>
+                                            <input type="number" name="ty_le_quy_doi" id="ty_le_quy_doi" class="form-control" placeholder="50" value="{{ $ty_le_quy_doi }}" min="1" step="0.01">
+                                            <div class="input-group-append"><span class="input-group-text" id="span-don-vi-le">{{ $don_vi_le ?: 'đơn vị lẻ' }}</span></div>
+                                        </div>
+                                        <small class="text-muted">VD: 1 Bao = 50 kg</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 				</div>
 				<div class="form-actions">
                 <a href="{{ env('APP_URL') }}admin/hang-hoa" class="btn btn-light"><i class="fa fa-reply-all"></i> Trở về</a>
@@ -107,6 +157,19 @@
         	$(".select2").select2();
         	jQuery(".number").number(true, 2);
 
+            // Toggle hiển thị các field bán lẻ
+            $('#cho_phep_ban_le').on('change', function() {
+                if($(this).is(':checked')) {
+                    $('#box-don-vi-le, #box-ty-le').show();
+                } else {
+                    $('#box-don-vi-le, #box-ty-le').hide();
+                }
+            });
+
+            // Cập nhật label đơn vị lẻ
+            $('#don_vi_le').on('keyup', function() {
+                $('#span-don-vi-le').text($(this).val() || 'đơn vị lẻ');
+            });
         });
     </script>
 @endsection

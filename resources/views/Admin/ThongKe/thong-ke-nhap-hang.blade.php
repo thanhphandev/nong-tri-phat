@@ -3,6 +3,34 @@
 @section('css')
     <link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow: auto;
+        }
+        
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .table-sticky-header thead th {
+            position: sticky;
+            top: 0;
+            z-index: 15;
+            background-color: #343a40 !important;
+            color: white;
+        }
+        
+        .table-sticky-header thead tr.summary-row td {
+            position: sticky;
+            top: 40px; /* Sẽ cập nhật bằng JS để chuẩn xác 100% */
+            z-index: 14;
+            background-color: #e9ecef !important;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="card-box">
@@ -34,8 +62,10 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-2">
-                <button type="submit" name="submit" value="OK" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+            <div class="col-12 col-md-3">
+                <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+                <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
+                <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
             </div>
         </div>
         <div class="row mb-3">
@@ -55,11 +85,11 @@
 
 @if($tu_ngay && $den_ngay)
 <div class="card-box">
-    <!-- Statistics Cards -->
     <h5 class="mb-3 text-muted">
         <i class="fas fa-chart-bar"></i> Tổng hợp 
         <small class="text-muted">(Đã trừ trả hàng)</small>
     </h5>
+    <div id="stats-cards-nh">
     <div class="row">
         <div class="col-md-6 col-xl-3">
             <div class="card-box widget-flat border-info bg-info text-white" title="Tổng nhập: {{ number_format($tong_gia_tri_nhap_goc,0,",",".") }} - Trả NCC: {{ number_format($tong_gia_tri_tra,0,",",".") }}">
@@ -90,6 +120,47 @@
             </div>
         </div>
     </div>
+    </div>
+
+    <!-- Toggle View Buttons -->
+    <div class="text-right mb-3">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-primary view-toggle-nh active" data-target="#stats-cards-nh"><i class="fas fa-th-large"></i> Thẻ tổng hợp</button>
+            <button type="button" class="btn btn-sm btn-outline-primary view-toggle-nh" data-target="#stats-charts-nh"><i class="fas fa-chart-bar"></i> Biểu đồ phân tích</button>
+        </div>
+    </div>
+
+    <!-- Charts Section (Hidden by default) -->
+    <div id="stats-charts-nh" style="display:none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-bar mr-1"></i> So sánh Nhập - Trả - Nhập thực</h5>
+                    <div style="position:relative; height:350px;">
+                        <canvas id="chartImport"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-pie mr-1"></i> Đã chi vs Còn nợ NCC</h5>
+                    <div style="position:relative; height:300px;">
+                        <canvas id="chartPaymentNCC"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-chart-pie mr-1"></i> Nhập vs Trả hàng</h5>
+                    <div style="position:relative; height:300px;">
+                        <canvas id="chartImportReturn"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <hr>
     
@@ -110,20 +181,30 @@
         <!-- Tab Phiếu nhập hàng -->
         <div class="tab-pane active" id="tab-nhap-hang">
             @if(count($danhsach) > 0)
-                <div class="table-responsive mt-3">
+                <div class="table-responsive table-sticky-header mt-3">
                     <table class="table table-border table-bordered table-striped table-hovered table-sm">
                         <thead class="thead-dark">
                             <tr>
-                                <th>STT</th>
-                                <th>Mã phiếu</th>
-                                <th>Số chứng từ</th>
-                                <th>Ngày nhập</th>
-                                <th>Ngày giao</th>
+                                <th class="text-center">STT</th>
+                                <th class="text-center">Mã phiếu</th>
+                                <th class="text-center">Số chứng từ</th>
+                                <th class="text-center" style="white-space: nowrap">Ngày nhập</th>
+                                <th class="text-center" style="white-space: nowrap">Ngày giao</th>
                                 <th>Nhà cung cấp</th>
                                 <th>SĐT</th>
-                                <th>SL SP</th>
-                                <th>Tổng tiền</th>
+                                <th class="text-center" style="white-space: nowrap">SL SP</th>
+                                <th class="text-right" style="white-space: nowrap">Tổng tiền</th>
+                                <th class="text-right" style="white-space: nowrap">Thanh toán</th>
+                                <th class="text-right" style="white-space: nowrap">Nợ</th>
                                 <th>Ghi chú</th>
+                            </tr>
+                            <tr class="bg-light text-dark font-weight-bold summary-row">
+                                <td colspan="7" class="text-right text-uppercase">TỔNG CỘNG:</td>
+                                <td class="text-center text-danger">{{ $so_san_pham_nhap }}</td>
+                                <td class="text-right text-primary"><b>{{ number_format($tong_gia_tri_nhap_goc, 0, ",", ".") }}</b></td>
+                                <td class="text-right text-success"><b>{{ number_format($tong_da_thanh_toan, 0, ",", ".") }}</b></td>
+                                <td class="text-right text-danger"><b>{{ number_format($tong_con_no, 0, ",", ".") }}</b></td>
+                                <td></td>
                             </tr>
                         </thead>
                         <tbody>
@@ -135,6 +216,9 @@
                                             $so_luong += $hh['so_luong'];
                                         }
                                     }
+                                    $tong_tien = $ds['tong_thanh_tien'] ?? $ds['thanh_tien'] ?? 0;
+                                    $da_thanh_toan = isset($nhap_payments_map[(string)$ds['_id']]) ? $nhap_payments_map[(string)$ds['_id']] : 0;
+                                    $con_no = $tong_tien - $da_thanh_toan;
                                 @endphp
                                 <tr>
                                     <td class="text-center">{{ $key + 1 }}</td>
@@ -145,19 +229,13 @@
                                     <td><b>{{ $ds['ten_ncc'] }}</b></td>
                                     <td>{{ $ds['dien_thoai'] ?? '' }}</td>
                                     <td class="text-center">{{ number_format($so_luong,0,",",".") }}</td>
-                                    <td class="text-right"><b>{{ number_format($ds['tong_thanh_tien'] ?? $ds['thanh_tien'] ?? 0,0,",",".") }}</b></td>
+                                    <td class="text-right"><b>{{ number_format($tong_tien,0,",",".") }}</b></td>
+                                    <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
+                                    <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
-                        <tfoot class="bg-light font-weight-bold">
-                            <tr>
-                                <td colspan="7" class="text-right">TỔNG CỘNG:</td>
-                                <td class="text-center text-danger">{{ $so_san_pham_nhap }}</td>
-                                <td class="text-right text-primary">{{ number_format($tong_gia_tri_nhap_goc, 0, ",", ".") }}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             @else
@@ -227,6 +305,7 @@
 @section('js')
     <script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
     <script src="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script type="text/javascript">
         $(document).ready(function(){
             $(".select2").select2();
@@ -239,6 +318,167 @@
                 $("#den_ngay").val(end);
                 $("#FilterForm").submit();
             });
+
+            // --- Toggle View ---
+            $('.view-toggle-nh').on('click', function(){
+                $('.view-toggle-nh').removeClass('active btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('active btn-primary');
+                var target = $(this).data('target');
+                if(target === '#stats-charts-nh'){
+                    $('#stats-cards-nh').hide();
+                    $('#stats-charts-nh').show();
+                    initChartsNH();
+                } else {
+                    $('#stats-charts-nh').hide();
+                    $('#stats-cards-nh').show();
+                }
+            });
+
+            // Adjust sticky summary row top dynamically 
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th').outerHeight();
+                if (headerHeight) {
+                    $('.table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+                }
+            }
+            // Run on load and window resize
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
+            
+            // Re-run after switching tabs just in case table visibility changes height calculations
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                adjustStickySummary();
+            });
+
+            var chartsNHInitialized = false;
+            function initChartsNH() {
+                if(chartsNHInitialized) return;
+                chartsNHInitialized = true;
+
+                var tongNhapGoc = {{ $tong_gia_tri_nhap_goc ?? 0 }};
+                var tongTra = {{ $tong_gia_tri_tra ?? 0 }};
+                var tongNhapThuc = {{ $tong_gia_tri_nhap ?? 0 }};
+                var daThanhToan = {{ $tong_da_thanh_toan ?? 0 }};
+                var conNo = {{ $tong_con_no ?? 0 }};
+                var soSPNhap = {{ $so_san_pham_nhap ?? 0 }};
+                var soSPTra = {{ $so_san_pham_tra ?? 0 }};
+
+                // Chart 1: Import comparison (Bar)
+                new Chart(document.getElementById('chartImport'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Tổng nhập gốc', 'Trả NCC', 'Nhập thực', 'Đã chi NCC', 'Còn nợ NCC'],
+                        datasets: [{
+                            label: 'Số tiền (VNĐ)',
+                            data: [tongNhapGoc, tongTra, tongNhapThuc, daThanhToan, Math.max(conNo, 0)],
+                            backgroundColor: [
+                                'rgba(23,162,184,0.8)',
+                                'rgba(255,193,7,0.8)',
+                                'rgba(0,123,255,0.8)',
+                                'rgba(40,167,69,0.8)',
+                                'rgba(220,53,69,0.8)'
+                            ],
+                            borderWidth: 0,
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return ctx.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(v) {
+                                        if(v >= 1000000) return (v/1000000).toFixed(1) + 'tr';
+                                        if(v >= 1000) return (v/1000).toFixed(0) + 'k';
+                                        return v;
+                                    },
+                                    font: { size: 13 }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: {
+                                ticks: { font: { size: 13, weight: 'bold' } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 2: Payment vs Debt (Doughnut)
+                new Chart(document.getElementById('chartPaymentNCC'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Đã chi cho NCC', 'Còn nợ NCC'],
+                        datasets: [{
+                            data: [daThanhToan, Math.max(conNo, 0)],
+                            backgroundColor: ['rgba(40,167,69,0.85)', 'rgba(220,53,69,0.85)'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, font: { size: 13 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                                        var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 3: Import vs Return (Doughnut)
+                new Chart(document.getElementById('chartImportReturn'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Giá trị nhập', 'Trả NCC'],
+                        datasets: [{
+                            data: [tongNhapGoc, tongTra],
+                            backgroundColor: ['rgba(23,162,184,0.85)', 'rgba(255,193,7,0.85)'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, font: { size: 13 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                                        var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         });
     </script>
 @endsection

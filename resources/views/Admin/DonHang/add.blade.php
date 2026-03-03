@@ -5,17 +5,63 @@
     <link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<div class="card-box">
-	<div class="row">
-    	<div class="col-12">
-        	<h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/don-hang" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trờ về</a> Thêm Đơn hàng</h3>
-        	 <form action="{{ env('APP_URL') }}admin/don-hang/create" method="post" id="dinhkemform">
-                {{ csrf_field() }}
+<form action="{{ env('APP_URL') }}admin/don-hang/create" method="post" id="dinhkemform">
+{{ csrf_field() }}
+<div class="row">
+    <!-- Left Column: Products and Cart -->
+    <div class="col-12 col-lg-8">
+        <div class="card-box">
+            <h4 class="header-title mb-3">Thông tin Hàng hóa</h4>
+            <div class="row form-group">
+                <div class="col-12 col-md-8 mb-2 mb-md-0">
+                    <select name="id_hanghoa" id="id_hanghoa" class="form-control" data-placeholder="Tìm mặt hàng (F3, Mã, Tên...)"></select>
+                    <div class="mt-2">
+                        <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px; font-size: 13px; display: none;">Thông tin hàng hóa:</span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="input-group">
+                        <input type="number" name="so_luong" id="so_luong" value="1" min="0.01" step="0.01" placeholder="SL" class="form-control" style="font-size: 16px; font-weight: bold; text-align: center;">
+                        <div class="input-group-append">
+                            <button id="addCart" class="btn btn-info waves-effect waves-light" type="button"><i class="fas fa-cart-plus"></i> Thêm</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="mt-3">Giỏ hàng</h5>
+            <div class="table-responsive">
+                <input type="hidden" name="id_khachhang_cart" id="id_khachhang_cart" value="" placeholder="">
+                <table id="HangHoaList" class="table table-bordered table-hover table-sm mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th width="10%">Mã</th>
+                            <th width="35%">Tên Hàng hóa</th>
+                            <th width="10%">SL</th>
+                            <th width="15%">Đơn giá</th>
+                            <th width="10%">%</th>
+                            <th width="15%">Thành tiền</th>
+                            <th width="5%" class="text-center">#</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Customer and Payment -->
+    <div class="col-12 col-lg-4">
+        <div class="card-box" style="background-color: #f4f8fb; border: 1px solid #e3eaef;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="header-title m-0">Thanh toán</h4>
+                <a href="{{ env('APP_URL') }}admin/don-hang" class="btn btn-secondary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a>
+            </div>
+            
                 <div class="form-body">
-                    <hr />
                     @if($errors->any())
-                        <div class="alert alert-success">
-                            <ul>
+                        <div class="alert alert-danger">
+                            <ul class="mb-0 pl-3">
                                 @foreach ($errors->all() as $error)
                                     <li>{{ $error }}</li>
                                 @endforeach
@@ -23,84 +69,55 @@
                         </div>
                     @endif
                 </div>
-                <div class="row form-group">
-                	<label class="control-label col-md-2 text-right p-t-10">Khách hàng</label>
-                	<div class="col-12 col-md-9">
-                        <div class="input-group">
-                    		<select name="id_khachhang" id="id_khachhang" class="form-control select2" data-placeholder="Chọn khách hàng">
-                    			<option value=""></option>
+
+                <!-- Customer Selection -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold">Khách hàng <span class="text-danger">*</span></label>
+                    <div class="d-flex">
+                        <button data-toggle="modal" data-target="#modalKhachHang" class="btn btn-primary waves-effect waves-light ml-1" type="button" style="height: 38px;"><i class="fas fa-user-plus"></i></button>
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <select name="id_khachhang" id="id_khachhang" class="form-control select2" data-placeholder="Chọn khách hàng" style="width: 100%;">
+                                <option value=""></option>
                                 @if($khachhang)
                                     @foreach($khachhang as $kh)
                                     @php
                                         $id_khachhang = App\Http\Controllers\ObjectController::ObjectId($kh['_id']);
-                                        $congno_sum = App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-                                        $thanhtoan_sum = App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
+                                        $congno_sum = \App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
+                                        $thanhtoan_sum = \App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
                                         $nocu = $congno_sum - $thanhtoan_sum;
                                     @endphp
-                                        <option value="{{ $kh['_id'] }}" @if($kh['_id'] == $id_khachhang) selected @endif>{{ $kh['dien_thoai'] }} - {{ $kh['ho_ten'] }} [{{ $loai_khach_hang[$kh['loai_khach_hang']] }}] @if($nocu > 0)- [Nợ cũ: {{ number_format($nocu,0,",",".") }}] @endif</option>
+                                        <option value="{{ $kh['_id'] }}" @if($kh['_id'] == $id_khachhang) selected @endif>{{ $kh['dien_thoai'] }} - {{ $kh['ho_ten'] }} [{{ $loai_khach_hang[$kh['loai_khach_hang']] }}] @if($nocu > 0)- [Nợ: {{ number_format($nocu,0,",",".") }}] @endif</option>
                                     @endforeach
                                 @endif
-                    		</select>
-                            <div class="input-group-append">
-                                <button data-toggle="modal" data-target="#modalKhachHang" class="btn btn-primary waves-effect waves-light" type="button"><i class="fas fa-user-plus"></i></button>
-                            </div>
-                        </div>
-                	</div>
-                </div>
-                <div class="row form-group">
-                    <label class="control-label col-md-2 text-right p-t-10">Hàng hóa</label>
-                    <div class="col-12 col-md-6">
-                        <select name="id_hanghoa" id="id_hanghoa" class="form-control" data-placeholder="Tìm mặt hàng (F3, Mã, Tên...)"></select>
-                        <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px 5px 10px;font-size: 13px;margin-top:5px;">Thông tin hàng hóa:</span>
-                    </div>
-                    <label class="control-label col-md-1 text-right p-t-10">Số lượng</label>
-                    <div class="col-12 col-md-2">
-                        <div class="input-group">
-                            <input type="number" name="so_luong" id="so_luong" value="1" min="1" placeholder="Số lượng" class="form-control">
-                            <div class="input-group-append">
-                                <button id="addCart" class="btn btn-info waves-effect waves-light" type="button"><i class="fas fa-cart-plus"></i></button>
-                            </div>
+                            </select>
                         </div>
                     </div>
                 </div>
-                <h2>Danh sách Hàng hóa trong đơn hàng</h2>
-                <input type="hidden" name="id_khachhang_cart" id="id_khachhang_cart" value="" placeholder="">
-                <table id="HangHoaList" class="table table-border table-bordered table-hovered table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>Mã</th>
-                            <th>Tên Hàng hóa</th>
-                            <th>Số lượng</th>
-                            <th>Đơn giá</th>
-                            <th>%</th>
-                            <th>Thành tiền</th>
-                            <th>#</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                <div class="row">
-                    <div class="col-12 col-md-12">
-                        <input type="hidden" name="tong-thanh-tien" id="tong-thanh-tien" value="0" placeholder="">
-                        <input type="hidden" name="tong-gia-von" id="tong-gia-von" value="0" placeholder="">
-                        <input type="hidden" name="tong-loi-nhuan" id="tong-loi-nhuan" value="0" placeholder="">
-                        <h3 style="text-align:right;">
-                            <span class="text-muted" style="font-size: 14px;">
-                                <i class="fas fa-box"></i> Tổng vốn: <span id="tong-gia-von-show" class="font-weight-bold">0</span>
-                            </span>
-                            &nbsp;&nbsp;|&nbsp;&nbsp;
-                            <span id="loi-nhuan-container" style="font-size: 14px;">
-                                <i class="fas fa-chart-line"></i> Lợi nhuận DK: <span id="tong-loi-nhuan-show" class="font-weight-bold">0</span>
-                            </span>
-                            &nbsp;&nbsp;|&nbsp;&nbsp;
-                            Tổng thành tiền: <span id="tong-thanh-tien-show" class="text-primary font-weight-bold">0</span>
-                        </h3>
-                    </div>
+
+                <hr>
+
+                <!-- Totals -->
+                <input type="hidden" name="tong-thanh-tien" id="tong-thanh-tien" value="0" placeholder="">
+                <input type="hidden" name="tong-gia-von" id="tong-gia-von" value="0" placeholder="">
+                <input type="hidden" name="tong-loi-nhuan" id="tong-loi-nhuan" value="0" placeholder="">
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted"><i class="fas fa-box"></i> Tổng vốn:</span>
+                    <span id="tong-gia-von-show" class="font-weight-bold text-muted">0</span>
                 </div>
-                <div class="row form-group">
-                    <div class="col-12 col-md-6"></div>
-                    <label class="control-label col-md-2 text-right p-t-10">Hình thức thanh toán</label>
-                    <div class="col-12 col-md-4">
+                <div class="d-flex justify-content-between mb-3" id="loi-nhuan-container">
+                    <span class="text-muted"><i class="fas fa-chart-line"></i> Lợi nhuận DK:</span>
+                    <span id="tong-loi-nhuan-show" class="font-weight-bold text-success">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center p-2 mb-3 bg-white rounded border">
+                    <h5 class="m-0 font-weight-bold">TỔNG TIỀN:</h5>
+                    <h4 class="m-0 text-primary font-weight-bold" id="tong-thanh-tien-show">0</h4>
+                </div>
+
+                <!-- Payment Method and Amount -->
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold">Hình thức thanh toán</label>
+                    <div>
                         <div class="custom-control custom-radio custom-control-inline">
                             <input type="radio" id="tien_mat" name="hinh_thuc_thanh_toan" class="custom-control-input" value="tien_mat" checked>
                             <label class="custom-control-label" for="tien_mat">Tiền mặt</label>
@@ -111,36 +128,39 @@
                         </div>
                     </div>
                 </div>
-                <div class="row form-group">
-                    <div class="col-12 col-md-6"></div>
-                    <label class="control-label col-md-2 text-right p-t-10">Thanh toán</label>
-                    <div class="col-12 col-md-4">
-                        <input type="text" name="thanh-toan" id="thanh-toan" value="0" placeholder="Khách hàng thanh toán" class="number form-control form-control-sm" style="text-align:right">
-                    </div>
-                </div>
-                <div class="row form-group">
-                    <div class="col-12 col-md-6"></div>
-                    <label class="control-label col-md-2 text-right p-t-10">Ghi chú</label>
-                    <div class="col-12 col-md-4">
-                        <textarea name="ghi_chu" id="ghi_chu" class="form-control form-control-sm" rows="3" placeholder="Nhập ghi chú cho đơn hàng"></textarea>
-                    </div>
-                </div>
-                <div class="row form-group">
-                    <div class="col-12 col-6">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
-                            <label class="custom-control-label" for="InHoaDonCheck">In hóa đơn</label>
+
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold">Khách thanh toán đợt này</label>
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text"><i class="fas fa-money-bill-wave"></i></span>
                         </div>
+                        <input type="text" name="thanh-toan" id="thanh-toan" value="0" placeholder="0" class="number form-control form-control-lg text-right text-success font-weight-bold">
                     </div>
                 </div>
-                <div class="form-actions">
-                    <a href="{{ env('APP_URL') }}admin/loai-hang" class="btn btn-light"><i class="fa fa-reply-all"></i> Trở về</a>
-                    <button type="submit" id="updateCart" class="btn btn-info" onclick="return confirm('Chắc chắn tạo Đơn hàng?');"> <i class="fa fa-check"></i> Cập nhật Đơn hàng</button>
+
+                <!-- Notes -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold">Ghi chú</label>
+                    <textarea name="ghi_chu" id="ghi_chu" class="form-control" rows="2" placeholder="Ghi chú đơn hàng..."></textarea>
                 </div>
-            </form>
-    	</div>
+
+                <!-- Invoice Checkbox -->
+                <div class="form-group mb-3">
+                    <div class="custom-control custom-checkbox custom-control-lg">
+                        <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
+                        <label class="custom-control-label font-weight-bold text-primary" for="InHoaDonCheck" style="padding-top: 2px;">In hóa đơn sau khi lưu</label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold" onclick="return confirm('Chắc chắn tạo Đơn hàng?');">
+                    <i class="fas fa-check-circle mr-1"></i> HOÀN TẤT ĐƠN HÀNG
+                </button>
+        </div>
     </div>
 </div>
+</form>
 <div class="modal fade" id="modalKhachHang" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-lg" style="min-width:90%;">
         <div class="modal-content">

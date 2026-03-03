@@ -7,6 +7,10 @@ use App\Http\Controllers\ObjectController;
 use App\Http\Controllers\LogController;
 use App\Models\NhaCungCap;
 use App\Models\CongNoNCC;
+use App\Models\NhapHang;
+use App\Models\TraHangNCC;
+use Carbon\Carbon;
+use PDF;
 use Validator;use Session;
 use Config;
 class CongNoNCCController extends Controller
@@ -63,6 +67,7 @@ class CongNoNCCController extends Controller
         $supplier_detail = null;
         $transaction_history = [];
         $product_history = [];
+        $don_no_list = [];
         $congno_sum = 0;
         $thanhtoan_sum = 0;
         $start_date = null; $end_date = null;
@@ -134,40 +139,55 @@ class CongNoNCCController extends Controller
                     $products[(string)$hh->_id] = $hh;
                 }
             }
+            // --- Lấy danh sách Phiếu Nhập Còn Nợ ---
+            $don_no_list = [];
+            $nh_ids = $import_orders->pluck('_id')->toArray();
+            $nh_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $nh_ids);
             
-            foreach($import_orders as $order) {
-                if(isset($order['hanghoa']) && is_array($order['hanghoa'])) {
-                    foreach($order['hanghoa'] as $item) {
-                        // Lookup don_vi_tinh from id_donvitinh
-                        $id_dvt = $item['id_donvitinh'] ?? null;
-                        if(!$id_dvt && isset($item['id_hanghoa'])) {
-                            // Fallback: get from HangHoa
-                            $id_hh = (string)$item['id_hanghoa'];
-                            if(isset($products[$id_hh]) && isset($products[$id_hh]['id_donvitinh'])) {
-                                $id_dvt = $products[$id_hh]['id_donvitinh'];
-                            }
-                        }
-                        $ten_dvt = isset($units[(string)$id_dvt]) ? $units[(string)$id_dvt] : '-';
-                        
-                        $product_history[] = [
-                            'ngay_nhap' => $order['ngay_nhap'],
-                            'ma_nhap_hang' => $order['ma_nhap_hang'] ?? '',
-                            'id_nhap_hang' => $order['_id'],
-                            'ma_sp' => $item['ma'] ?? '',
-                            'ten_sp' => $item['ten'] ?? '',
-                            'so_luong' => $item['so_luong'] ?? 0,
-                            'don_gia' => $item['don_gia'] ?? 0,
-                            'thanh_tien' => $item['thanh_tien'] ?? 0,
-                            'don_vi_tinh' => $ten_dvt
-                        ];
-                    }
+            $payments_map = [];
+            if(count($nh_ids) > 0) {
+                $raw_payments = CongNoNCC::raw(function($collection) use ($nh_ids) {
+                    return $collection->aggregate([
+                        [
+                            '$match' => [
+                                'id_nhaphang' => ['$in' => $nh_ids],
+                                'loai_cong_no' => 1
+                            ]
+                        ],
+                        [
+                            '$group' => [
+                                '_id' => '$id_nhaphang',
+                                'total_paid' => ['$sum' => '$tong_thanh_tien']
+                            ]
+                        ]
+                    ]);
+                });
+                
+                foreach($raw_payments as $p) {
+                    $payments_map[(string)$p['_id']] = $p['total_paid'];
+                }
+            }
+
+            foreach($import_orders as $nh) {
+                $da_tt = isset($payments_map[(string)$nh->_id]) ? $payments_map[(string)$nh->_id] : 0;
+                $con_no = $nh->tong_thanh_tien - $da_tt;
+                if($con_no > 0) {
+                    $don_no_list[] = [
+                        'id_nhap_hang' => (string)$nh->_id,
+                        'ngay_nhap' => $nh->ngay_nhap,
+                        'ma_nhap_hang' => $nh->ma_nhap_hang,
+                        'so_chung_tu' => $nh->so_chung_tu ?? '',
+                        'tong_thanh_tien' => $nh->tong_thanh_tien,
+                        'da_thanh_toan' => $da_tt,
+                        'con_no' => $con_no
+                    ];
                 }
             }
         }
 
         return view('Admin.CongNoNCC.list')->with(compact(
             'id_nhacungcap', 'nhacungcap_list', 'keywords', 'supplier_detail',
-            'transaction_history', 'product_history', 
+            'transaction_history', 'don_no_list', 
             'congno_sum', 'thanhtoan_sum', 'from_date', 'to_date'
         ));
     }
@@ -313,7 +333,7 @@ class CongNoNCCController extends Controller
             $congno->tong_thanh_tien = $so_tien_con_lai;
             $congno->ngay_gio = ObjectController::setDate();
             $congno->loai_cong_no = 1;
-            $congno->ghi_chu = ($data['ghi_chu'] ?? 'Thanh toán') . ' - Tiền dư/ứng trước';
+            $congno->ghi_chu = ($data['ghi_chu'] ?? '');
             $congno->id_user = ObjectController::ObjectId($id_user);
             $congno->save();
             
@@ -334,6 +354,142 @@ class CongNoNCCController extends Controller
         }
         Session::flash('msg', $msg);
         return redirect($data['url']);
+    }
+
+    public function exportPdfNCC(Request $request)
+    {
+        $id_nhacungcap = $request->id_nhacungcap;
+        $fromDate = $request->from_date ? Carbon::createFromFormat('d/m/Y', $request->from_date)->startOfDay() : null;
+        $toDate = $request->to_date ? Carbon::createFromFormat('d/m/Y', $request->to_date)->endOfDay() : Carbon::now()->endOfDay();
+
+        $nhaCungCap = NhaCungCap::findOrFail($id_nhacungcap);
+        $id_nhacungcap_mongo = ObjectController::ObjectId($id_nhacungcap);
+
+        // 1. TÍNH NỢ ĐẦU KỲ
+        $noDauKy = isset($nhaCungCap->no_dau_ky) ? (float)$nhaCungCap->no_dau_ky : 0; // Lấy số dư nợ gốc ban đầu hệ thống
+        
+        if ($fromDate) {
+            $from_date_mongo = new \MongoDB\BSON\UTCDateTime($fromDate->getTimestamp() * 1000);
+            
+            // Tổng nợ tăng (0) và giảm (1) trước thời điểm lọc
+            $tongTangCu = CongNoNCC::where('id_nhacungcap', $id_nhacungcap_mongo)
+                                ->where('loai_cong_no', 0)
+                                ->where('ngay_gio', '<', $from_date_mongo)
+                                ->sum('tong_thanh_tien');
+    
+            $tongGiamCu = CongNoNCC::where('id_nhacungcap', $id_nhacungcap_mongo)
+                                ->where('loai_cong_no', 1)
+                                ->where('ngay_gio', '<', $from_date_mongo)
+                                ->sum('tong_thanh_tien');
+    
+            $noDauKy += ($tongTangCu - $tongGiamCu);
+        }
+    
+        // 2. LẤY PHÁT SINH TRONG KỲ
+        $start_mongo = $fromDate ? new \MongoDB\BSON\UTCDateTime($fromDate->getTimestamp() * 1000) : null;
+        $end_mongo = new \MongoDB\BSON\UTCDateTime($toDate->getTimestamp() * 1000);
+    
+        $phatSinh = CongNoNCC::where('id_nhacungcap', $id_nhacungcap_mongo)
+                            ->where('ngay_gio', '<=', $end_mongo)
+                            ->when($start_mongo, function($q) use ($start_mongo) {
+                                return $q->where('ngay_gio', '>=', $start_mongo);
+                            })
+                            ->get();
+    
+        // Lấy tất cả ID đơn hàng và ID phiếu trả hàng để lấy chi tiết
+        $nhapHangIds = $phatSinh->pluck('id_nhaphang')->filter()->map(function($id) { return (string)$id; })->unique()->toArray();
+        $traHangIds = $phatSinh->pluck('id_trahangncc')->filter()->map(function($id) { return (string)$id; })->unique()->toArray();
+
+        $nhapHangObjectIds = array_map(function($id) { return ObjectController::ObjectId($id); }, $nhapHangIds);
+        $traHangObjectIds = array_map(function($id) { return ObjectController::ObjectId($id); }, $traHangIds);
+    
+        $dataNhapHang = NhapHang::whereIn('_id', $nhapHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
+        $dataTraHang = \App\Models\TraHangNCC::whereIn('_id', $traHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
+    
+        $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) {
+            return $item->ngay_gio->toDateTime()->getTimestamp();
+        });
+
+        $groupedPhatSinh = [];
+        foreach ($phatSinhTrongKyRaw as $item) {
+            $key = '';
+            if ($item->id_nhaphang) {
+                $key = 'nh_' . (string)$item->id_nhaphang;
+            } else {
+                $key = 'cn_' . (string)$item->_id;
+            }
+            
+            if (!isset($groupedPhatSinh[$key])) {
+                $groupedPhatSinh[$key] = clone $item;
+                $groupedPhatSinh[$key]->tien_hang = 0;
+                $groupedPhatSinh[$key]->thanh_toan = 0;
+            }
+
+            if ($item->loai_cong_no == 0) {
+                $groupedPhatSinh[$key]->tien_hang += $item->tong_thanh_tien;
+            } else {
+                $groupedPhatSinh[$key]->thanh_toan += $item->tong_thanh_tien;
+            }
+        }
+
+        $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
+
+        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $units) {
+            $item->time = $item->ngay_gio;
+            $item->timestamp_sort = $item->ngay_gio->toDateTime()->getTimestamp();
+            $item->details = [];
+    
+            // Nếu là đơn hàng bán (Tăng nợ)
+            if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
+                $details = $dataNhapHang[(string)$item->id_nhaphang]->hanghoa ?? [];
+                
+                $item->details = collect($details)->map(function($ct) use ($units) {
+                    if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) {
+                        $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le'];
+                    } else {
+                        $id_dvt = $ct['id_donvitinh'] ?? null;
+                        $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? ''));
+                    }
+                    return $ct;
+                })->toArray();
+
+                $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
+                $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
+            } 
+            // Nếu là phiếu trả hàng (Giảm nợ)
+            elseif (isset($item->id_trahangncc) && $item->id_trahangncc && isset($dataTraHang[(string)$item->id_trahangncc])) {
+                $details = $dataTraHang[(string)$item->id_trahangncc]->hanghoa ?? [];
+
+                $item->details = collect($details)->map(function($ct) use ($units) {
+                    if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) {
+                        $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le'];
+                    } else {
+                        $id_dvt = $ct['id_donvitinh'] ?? null;
+                        $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? ''));
+                    }
+                    return $ct;
+                })->toArray();
+
+                $item->ma_phieu = $dataTraHang[(string)$item->id_trahangncc]->ma_tra_hang;
+            }
+    
+            return $item;
+        })->sortBy('timestamp_sort')->values();
+
+        // 3. RENDER RA VIEW
+        $pdf = PDF::loadView('Admin.CongNoNCC.export_pdf', [
+            'nhaCungCap' => $nhaCungCap,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'noDauKy' => $noDauKy,
+            'phatSinhTrongKy' => $phatSinhTrongKy
+        ]);
+
+        $pdf->setPaper('a4', 'landscape');
+        
+        $supplierCode = isset($nhaCungCap->ma) ? $nhaCungCap->ma : 'NCC'.substr($id_nhacungcap, -5);
+
+        return $pdf->stream('Bao_Cao_Cong_No_NCC_'.$supplierCode.'.pdf');
     }
 
     static function check_NhaCungCap($id = ''){

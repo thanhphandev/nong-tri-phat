@@ -74,15 +74,23 @@
         			<tr>
         				<td class="text-center">{{ $key+1 }}</td>
                         <td>{{ $ds['ma'] }}</td>
-        				<td>{{ $ds['ten'] }}</td>
+        				<td>
+                            {{ $ds['ten'] }}
+                            @if(!empty($ds['hang_chuong_trinh']))
+                                <br><small class="badge badge-info mt-1" title="Khuyến mãi">Hàng chương trình</small>
+                            @endif
+                        </td>
                         <td class="text-center">
                             {{ $units[(string)$ds['id_donvitinh']] ?? '' }}
+                            @if(!empty($ds['cho_phep_ban_le']) && !empty($ds['don_vi_le']))
+                                <br><small class="badge badge-success" title="Có thể xả lẻ">{{ $ds['don_vi_le'] }} ({{ $ds['ty_le_quy_doi'] ?? 1 }})</small>
+                            @endif
                         </td>
                         <td class="text-right">{{ number_format($ds['gia_von'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_si'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_le'], 0,",",".") }}</td>
                         <td class="text-right">
-                             {{ number_format($ds['so_luong_ton'],0,",",".") }}
+                             {{ number_format($ds['so_luong_ton'],2,",",".") }}
                         </td>
 
                         {{-- <td class="text-right">0</td> --}}

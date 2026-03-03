@@ -9,9 +9,11 @@ use App\Models\HangHoa;
 use App\Models\NhaCungCap;
 use App\Models\CongNoNCC;
 use App\Models\DonViTinh;
+use App\Traits\CodeGeneratorTrait;
 use Validator;use Session;
 class NhapHangController extends Controller
 {
+    use CodeGeneratorTrait;
     //
     function list(Request $request){
         $keywords = $request->input('keywords');
@@ -31,7 +33,9 @@ class NhapHangController extends Controller
             });
         }
         
-        $danhsach = $query->orderBy('ngay_nhap', 'desc')->paginate(30);
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        $danhsach = $query->orderBy('ngay_nhap', 'desc')->paginate($per_page);
         
         // Calculate Paid Amount for each item
         $ids = $danhsach->pluck('_id')->toArray();
@@ -79,7 +83,7 @@ class NhapHangController extends Controller
 
     	$hanghoa = HangHoa::All();
     	$nhacungcap = NhaCungCap::orderBy('ten', 'asc')->get();
-    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc', 'trang_thai_no'));
+    	return view('Admin.NhapHang.list')->with(compact('danhsach', 'hanghoa', 'keywords', 'nhacungcap', 'id_ncc', 'trang_thai_no', 'limit'));
     }
 
     function add(){
@@ -135,25 +139,39 @@ class NhapHangController extends Controller
 
     function create(Request $request){
         $data = $request->all();
-    	$validator = Validator::make($request->all(), [
+        
+        // Use id_nhacungcap if id_nhacungcap_cart is empty
+        $id_nhacungcap_cart = isset($data['id_nhacungcap_cart']) && $data['id_nhacungcap_cart'] ? $data['id_nhacungcap_cart'] : (isset($data['id_nhacungcap']) ? $data['id_nhacungcap'] : null);
+        if ($id_nhacungcap_cart) {
+            $data['id_nhacungcap_cart'] = $id_nhacungcap_cart;
+        }
+
+    	$validator = Validator::make($data, [
             'so_chung_tu' => 'nullable',
             'id_nhacungcap_cart' => 'required',
             'id_hanghoa_cart' => 'required',
             'so_luong_cart' => 'required'
+        ], [
+            'id_nhacungcap_cart.required' => 'Vui lòng chọn nhà cung cấp.',
+            'id_hanghoa_cart.required' => 'Giỏ hàng trống. Vui lòng thêm hàng hóa vào giỏ.'
         ]);
         if ($validator->fails()) {
-            Session::flash('msg', 'Có lỗi xảy ra, không thể nhập hàng');
+            Session::flash('msg', 'Có lỗi xảy ra, không thể tạo phiếu');
             return redirect(env('APP_URL') .'admin/nhap-hang/add')->withErrors($validator)->withInput();
         }
         $arr_hanghoa = array();
         $id = ObjectController::Id();
-        $ma_nhap_hang = strtoupper(uniqid());
+        
+        $ncc = NhaCungCap::find($data['id_nhacungcap_cart']);
+        $partnerId = isset($ncc['ma']) && $ncc['ma'] ? $ncc['ma'] : 'NCC' . substr($ncc['_id'], -5);
+        $ma_nhap_hang = $this->generateOrderCode('NH', $partnerId);
+        
         $ngay_nhap = ObjectController::setDate();
 
         if($data['id_hanghoa_cart']){
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
-                $so_luong = intval($data['so_luong_cart'][$key]);
+                $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
                 $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
@@ -202,7 +220,7 @@ class NhapHangController extends Controller
                     // Recalculate Total Stock from Batches
                     $total_stock = 0;
                     foreach($current_batches as $b){
-                         $total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                         $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                     }
                     $hanghoa_update->so_luong_ton = $total_stock;
                     $hanghoa_update->save();
@@ -212,7 +230,6 @@ class NhapHangController extends Controller
 
         
         $id_user = $request->session()->get('user._id');
-        $ncc = NhaCungCap::find($data['id_nhacungcap_cart']);
         $db = new NhapHang();
         $db->_id = $id;
         $db->ma_nhap_hang = $ma_nhap_hang;
@@ -317,7 +334,7 @@ class NhapHangController extends Controller
                          // Recalculate Stock
                          $total_stock = 0;
                          foreach($new_batches as $b){
-                             $total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                             $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                          }
                          $hh->so_luong_ton = $total_stock;
                          $hh->save();
@@ -371,15 +388,20 @@ class NhapHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
-             $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+             $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
              $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
              return $hh;
         });
 
         $da_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $lich_su_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))
+                                       ->where('loai_cong_no', 1)
+                                       ->orderBy('ngay_gio', 'asc')
+                                       ->get();
+        
         $nh->da_thanh_toan = $da_thanh_toan;
 
-        return view('Admin.NhapHang.edit', compact('nh'));
+        return view('Admin.NhapHang.edit', compact('nh', 'lich_su_thanh_toan'));
     }
 
     function in_phieu_nhap_hang(Request $request, $id = '') {
@@ -393,7 +415,7 @@ class NhapHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $nh->hanghoa = collect($nh->hanghoa)->map(function($hh) use ($products, $units) {
-            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
             $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
             return $hh;
         });
@@ -404,10 +426,13 @@ class NhapHangController extends Controller
 
         $gia_tri_lo_nay = $nh->tong_thanh_tien;
         $da_thanh_toan_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-        
+        $lich_su_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))
+                                       ->where('loai_cong_no', 1)
+                                       ->orderBy('ngay_gio', 'asc')
+                                       ->get();
         $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
 
-        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi'));
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan'));
     }
     function tra_no(Request $request) {
         $data = $request->all();

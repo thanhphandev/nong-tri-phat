@@ -6,17 +6,72 @@
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<div class="card-box">
-    <div class="row">
-        <div class="col-12">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/nhap-hang" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trờ về</a> Thêm Nhập hàng</h3>
-            <form action="{{ env('APP_URL') }}admin/nhap-hang/create" method="post" id="dinhkemform">
-                {{ csrf_field() }}
+<form action="{{ env('APP_URL') }}admin/nhap-hang/create" method="post" id="dinhkemform">
+{{ csrf_field() }}
+<div class="row">
+    <!-- Cột trái: Tìm kiếm sản phẩm & Giỏ hàng nhập -->
+    <div class="col-12 col-lg-8">
+        <div class="card-box">
+            <h4 class="header-title mb-3">Thông tin Hàng hóa Nhập</h4>
+            
+            <div class="row form-group align-items-center mb-3">
+                <div class="col-12 col-md-4 mb-2 mb-md-0">
+                    <select name="id_hanghoa" id="id_hanghoa" class="form-control" data-placeholder="Tìm mặt hàng (F3, Mã, Tên...)"></select>
+                </div>
+                <div class="col-6 col-md-2 mb-2 mb-md-0">
+                    <input type="text" name="ngay_san_xuat_item" id="ngay_san_xuat_item" value="{{ date('d/m/Y') }}" placeholder="NSX" class="datepicker form-control text-center" autocomplete="off" title="Ngày sản xuất">
+                </div>
+                <div class="col-6 col-md-2 mb-2 mb-md-0">
+                    <input type="number" name="so_thang_item" id="so_thang_item" value="12" placeholder="Số tháng HSD" class="form-control text-center" title="Số tháng sử dụng">
+                </div>
+                <div class="col-12 col-md-4 mb-2 mb-md-0">
+                    <div class="input-group">
+                        <input type="number" name="so_luong" id="so_luong" value="1" min="1" placeholder="SL" class="form-control font-weight-bold text-center" style="font-size: 16px;">
+                        <div class="input-group-append">
+                            <button id="addCart" class="btn btn-info waves-effect waves-light" type="button"><i class="fas fa-cart-plus"></i> Thêm</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 mt-2">
+                    <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px 5px 10px;font-size: 13px;display:none;">Thông tin hàng hóa:</span>
+                </div>
+            </div>
+
+            <h5 class="mt-3">Danh sách Hàng hóa</h5>
+            <div class="table-responsive">
+                <input type="hidden" name="id_nhacungcap_cart" id="id_nhacungcap_cart" value="" placeholder="">
+                <table id="HangHoaList" class="table table-bordered table-hover table-sm">
+                    <thead class="thead-light">
+                        <tr>
+                            <th width="10%">Mã</th>
+                            <th width="25%">Tên Hàng hóa</th>
+                            <th width="7%">SL</th>
+                            <th width="13%">Đơn giá</th>
+                            <th width="8%">Số tháng</th>
+                            <th width="12%">Ngày SX</th>
+                            <th width="12%">Hạn SD</th>
+                            <th width="10%">Thành tiền</th>
+                            <th width="3%" class="text-center">#</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Thông tin Nhà cung cấp, Chứng từ, Thanh toán -->
+    <div class="col-12 col-lg-4">
+        <div class="card-box" style="background-color: #f4f8fb; border: 1px solid #e3eaef;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="header-title m-0">Chi tiết Nhập hàng</h4>
+                <a href="{{ env('APP_URL') }}admin/nhap-hang" class="btn btn-secondary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a>
+            </div>
+
                 <div class="form-body">
-                    <hr />
                     @if($errors->any())
-                        <div class="alert alert-success">
-                            <ul>
+                        <div class="alert alert-danger">
+                            <ul class="mb-0 pl-3">
                                 @foreach ($errors->all() as $error)
                                     <li>{{ $error }}</li>
                                 @endforeach
@@ -24,11 +79,14 @@
                         </div>
                     @endif
                 </div>
-                <div class="row form-group">
-                    <label class="control-label col-md-2 text-right p-t-10">Nhà Cung cấp</label>
-                    <div class="col-12 col-md-9">
-                        <div class="input-group">
-                            <select name="id_nhacungcap" id="id_nhacungcap" class="form-control select2" data-placeholder="Chọn Nhà Cung cấp" style="max-width:800px;">
+
+                <!-- Provider Box -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold">Nhà Cung cấp <span class="text-danger">*</span></label>
+                    <div class="d-flex">
+                        <button data-toggle="modal" data-target="#modalNhaCungCap" class="btn btn-primary waves-effect waves-light ml-1" type="button" style="height: 38px;"><i class="fas fa-user-plus"></i></button>
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <select name="id_nhacungcap" id="id_nhacungcap" class="form-control select2" data-placeholder="Chọn Nhà Cung cấp" style="width: 100%;">
                                 <option value=""></option>
                                 @if($nhacungcap)
                                     @foreach($nhacungcap as $ncc)
@@ -36,109 +94,72 @@
                                     @endforeach
                                 @endif
                             </select>
-                            <div class="input-group-append">
-                                <button data-toggle="modal" data-target="#modalNhaCungCap" class="btn btn-primary waves-effect waves-light" type="button"><i class="fas fa-user-plus"></i></button>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="row form-group">
-                    <label class="control-label col-md-2 text-right p-t-10">Số CT</label>
-                    <div class="col-12 col-md-2">
-                        <input type="text" name="so_chung_tu" id="so_chung_tu" value="" placeholder="Số chứng từ" class="form-control">
-                    </div>
-                    <label class="control-label col-md-2 text-right p-t-10">Ngày CT</label>
-                    <div class="col-12 col-md-2">
-                        <input type="text" name="ngay_chung_tu" id="ngay_chung_tu" value="" placeholder="__/__/____" class="datepicker form-control" autocomplete="off">
-                    </div>
-                    <label class="control-label col-md-1 text-right p-t-10">Ngày giao</label>
-                    <div class="col-12 col-md-2">
-                        <input type="text" name="ngay_giao" id="ngay_giao" value="{{ date('d/m/Y') }}" placeholder="__/__/____" required class="datepicker form-control" autocomplete="off">
-                    </div>
-                </div>
-                <div class="row form-group">
-                    <label class="control-label col-md-2 text-right p-t-10">Hàng hóa</label>
-                    <div class="col-12 col-md-4">
-                        <select name="id_hanghoa" id="id_hanghoa" class="form-control" data-placeholder="Tìm mặt hàng (F3, Mã, Tên...)"></select>
-                        <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px 5px 10px;font-size: 13px;margin-top:5px;">Thông tin hàng hóa:</span>
-                    </div>
-                    <label class="control-label col-md-1 text-right p-t-10">Ngày SX</label>
-                    <div class="col-12 col-md-2">
-                        <input type="text" name="ngay_san_xuat_item" id="ngay_san_xuat_item" value="{{ date('d/m/Y') }}" placeholder="__/__/____" class="datepicker form-control" autocomplete="off">
-                    </div>
-                </div>
-                <div class="row form-group">
-                    <div class="col-12 col-md-6"></div>
-                    <label class="control-label col-md-1 text-right p-t-10">Số tháng</label>
-                    <div class="col-12 col-md-2">
-                        <input type="number" name="so_thang_item" id="so_thang_item" value="12" placeholder="Số tháng" class="form-control">
-                    </div>
-                    <label class="control-label col-md-1 text-right p-t-10">Số lượng</label>
-                    <div class="col-12 col-md-2">
-                        <div class="input-group">
-                            <input type="number" name="so_luong" id="so_luong" value="1" min="1" placeholder="Số lượng" class="form-control">
-                            <div class="input-group-append">
-                                <button id="addCart" class="btn btn-info waves-effect waves-light" type="button"><i class="fas fa-cart-plus"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <h2>Danh sách Hàng hóa</h2>
-                <input type="hidden" name="id_nhacungcap_cart" id="id_nhacungcap_cart" value="" placeholder="">
-                <table id="HangHoaList" class="table table-border table-bordered table-hovered table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>Mã</th>
-                            <th>Tên Hàng hóa</th>
-                            <th>Số lượng</th>
-                            <th>Đơn giá</th>
-                            <th>Số tháng</th>
-                            <th>Ngày sản xuất</th>
-                            <th>Hạn sử dụng</th>
-                            <th>Thành tiền</th>
-                            <th>#</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
 
-
+                <!-- Document Info -->
                 <div class="row">
-                    <div class="col-12 col-md-12">
-                        <input type="hidden" name="thanh_tien" id="thanh-tien" value="0" placeholder="">
-                        <h3 style="text-align:right;">Thành tiền: <span id="thanh-tien-show">0</span></h3>
+                    <div class="col-4">
+                        <div class="form-group mb-3">
+                            <label class="text-muted" style="font-size: 0.9rem;">Số CT</label>
+                            <input type="text" name="so_chung_tu" id="so_chung_tu" value="" placeholder="Số CT" class="form-control form-control-sm">
+                        </div>
                     </div>
-                </div>
-                <div class="row form-group">
-                    <div class="col-12 col-md-6"></div>
-                    <label class="control-label col-md-2 text-right p-t-10">Thanh toán</label>
-                    <div class="col-12 col-md-4">
-                        <input type="text" name="thanh_toan" id="thanh-toan" value="0" placeholder="Thanh toán" class="number form-control form-control-sm" style="text-align:right">
+                    <div class="col-4">
+                        <div class="form-group mb-3">
+                            <label class="text-muted" style="font-size: 0.9rem;">Ngày CT</label>
+                            <input type="text" name="ngay_chung_tu" id="ngay_chung_tu" value="" placeholder="Ngày CT" class="datepicker form-control form-control-sm text-center" autocomplete="off">
+                        </div>
                     </div>
-                </div>
-                <div class="row form-group">
-                    <div class="col-12 col-md-6"></div>
-                    <label class="control-label col-md-2 text-right p-t-10">Ghi chú</label>
-                    <div class="col-12 col-md-4">
-                        <textarea name="ghi_chu" id="ghi_chu" class="form-control form-control-sm" rows="3" placeholder="Nhập ghi chú cho đơn nhập hàng"></textarea>
-                    </div>
-                </div>
-                <div class="row form-group">
-                    <div class="col-12 col-6">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
-                            <label class="custom-control-label" for="InHoaDonCheck">In phiếu nhập hàng</label>
+                    <div class="col-4">
+                        <div class="form-group mb-3">
+                            <label class="text-muted" style="font-size: 0.9rem;">Ngày giao <span class="text-danger">*</span></label>
+                            <input type="text" name="ngay_giao" id="ngay_giao" value="{{ date('d/m/Y') }}" placeholder="Ngày giao" required class="datepicker form-control form-control-sm text-center" autocomplete="off">
                         </div>
                     </div>
                 </div>
-                <div class="form-actions">
-                    <a href="{{ env('APP_URL') }}admin/nhap-hang" class="btn btn-light"><i class="fa fa-reply-all"></i> Trở về</a>
-                    <button type="submit" id="updateCart" class="btn btn-info" onclick="return confirm('Chắc chắn Nhập đơn hàng?');"> <i class="fa fa-check"></i> NHẬP HÀNG</button>
+
+                <hr class="mt-0">
+
+                <!-- Totals -->
+                <input type="hidden" name="thanh_tien" id="thanh-tien" value="0" placeholder="">
+                <div class="d-flex justify-content-between align-items-center p-2 mb-3 bg-white rounded border">
+                    <h5 class="m-0 font-weight-bold">TỔNG TIỀN:</h5>
+                    <h4 class="m-0 text-primary font-weight-bold" id="thanh-tien-show">0</h4>
                 </div>
-            </form>
+
+                <!-- Payment Info -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold">Thanh toán cho NCC đợt này</label>
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text"><i class="fas fa-money-bill-wave"></i></span>
+                        </div>
+                        <input type="text" name="thanh_toan" id="thanh-toan" value="0" placeholder="0" class="number form-control form-control-lg text-right text-success font-weight-bold">
+                    </div>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold">Ghi chú</label>
+                    <textarea name="ghi_chu" id="ghi_chu" class="form-control" rows="2" placeholder="Ghi chú đơn nhập hàng..."></textarea>
+                </div>
+
+                <!-- Invoice Actions -->
+                <div class="form-group mb-3">
+                    <div class="custom-control custom-checkbox custom-control-lg">
+                        <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
+                        <label class="custom-control-label font-weight-bold text-primary" for="InHoaDonCheck" style="padding-top: 2px;">In phiếu nhập sau khi lưu</label>
+                    </div>
+                </div>
+
+                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold" onclick="return confirm('Chắc chắn Nhập đơn hàng này?');"> 
+                    <i class="fas fa-check-circle mr-1"></i> NHẬP HÀNG
+                </button>
         </div>
     </div>
 </div>
+</form>
 <div class="modal fade" id="modalNhaCungCap" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-lg" style="min-width:90%;">
         <div class="modal-content">
@@ -241,7 +262,7 @@
                         cache: true
                     },
                     placeholder: 'Tìm mặt hàng (Phím tắt F3, Mã, Tên, Mã vạch...)',
-                    minimumInputLength: 3,
+                    minimumInputLength: 1,
                     templateResult: formatRepo,
                     templateSelection: formatRepoSelection,
                     escapeMarkup: function (markup) { return markup; }

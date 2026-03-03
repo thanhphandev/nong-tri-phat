@@ -283,9 +283,14 @@
             @foreach($dh['hanghoa'] as $key => $hh)
             <tr>
                 <td class="text-center">{{ $key + 1 }}</td>
-                <td style="font-weight: 500;">{{ $hh['ten'] }}</td>
+                <td style="font-weight: 500;">
+                    {{ $hh['ten'] }}
+                    @if(!empty($hh['don_vi_le_info']))
+                        <br><small class="text-muted" style="font-size: 8pt;">{{ $hh['don_vi_le_info'] }}</small>
+                    @endif
+                </td>
                 <td class="text-center">{{ $hh['don_vi_tinh'] ?? '-' }}</td>
-                <td class="text-center">{{ number_format($hh['so_luong'], 0) }}</td>
+                <td class="text-center">{{ number_format($hh['so_luong'], 2) }}</td>
                 <td class="text-right">{{ number_format($hh['don_gia'], 0, ",", ".") }}</td>
                 <td class="text-right text-bold">{{ number_format($hh['thanh_tien'], 0, ",", ".") }}</td>
             </tr>
@@ -313,11 +318,15 @@
                 <td class="summary-label">Tổng cộng:</td>
                 <td class="summary-value text-bold">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
             </tr>
-            @if(($dh->da_thanh_toan ?? 0) > 0)
-            <tr>
-                <td class="summary-label">Đã thanh toán:</td>
-                <td class="summary-value">{{ number_format($dh->da_thanh_toan, 0, ",", ".") }}</td>
-            </tr>
+            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+                @foreach($lich_su_thanh_toan as $ls)
+                <tr>
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt;">
+                        - Thanh toán ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+                    </td>
+                    <td class="summary-value">-{{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
+                </tr>
+                @endforeach
             @endif
             <tr class="summary-total">
                 <td class="summary-label">Còn lại:</td>
@@ -328,8 +337,9 @@
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh->con_no ?? 0) }}.</em>
+        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh->con_no ?? 0) }} đồng.</em>
     </div>
+
 
     <!-- Signature Section -->
     <div class="signature-section">

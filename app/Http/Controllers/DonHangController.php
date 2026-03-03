@@ -10,10 +10,12 @@ use App\Models\KhachHang;
 use App\Models\HangHoa;
 use App\Models\CongNo;
 use App\Models\DonViTinh;
+use App\Traits\CodeGeneratorTrait;
 use Validator;use Session;
 use Config;
 class DonHangController extends Controller
 {
+    use CodeGeneratorTrait;
     //
 
     function list(Request $request, $ma = ''){
@@ -39,7 +41,9 @@ class DonHangController extends Controller
             }
         }
         
-        $danhsach = $query->orderBy('ngay_ban', 'desc')->paginate(30);
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        $danhsach = $query->orderBy('ngay_ban', 'desc')->paginate($per_page);
         
         // Calculate Paid Amount for each order from CongNo table
         $ids = $danhsach->pluck('_id')->toArray();
@@ -87,7 +91,7 @@ class DonHangController extends Controller
         
         $khachhang = KhachHang::orderBy('ho_ten', 'asc')->get();
         
-    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no'));
+    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no', 'limit'));
     }
 
     function add(Request $request){
@@ -101,22 +105,39 @@ class DonHangController extends Controller
 
     function create(Request $request) {
         $data = $request->all();
-        $kh = KhachHang::find($data['id_khachhang_cart']);
+        
+        $id_khachhang_cart = isset($data['id_khachhang_cart']) && $data['id_khachhang_cart'] ? $data['id_khachhang_cart'] : (isset($data['id_khachhang']) ? $data['id_khachhang'] : null);
+        if (!$id_khachhang_cart) {
+            return redirect()->back()->withErrors(['Vui lòng chọn khách hàng'])->withInput();
+        }
+        
+        if (!isset($data['id_hanghoa_cart']) || empty($data['id_hanghoa_cart'])) {
+            return redirect()->back()->withErrors(['Giỏ hàng trống. Vui lòng thêm hàng hóa vào giỏ'])->withInput();
+        }
+
+        $kh = KhachHang::find($id_khachhang_cart);
         $arr_hanghoa = array();
         $tong_thanh_tien = ObjectController::convertStr2Number_1($data['tong-thanh-tien']);
         $thanh_toan = ObjectController::convertStr2Number_1($data['thanh-toan']);
-        if($data['id_hanghoa_cart']){
+        if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
-                $so_luong = intval($data['so_luong_cart'][$key]);
+                $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $id_hanghoa = ObjectController::ObjectId($value);
                 
+                // Đơn vị bán: main (chuẩn) hoặc retail (lẻ)
+                $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
+                $sl_can_tru_kho = $so_luong;
+                if ($don_vi_ban == 'retail' && isset($hh['ty_le_quy_doi']) && floatval($hh['ty_le_quy_doi']) > 0) {
+                    $sl_can_tru_kho = $so_luong / floatval($hh['ty_le_quy_doi']);
+                }
+                
                 // --- FEFO & Real Cost Calculation ---
                 $hanghoa_db = $hh; // Already found above
-                $sl_can_tru = $so_luong;
+                $sl_can_tru = $sl_can_tru_kho; // Trừ kho theo đơn vị chuẩn
                 $tong_gia_von_thuc_te = 0; // Total cost for this line item based on batches
                 $sl_da_tru = 0;
 
@@ -153,7 +174,7 @@ class DonHangController extends Controller
                         }
 
                         if($sl_can_tru > 0 && !$is_expired){
-                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                            $sl_ton_batch = isset($batch['so_luong_con_lai']) ? floatval($batch['so_luong_con_lai']) : 0;
                             
                             if($sl_ton_batch > 0){
                                 // Lô còn hàng
@@ -192,7 +213,7 @@ class DonHangController extends Controller
                     // Lọc chỉ giữ các lô còn hàng (so_luong_con_lai > 0)
                     $positive_batches = [];
                     foreach($new_batches as $b){
-                        if(isset($b['so_luong_con_lai']) && intval($b['so_luong_con_lai']) > 0){
+                        if(isset($b['so_luong_con_lai']) && floatval($b['so_luong_con_lai']) > 0){
                             $positive_batches[] = $b;
                         }
                     }
@@ -213,7 +234,7 @@ class DonHangController extends Controller
                     // Tính so_luong_ton = tổng các lô còn lại - số lượng thiếu
                     $current_total_stock = 0;
                     foreach($positive_batches as $b){
-                         $current_total_stock += isset($b['so_luong_con_lai']) ? intval($b['so_luong_con_lai']) : 0;
+                         $current_total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                     }
                     // Trừ thêm phần thiếu để so_luong_ton có thể âm
                     $hanghoa_db->so_luong_ton = $current_total_stock - $sl_thieu;
@@ -222,9 +243,9 @@ class DonHangController extends Controller
                 } else {
                     // Không có lô hàng, trừ trực tiếp vào so_luong_ton
                     $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
-                    $tong_gia_von_thuc_te = $so_luong * $default_cost;
+                    $tong_gia_von_thuc_te = $sl_can_tru_kho * $default_cost;
                     
-                    $hanghoa_db->so_luong_ton = intval($hanghoa_db->so_luong_ton) - $so_luong;
+                    $hanghoa_db->so_luong_ton = floatval($hanghoa_db->so_luong_ton) - $sl_can_tru_kho;
                     $hanghoa_db->save();
                 }
 
@@ -239,16 +260,28 @@ class DonHangController extends Controller
                     'chiet_khau' => $chiet_khau, 
                     'thanh_tien' => $thanh_tien,
                     'gia_von_thuc_te' => $tong_gia_von_thuc_te, // Total Cost for this line
+                    // Thông tin bán lẻ
+                    'don_vi_ban' => $don_vi_ban,
+                    'so_luong_tru_kho' => $sl_can_tru_kho,
+                    'cho_phep_ban_le' => $hh['cho_phep_ban_le'] ?? false,
+                    'don_vi_le' => $hh['don_vi_le'] ?? '',
+                    'ty_le_quy_doi' => $hh['ty_le_quy_doi'] ?? 1,
+                    // Cấu hình Hàng chương trình
+                    'hang_chuong_trinh' => isset($hh['hang_chuong_trinh']) ? $hh['hang_chuong_trinh'] : false,
                 ));
             }
         }
         $db = new DonHang();
         $id = ObjectController::Id();
         $id_user = $request->session()->get('user._id');
-        $ma_don_hang = strtoupper(uniqid());
+        
+        // PartnerID rút gọn
+        $partnerId = isset($kh['ma_khach_hang']) && $kh['ma_khach_hang'] ? $kh['ma_khach_hang'] : 'K' . substr($kh['_id'], -5);
+        $ma_don_hang = $this->generateOrderCode('BH', $partnerId);
+        
         $db->_id = $id;
         $db->ma_don_hang = $ma_don_hang;
-        $db->id_khachhang = ObjectController::ObjectId($data['id_khachhang_cart']);
+        $db->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);
         $db->ho_ten = $kh['ho_ten'];
         $db->dien_thoai = $kh['dien_thoai'];
         $db->dia_chi = $kh['dia_chi'];
@@ -264,7 +297,7 @@ class DonHangController extends Controller
         $db->save();
 
         $congno =  new CongNo();
-        $congno->id_khachhang = ObjectController::ObjectId($data['id_khachhang_cart']);
+        $congno->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);
         $congno->ho_ten = $kh['ho_ten'];
         $congno->dien_thoai = $kh['dien_thoai'];
         $congno->dia_chi = $kh['dia_chi'];
@@ -281,7 +314,7 @@ class DonHangController extends Controller
 
         if($thanh_toan > 0){
             $thanhtoan =  new CongNo();
-            $thanhtoan->id_khachhang = ObjectController::ObjectId($data['id_khachhang_cart']);
+            $thanhtoan->id_khachhang = ObjectController::ObjectId($id_khachhang_cart);
             $thanhtoan->ho_ten = $kh['ho_ten'];
             $thanhtoan->dien_thoai = $kh['dien_thoai'];
             $thanhtoan->dia_chi = $kh['dia_chi'];
@@ -395,8 +428,54 @@ class DonHangController extends Controller
         if($data['tinh_trang'] == 2){
             foreach($db['hanghoa'] as $hh){
                 $id_hanghoa = ObjectController::ObjectId($hh['id_hanghoa']);
-                $so_luong = intval($hh['so_luong']);
-                HangHoa::where('_id', '=', $id_hanghoa)->increment('so_luong_ton', $so_luong);
+                $so_luong = isset($hh['so_luong_tru_kho']) ? floatval($hh['so_luong_tru_kho']) : floatval($hh['so_luong']);
+                $sp = HangHoa::find($id_hanghoa);
+                if($sp){
+                    $sp->so_luong_ton = floatval($sp->so_luong_ton) + $so_luong;
+                    
+                    if(isset($sp->ds_lo_hang) && is_array($sp->ds_lo_hang) && count($sp->ds_lo_hang) > 0){
+                        $batches = $sp->ds_lo_hang;
+                        
+                        // Tìm lô gần hết hạn nhất nhưng vẫn CÒN HẠN để cộng vào (đảo ngược lại FEFO)
+                        $target_index = -1;
+                        $closest_expiry = PHP_INT_MAX;
+                        $latest_expiry_overall = 0;
+                        $latest_index = -1;
+                        
+                        foreach($batches as $index => $batch){
+                            if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']){
+                                $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                                
+                                // Tìm lô mới nhất làm backup nếu không có lô nào đủ chuẩn
+                                if($expiry_timestamp > $latest_expiry_overall){
+                                    $latest_expiry_overall = $expiry_timestamp;
+                                    $latest_index = $index;
+                                }
+                                
+                                // Tìm lô gần hết hạn nhất nhưng chưa hết hạn (vì lúc bán FEFO ưu tiên trừ lô này)
+                                if($expiry_timestamp >= time()) {
+                                    if($expiry_timestamp < $closest_expiry){
+                                        $closest_expiry = $expiry_timestamp;
+                                        $target_index = $index;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if($target_index !== -1){
+                            $batches[$target_index]['so_luong_con_lai'] = floatval($batches[$target_index]['so_luong_con_lai'] ?? 0) + $so_luong;
+                        } elseif($latest_index !== -1) {
+                            $batches[$latest_index]['so_luong_con_lai'] = floatval($batches[$latest_index]['so_luong_con_lai'] ?? 0) + $so_luong;
+                        } else {
+                            // Mặc định cộng vào lô cuối cùng nếu không có đủ thông tin
+                            $last_index = count($batches) - 1;
+                            $batches[$last_index]['so_luong_con_lai'] = floatval($batches[$last_index]['so_luong_con_lai'] ?? 0) + $so_luong;
+                        }
+                        
+                        $sp->ds_lo_hang = $batches;
+                    }
+                    $sp->save();
+                }
             }
         }
         $querLog = array(
@@ -509,8 +588,17 @@ class DonHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $dh->hanghoa = collect($dh->hanghoa)->map(function($hh) use ($products, $units) {
-            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
-            $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            
+            // Check if it was sold as retail
+            if(isset($hh['don_vi_ban']) && $hh['don_vi_ban'] == 'retail' && !empty($hh['don_vi_le'])) {
+                $hh['don_vi_tinh'] = $hh['don_vi_le'];
+                $hh['don_vi_le_info'] = '(1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
+            } else {
+                $hh['don_vi_tinh'] = $don_vi_chinh;
+                $hh['don_vi_le_info'] = '';
+            }
             return $hh;
         });
 
@@ -520,7 +608,12 @@ class DonHangController extends Controller
         $dh->da_thanh_toan = $da_thanh_toan;
         $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
 
-        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh'));
+        $lich_su_thanh_toan = CongNo::where('id_donhang', $id_dh)
+                                    ->where('loai_cong_no', 1)
+                                    ->orderBy('ngay_gio', 'asc')
+                                    ->get();
+
+        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'lich_su_thanh_toan'));
     }
 
     function edit($id) {
@@ -538,18 +631,32 @@ class DonHangController extends Controller
         $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
 
         $dh->hanghoa = collect($dh->hanghoa)->map(function($hh) use ($products, $units) {
-            $id_dvt = $hh['id_donvitinh'] ?? $products[$hh['id_hanghoa']]['id_donvitinh'] ?? null;
-            $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
+            $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+            
+            // Check if it was sold as retail
+            if(isset($hh['don_vi_ban']) && $hh['don_vi_ban'] == 'retail' && !empty($hh['don_vi_le'])) {
+                $hh['don_vi_tinh'] = $hh['don_vi_le'];
+                $hh['don_vi_le_info'] = '(1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
+            } else {
+                $hh['don_vi_tinh'] = $don_vi_chinh;
+                $hh['don_vi_le_info'] = '';
+            }
             return $hh;
         });
 
         // 2. Tính đã thanh toán từ bảng CongNo
         $id_dh = ObjectController::ObjectId($dh->_id);
         $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $lich_su_thanh_toan = CongNo::where('id_donhang', $id_dh)
+                                    ->where('loai_cong_no', 1)
+                                    ->orderBy('ngay_gio', 'asc')
+                                    ->get();
+
         $dh->da_thanh_toan = $da_thanh_toan;
         $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
 
-        return view('Admin.DonHang.edit', compact('dh'));
+        return view('Admin.DonHang.edit', compact('dh', 'lich_su_thanh_toan'));
     }
 
     static function check_HangHoa($id = ''){
@@ -590,7 +697,7 @@ class DonHangController extends Controller
                 }
 
                 if($sl_can_tru > 0 && !$is_expired){
-                    $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                    $sl_ton_batch = isset($batch['so_luong_con_lai']) ? floatval($batch['so_luong_con_lai']) : 0;
                     if($sl_ton_batch > 0){
                         $used = 0;
                         if($sl_ton_batch >= $sl_can_tru){
@@ -626,7 +733,7 @@ class DonHangController extends Controller
      */
     private function calculateRealCost($hanghoa, $sl_can_tru) {
         $tong_gia_von = 0;
-        $sl_can_tru = intval($sl_can_tru);
+        $sl_can_tru = floatval($sl_can_tru);
         $default_gia_von = isset($hanghoa['gia_von']) ? doubleval($hanghoa['gia_von']) : 0;
 
         if($hanghoa && isset($hanghoa['ds_lo_hang']) && is_array($hanghoa['ds_lo_hang'])){
@@ -650,7 +757,7 @@ class DonHangController extends Controller
                 }
 
                 if($sl_can_tru > 0 && !$is_expired){
-                    $sl_ton_batch = isset($batch['so_luong_con_lai']) ? intval($batch['so_luong_con_lai']) : 0;
+                    $sl_ton_batch = isset($batch['so_luong_con_lai']) ? floatval($batch['so_luong_con_lai']) : 0;
                     if($sl_ton_batch > 0){
                         $used = 0;
                         if($sl_ton_batch >= $sl_can_tru){

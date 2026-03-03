@@ -7,7 +7,12 @@
 <div class="row">
     <div class="col-12">
         <div class="card-box">
-            <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/don-hang" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a> Chi tiết Đơn hàng: {{ $dh['ma_don_hang'] }}</h3>
+            <h3 class="m-t-0">
+                <a href="{{ url()->previous() }}" class="btn btn-primary btn-sm">
+                    <i class="fa fa-reply-all"></i> Trở về
+                </a> 
+                Chi tiết Đơn hàng: {{ $dh['ma_don_hang'] }}
+            </h3>
             <hr>
             <div class="row">
                 <div class="col-md-6">
@@ -39,9 +44,17 @@
                         <tr>
                             <td class="text-center">{{ $k+1 }}</td>
                             <td>{{ $hh['ma'] ?? '' }}</td>
-                            <td>{{ $hh['ten'] }}</td>
+                            <td>
+                                {{ $hh['ten'] }}
+                                @if(!empty($hh['don_vi_le_info']))
+                                    <br><small class="text-muted">{{ $hh['don_vi_le_info'] }}</small>
+                                @endif
+                                @if(!empty($hh['hang_chuong_trinh']))
+                                    <br><small class="text-info">Hàng chương trình</small>
+                                @endif
+                            </td>
                             <td class="text-center">{{ $hh['don_vi_tinh'] }}</td>
-                            <td class="text-right">{{ number_format($hh['so_luong'], 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format($hh['so_luong'], 2, ',', '.') }}</td>
                             <td class="text-right">{{ number_format($hh['don_gia'], 0, ',', '.') }}</td>
                             <td class="text-right">{{ number_format($hh['chiet_khau'] ?? 0, 0, ',', '.') }}</td>
                             <td class="text-right font-weight-bold">{{ number_format($hh['thanh_tien'], 0, ',', '.') }}</td>
@@ -54,8 +67,50 @@
                             <td class="text-right font-weight-bold text-danger">{{ number_format($dh['tong_thanh_tien'], 0, ',', '.') }}</td>
                         </tr>
                          <tr>
-                            <td colspan="7" class="text-right font-weight-bold">ĐÃ THANH TOÁN:</td>
+                            <td colspan="7" class="text-right font-weight-bold">
+                                <a href="#paymentHistory" data-toggle="collapse" class="text-success" aria-expanded="false" aria-controls="paymentHistory" title="Bấm để xem chi tiết lịch sử thanh toán">
+                                    ĐÃ THANH TOÁN <i class="fa fa-caret-down"></i>:
+                                </a>
+                            </td>
                             <td class="text-right font-weight-bold text-success">{{ number_format($dh->da_thanh_toan ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                        <tr class="collapse" id="paymentHistory">
+                            <td colspan="8" class="p-0">
+                                <div class="px-3 py-2" style="background-color: #f1f5f7;">
+                                    <h5 class="font-14 mt-1 mb-2 text-info"><i class="fas fa-history"></i> LỊCH SỬ THANH TOÁN</h5>
+                                    <table class="table table-sm table-bordered bg-white mb-2">
+                                        <thead class="bg-light">
+                                            <tr>
+                                                <th class="text-center" width="20%">Thời gian</th>
+                                                <th class="text-right" width="20%">Số tiền</th>
+                                                <th>Ghi chú</th>
+                                                <th width="20%">Người xử lý</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+                                                @foreach($lich_su_thanh_toan as $ls)
+                                                    <tr>
+                                                        <td class="text-center">{{ \App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'] ?? '', "d/m/Y H:i") }}</td>
+                                                        <td class="text-right text-success font-weight-bold">+{{ number_format($ls['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                                        <td>{{ $ls['ghi_chu'] ?? '' }}</td>
+                                                        <td>
+                                                            @php
+                                                                if(isset($ls['id_user']) && $ls['id_user']){
+                                                                    $user = \App\Models\User::find($ls['id_user']);
+                                                                    echo $user ? $user['fullname'] : '';
+                                                                }
+                                                            @endphp
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <tr><td colspan="4" class="text-center text-muted font-italic">Chưa có lịch sử thanh toán</td></tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
                         </tr>
                         <tr>
                             <td colspan="7" class="text-right font-weight-bold">CÒN LẠI:</td>

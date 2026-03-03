@@ -43,8 +43,8 @@
                             <i class="text-muted">Không có</i>
                         @endif
                     </td>
-                    <td class="align-middle">{{ number_format($batch['so_luong_nhap'] ?? 0, 0, ',', '.') }}</td>
-                    <td class="align-middle font-weight-bold text-primary">{{ number_format($sl_con, 0, ',', '.') }}</td>
+                    <td class="align-middle">{{ number_format($batch['so_luong_nhap'] ?? 0, 2, ',', '.') }}</td>
+                    <td class="align-middle font-weight-bold text-primary">{{ number_format($sl_con, 2, ',', '.') }}</td>
                     <td class="align-middle text-right">{{ number_format($gia_von, 0, ',', '.') }}</td>
                     <td class="align-middle text-right font-weight-bold text-success">{{ number_format($thanh_tien, 0, ',', '.') }}</td>
                     <td class="align-middle text-left">
@@ -62,7 +62,7 @@
              <tfoot class="bg-light font-weight-bold">
                 <tr>
                     <td colspan="5" class="text-right">TỔNG CỘNG:</td>
-                    <td class="text-center text-primary">{{ number_format(collect($batches)->sum('so_luong_con_lai'), 0, ',', '.') }}</td>
+                    <td class="text-center text-primary">{{ number_format(collect($batches)->sum('so_luong_con_lai'), 2, ',', '.') }}</td>
                     <td></td>
                     <td class="text-right text-success">
                         @php

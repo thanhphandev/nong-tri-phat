@@ -14,24 +14,29 @@ use Validator;
 use Session;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Traits\CodeGeneratorTrait;
 
 class TraHangKhachController extends Controller
 {
+    use CodeGeneratorTrait;
     /**
      * List all customer returns
      */
     function list(Request $request) {
         $keywords = $request->input('keywords');
+        $limit = $request->input('limit', 15);
+        $per_page = $limit === 'all' ? 999999 : intval($limit);
+        
         if ($keywords) {
             $danhsach = TraHangKhach::where('ma_tra_hang', 'regexp', '/.*'.$keywords.'/i')
                 ->orWhere('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
                 ->orWhere('ho_ten', 'regexp', '/.*'.$keywords.'/i')
-                ->orderBy('ngay_tra', 'desc')->paginate(30);
+                ->orderBy('ngay_tra', 'desc')->paginate($per_page);
         } else {
-            $danhsach = TraHangKhach::orderBy('ngay_tra', 'desc')->paginate(30);
+            $danhsach = TraHangKhach::orderBy('ngay_tra', 'desc')->paginate($per_page);
         }
         
-        return view('Admin.TraHangKhach.list')->with(compact('danhsach', 'keywords'));
+        return view('Admin.TraHangKhach.list')->with(compact('danhsach', 'keywords', 'limit'));
     }
 
     function in_phieu_tra_hang($id) {
@@ -110,7 +115,9 @@ class TraHangKhachController extends Controller
             $tra_hang->_id = new \MongoDB\BSON\ObjectId(); // Pre-generate ID
             $id_tra_hang = $tra_hang->_id;
             
-            $ma_tra_hang = strtoupper(uniqid());
+            $kh = KhachHang::find($donhang['id_khachhang']);
+            $partnerId = isset($kh['ma_khach_hang']) && $kh['ma_khach_hang'] ? $kh['ma_khach_hang'] : 'K' . substr($donhang['id_khachhang'], -5);
+            $ma_tra_hang = $this->generateOrderCode('THK', $partnerId);
             $tra_hang->ma_tra_hang = $ma_tra_hang;
             
             // Calculate totals and validate quantities
@@ -179,13 +186,18 @@ class TraHangKhachController extends Controller
                     
                     $tong_tien_tra += $thanh_tien;
                     $tong_gia_von += $gia_von_total;
-                    
+                    $hoan_kho = $so_luong_tra;
+                    if(isset($original_item['so_luong_tru_kho']) && $original_item['so_luong'] > 0){
+                        $hoan_kho = $so_luong_tra * ($original_item['so_luong_tru_kho'] / $original_item['so_luong']);
+                    }
+
                     $arr_hanghoa[] = [
                         'id_hanghoa' => ObjectController::ObjectId($hh['id_hanghoa']),
                         'ma_hang_hoa' => $hh['ma_hang_hoa'] ?? '',
                         'ten' => $hh['ten'],
                         'don_vi_tinh' => $hh['don_vi_tinh'] ?? '',
                         'so_luong_tra' => $so_luong_tra,
+                        'so_luong_tru_kho_tra' => $hoan_kho,
                         'don_gia_goc' => $don_gia_goc, // Original selling price
                         'don_gia' => $don_gia, // Adjusted return price
                         'ty_le_hoan' => $ty_le_hoan, // Return percentage (e.g. 80%)
@@ -199,7 +211,12 @@ class TraHangKhachController extends Controller
                     // Update inventory - Return to stock as NEW BATCH
                     $hang_hoa = HangHoa::find($hh['id_hanghoa']);
                     if ($hang_hoa) {
-                        $hang_hoa->so_luong_ton += $so_luong_tra;
+                        // Tính số lượng thực nhập kho (Quy đổi nếu lúc bán dùng đơn vị lẻ)
+                        $hoan_kho = $so_luong_tra;
+                        if(isset($original_item['so_luong_tru_kho']) && $original_item['so_luong'] > 0){
+                            $hoan_kho = $so_luong_tra * ($original_item['so_luong_tru_kho'] / $original_item['so_luong']);
+                        }
+                        $hang_hoa->so_luong_ton += $hoan_kho;
                         
                         // Parse dates or infer
                         $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
@@ -215,8 +232,8 @@ class TraHangKhachController extends Controller
                         // Create distinct batch for this return
                         $new_batch = [
                             'ma_nhap_hang' => $ma_tra_hang,
-                            'so_luong_nhap' => $so_luong_tra,
-                            'so_luong_con_lai' => $so_luong_tra,
+                            'so_luong_nhap' => $hoan_kho,
+                            'so_luong_con_lai' => $hoan_kho,
                             'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->timestamp * 1000),
                             'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->timestamp * 1000),
                             'gia_von' => $gia_von,

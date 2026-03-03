@@ -12,6 +12,9 @@ use App\Models\LoaiHang;
 use App\Models\HangHoa;
 use Session;use Validator;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ThongKeController extends Controller
 {
@@ -30,33 +33,54 @@ class ThongKeController extends Controller
         $tonkho = HangHoa::where('so_luong_ton', '>', 0)->get();
         $hethang = HangHoa::where('so_luong_ton', '=', 0)->get();
         
-        // Load all units once to avoid N+1 queries
+        // Load all units & categories for filters
         $units = \App\Models\DonViTinh::pluck('ten', '_id')->toArray();
+        $loaihang_list = LoaiHang::orderBy('ten', 'asc')->get();
+        $donvitinh_list = \App\Models\DonViTinh::orderBy('ten', 'asc')->get();
+        
+        // Build loaihang map for display
+        $loaihang_map = [];
+        foreach($loaihang_list as $lh) {
+            $loaihang_map[(string)$lh->_id] = $lh->ten;
+        }
         
         // Calculate expired products quantity and collect expired batches
         $expired_quantity = 0;
         $expired_batches = [];
+        $expiring_soon_batches = [];
         $all_products = HangHoa::all();
         $now = time();
         
         foreach($all_products as $product) {
-            if(isset($product->ton_kho) && is_array($product->ton_kho)) {
-                foreach($product->ton_kho as $batch) {
-                    if(isset($batch['ngay_het_han']) && $batch['ngay_het_han']) {
-                        $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
-                        if($expiry_timestamp < $now && isset($batch['so_luong']) && $batch['so_luong'] > 0) {
-                            $expired_quantity += $batch['so_luong'];
-                            $expired_batches[] = [
-                                'id_hanghoa' => (string)$product->_id,
-                                'ma_hanghoa' => $product->ma ?? '',
-                                'ten_hanghoa' => $product->ten ?? '',
-                                'id_donvitinh' => (string)($product->id_donvitinh ?? ''),
-                                'ma_lo' => $batch['ma_lo'] ?? '',
-                                'so_luong' => $batch['so_luong'],
-                                'gia_von' => $batch['gia_von'] ?? 0,
-                                'ngay_het_han' => date('d/m/Y', $expiry_timestamp),
-                                'ngay_het_han_ts' => $expiry_timestamp,
-                            ];
+            if(isset($product->ds_lo_hang) && is_array($product->ds_lo_hang)) {
+                foreach($product->ds_lo_hang as $batch) {
+                    $batch_qty = isset($batch['so_luong_con_lai']) ? floatval($batch['so_luong_con_lai']) : 0;
+                    if(isset($batch['ngay_het_han']) && $batch['ngay_het_han'] && $batch_qty > 0) {
+                        try {
+                            $expiry_timestamp = $batch['ngay_het_han']->toDateTime()->getTimestamp();
+                        } catch(\Exception $e) {
+                            continue;
+                        }
+                        $batch_info = [
+                            'id_hanghoa' => (string)$product->_id,
+                            'ma_hanghoa' => $product->ma ?? '',
+                            'ten_hanghoa' => $product->ten ?? '',
+                            'id_donvitinh' => (string)($product->id_donvitinh ?? ''),
+                            'id_loaihang' => (string)($product->id_loaihang ?? ''),
+                            'ma_lo' => $batch['ma_nhap_hang'] ?? ($batch['ma_lo'] ?? ''),
+                            'so_luong' => $batch_qty,
+                            'gia_von' => $batch['gia_von'] ?? 0,
+                            'ngay_het_han' => date('d/m/Y', $expiry_timestamp),
+                            'ngay_het_han_ts' => $expiry_timestamp,
+                        ];
+                        
+                        if($expiry_timestamp < $now) {
+                            // Đã hết hạn
+                            $expired_quantity += $batch_qty;
+                            $expired_batches[] = $batch_info;
+                        } else {
+                            // Chưa hết hạn nhưng sắp hết hạn (trong tương lai)
+                            $expiring_soon_batches[] = $batch_info;
                         }
                     }
                 }
@@ -67,10 +91,29 @@ class ThongKeController extends Controller
         usort($expired_batches, function($a, $b) {
             return $a['ngay_het_han_ts'] - $b['ngay_het_han_ts'];
         });
+        usort($expiring_soon_batches, function($a, $b) {
+            return $a['ngay_het_han_ts'] - $b['ngay_het_han_ts'];
+        });
         
         $expired_batch_count = count($expired_batches);
         
-        return view('Admin.ThongKe.ton-kho')->with(compact('tonkho_sum','tonkho', 'hethang', 'expired_quantity', 'expired_batches', 'expired_batch_count', 'units'));
+        // Tính số lượng sắp hết hạn theo mốc thời gian
+        $now_ts = time();
+        $expiring_1w = 0; $expiring_1m = 0; $expiring_3m = 0; $expiring_6m = 0;
+        foreach($expiring_soon_batches as $b) {
+            $days_left = ($b['ngay_het_han_ts'] - $now_ts) / 86400;
+            if($days_left <= 7) $expiring_1w += $b['so_luong'];
+            if($days_left <= 30) $expiring_1m += $b['so_luong'];
+            if($days_left <= 90) $expiring_3m += $b['so_luong'];
+            if($days_left <= 180) $expiring_6m += $b['so_luong'];
+        }
+        
+        return view('Admin.ThongKe.ton-kho')->with(compact(
+            'tonkho_sum','tonkho', 'hethang', 
+            'expired_quantity', 'expired_batches', 'expired_batch_count', 
+            'expiring_soon_batches', 'expiring_1w', 'expiring_1m', 'expiring_3m', 'expiring_6m',
+            'units', 'loaihang_list', 'donvitinh_list', 'loaihang_map'
+        ));
     }
 
     function doanh_so(Request $request) {
@@ -147,6 +190,7 @@ class ThongKeController extends Controller
         $tong_doanh_thu = 0;     // Net Revenue
         $tong_gia_von = 0;       // Net Cost
         $tong_loi_nhuan = 0;
+        $tong_loi_nhuan_thuc_te = 0;
         
         $tong_da_thanh_toan = 0;
         $tong_con_no = 0;
@@ -154,6 +198,9 @@ class ThongKeController extends Controller
         $so_don_tra = 0;
         $so_san_pham_ban = 0;
         $so_san_pham_tra = 0;
+        
+        $tong_tien_hang_ct = 0;
+        $tong_tien_hang_ct_tra = 0;
         
         if(!$tu_ngay || !$den_ngay) {
             $tu_ngay = Carbon::now()->subDays(30)->format('d/m/Y');
@@ -178,28 +225,75 @@ class ThongKeController extends Controller
             $danhsach = $query->orderBy('ngay_ban', 'desc')->get();
             $so_don_hang = count($danhsach);
             
+            // --- Map Payments cho từng đơn bán ---
+            $dh_ids = $danhsach->pluck('_id')->toArray();
+            $dh_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $dh_ids);
+            $don_payments_map = [];
+            if(count($dh_ids) > 0) {
+                $raw_payments = CongNo::raw(function($collection) use ($dh_ids) {
+                    return $collection->aggregate([
+                        ['$match' => ['id_donhang' => ['$in' => $dh_ids], 'loai_cong_no' => 1]],
+                        ['$group' => ['_id' => '$id_donhang', 'total_paid' => ['$sum' => '$tong_thanh_tien']]]
+                    ]);
+                });
+                foreach($raw_payments as $p) {
+                    $don_payments_map[(string)$p['_id']] = $p['total_paid'];
+                }
+            }
+            
+            $filtered_danhsach = collect();
             foreach($danhsach as $dh) {
                 // Ignore cancelled orders for financial stats if needed, or handle based on status
                 if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
-                    $tong_doanh_thu_ban += isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
-                    
+                    $dh_doanh_thu_ban = 0;
+                    $dh_gia_von_ban = 0;
+                    $dh_so_san_pham_ban = 0;
+                    $dh_tien_hang_ct = 0;
+
                     if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
                         foreach($dh['hanghoa'] as $hh) {
-                            $so_san_pham_ban += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                            $is_promo = isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh'] ? true : false;
+                            
+                            $item_qty = isset($hh['so_luong_tru_kho']) ? doubleval($hh['so_luong_tru_kho']) : (isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0);
+                            $dh_so_san_pham_ban += $item_qty;
+
+                            // Calculate Revenue
+                            $item_revenue = isset($hh['thanh_tien']) ? doubleval($hh['thanh_tien']) : 0;
+                            $dh_doanh_thu_ban += $item_revenue;
+                            
+                            if ($is_promo) {
+                                $dh_tien_hang_ct += $item_revenue;
+                            }
+                            
                             // Calculate Cost properly
                             $item_cost = 0;
                             if (isset($hh['gia_von_thuc_te'])) {
                                 $item_cost = doubleval($hh['gia_von_thuc_te']);
                             } else {
                                 $base_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
-                                $item_qty = isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
                                 $item_cost = $base_cost * $item_qty;
                             }
-                            $tong_gia_von_ban += $item_cost;
+                            $dh_gia_von_ban += $item_cost;
                         }
                     }
+
+                    $dh_doanh_thu_ban = isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : $dh_doanh_thu_ban;
+
+                    $tong_doanh_thu_ban += $dh_doanh_thu_ban;
+                    $tong_gia_von_ban += $dh_gia_von_ban;
+                    $so_san_pham_ban += $dh_so_san_pham_ban;
+                    $tong_tien_hang_ct += $dh_tien_hang_ct;
+
+                    $dh['filtered_tong_thanh_tien'] = $dh_doanh_thu_ban;
+                    $dh['filtered_tong_gia_von'] = $dh_gia_von_ban;
+                    $dh['filtered_so_luong'] = $dh_so_san_pham_ban;
+                    $dh['tien_hang_ct'] = $dh_tien_hang_ct;
+                    $filtered_danhsach->push($dh);
+                } else {
+                    $filtered_danhsach->push($dh);
                 }
             }
+            $danhsach = $filtered_danhsach;
             
             // 2. CUSTOMER RETURN QUERY
             $query_tra = \App\Models\TraHangKhach::where('ngay_tra', '>=', $start_date)
@@ -214,60 +308,101 @@ class ThongKeController extends Controller
             $ds_tra_hang = $query_tra->orderBy('ngay_tra', 'desc')->get();
             $so_don_tra = count($ds_tra_hang);
 
+            $filtered_ds_tra_hang = collect();
             foreach($ds_tra_hang as $th) {
-                // Subtract from Revenue
-                $tong_doanh_thu_tra += isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : 0;
+                $th_doanh_thu_tra = 0;
+                $th_gia_von_tra = 0;
+                $th_so_san_pham_tra = 0;
+                $th_tien_hang_ct_tra = 0;
                 
-                // Subtract from Cost (Inventory value returned)
-                // If tong_gia_von is stored:
-                if (isset($th['tong_gia_von'])) {
-                    $tong_gia_von_tra += doubleval($th['tong_gia_von']);
-                } else {
-                    // Manual calc if not stored
-                    if (isset($th['hanghoa']) && is_array($th['hanghoa'])) {
-                        foreach($th['hanghoa'] as $hh_tra) {
-                            $gv = isset($hh_tra['gia_von']) ? doubleval($hh_tra['gia_von']) : 0;
-                            $sl = isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
-                            $tong_gia_von_tra += $gv * $sl;
+                if (isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                    foreach($th['hanghoa'] as $hh_tra) {
+                        $is_promo = isset($hh_tra['hang_chuong_trinh']) && $hh_tra['hang_chuong_trinh'] ? true : false;
+                        
+                        $sl = isset($hh_tra['so_luong_tru_kho_tra']) ? doubleval($hh_tra['so_luong_tru_kho_tra']) : (isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0);
+                        $th_so_san_pham_tra += $sl;
+
+                        // Estimate item-level return amount if not explicitly given (usually DonHang has it, TraHang might not, fallback to don_gia * sl)
+                        $item_revenue = isset($hh_tra['thanh_tien_tra']) ? doubleval($hh_tra['thanh_tien_tra']) : ((isset($hh_tra['don_gia']) ? doubleval($hh_tra['don_gia']) : 0) * $sl);
+                        $th_doanh_thu_tra += $item_revenue;
+                        
+                        if ($is_promo) {
+                            $th_tien_hang_ct_tra += $item_revenue;
                         }
+
+                        $gv = isset($hh_tra['gia_von']) ? doubleval($hh_tra['gia_von']) : 0;
+                        $th_gia_von_tra += $gv * $sl;
                     }
                 }
 
-                if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
-                    foreach($th['hanghoa'] as $hh_tra) {
-                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? intval($hh_tra['so_luong_tra']) : 0;
-                    }
-                }
+                $th_doanh_thu_tra = isset($th['tong_tien_tra']) ? doubleval($th['tong_tien_tra']) : $th_doanh_thu_tra;
+                $th_gia_von_tra = isset($th['tong_gia_von']) ? doubleval($th['tong_gia_von']) : $th_gia_von_tra;
+
+                $tong_doanh_thu_tra += $th_doanh_thu_tra;
+                $tong_gia_von_tra += $th_gia_von_tra;
+                $so_san_pham_tra += $th_so_san_pham_tra;
+                $tong_tien_hang_ct_tra += $th_tien_hang_ct_tra;
+
+                $th['filtered_tong_tien_tra'] = $th_doanh_thu_tra;
+                $th['filtered_tong_gia_von'] = $th_gia_von_tra;
+                $th['filtered_so_luong'] = $th_so_san_pham_tra;
+                $th['tien_hang_ct_tra'] = $th_tien_hang_ct_tra;
+                $filtered_ds_tra_hang->push($th);
             }
+            $ds_tra_hang = $filtered_ds_tra_hang;
 
             // 3. NET CALCULATIONS
             $tong_doanh_thu = $tong_doanh_thu_ban - $tong_doanh_thu_tra;
             $tong_gia_von = $tong_gia_von_ban - $tong_gia_von_tra;
-            $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von;
+            $tong_loi_nhuan = $tong_doanh_thu - $tong_gia_von; // Lợi nhuận ước tính
             
-            // Calculate debt from CongNo
-            $congno_query = CongNo::where('ngay_gio', '>=', $start_date)
-                ->where('ngay_gio', '<=', $end_date);
-            if($id_khachhang) {
-                $congno_query->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
+            // Calculate payment & debt based on actual orders in the period
+            // Use don_payments_map which already has total paid per order
+            $tong_da_thanh_toan = 0;
+            foreach($danhsach as $dh) {
+                if ($dh['tinh_trang'] != 2 && $dh['tinh_trang'] != 3) {
+                    $dh_id = (string)$dh['_id'];
+                    $paid_for_order = isset($don_payments_map[$dh_id]) ? doubleval($don_payments_map[$dh_id]) : 0;
+                    $dh_tong_tien = isset($dh['tong_thanh_tien']) ? doubleval($dh['tong_thanh_tien']) : 0;
+                    
+                    $filtered_paid = $paid_for_order;
+                    
+                    $dh['filtered_da_thanh_toan'] = $filtered_paid;
+                    $dh['filtered_con_no'] = $dh['filtered_tong_thanh_tien'] - $filtered_paid;
+                    
+                    $tong_da_thanh_toan += $filtered_paid;
+                }
             }
+            $tong_con_no = $tong_doanh_thu_ban - $tong_da_thanh_toan;
             
-            $tong_phat_sinh_no = (clone $congno_query)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
-            $tong_da_thanh_toan = (clone $congno_query)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-            $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
+            // Lợi nhuận thực tế (tiền mặt thu được - giá vốn)
+            // Lấy dòng tiền thu được từ KH (đã thanh toán - doanh thu trả) trừ lợi nhuận vốn
+            $tong_loi_nhuan_thuc_te = ($tong_da_thanh_toan - $tong_doanh_thu_tra) - $tong_gia_von;
         }
         
         $ty_le_loi_nhuan = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan / $tong_doanh_thu) * 100, 2) : 0;
+        $ty_le_loi_nhuan_thuc_te = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan_thuc_te / $tong_doanh_thu) * 100, 2) : 0;
         
-        return view('Admin.ThongKe.thong-ke-ban-hang')->with(compact(
+        $data = compact(
             'tu_ngay', 'den_ngay', 'id_khachhang', 'tinh_trang',
             'khachhang_list', 'tinhtrang', 'danhsach', 'ds_tra_hang',
             'tong_doanh_thu', 'tong_doanh_thu_ban', 'tong_doanh_thu_tra',
             'tong_gia_von', 'tong_gia_von_ban', 'tong_gia_von_tra',
             'tong_loi_nhuan', 'ty_le_loi_nhuan',
+            'tong_loi_nhuan_thuc_te', 'ty_le_loi_nhuan_thuc_te',
             'tong_da_thanh_toan', 'tong_con_no', 
-            'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra'
-        ));
+            'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra',
+            'don_payments_map', 'tong_tien_hang_ct', 'tong_tien_hang_ct_tra'
+        );
+
+        if($request->input('action') == 'export_excel') {
+            return $this->exportBanHangExcel($data);
+        }
+        if($request->input('action') == 'export_pdf') {
+            return $this->exportBanHangPdf($data);
+        }
+
+        return view('Admin.ThongKe.thong-ke-ban-hang')->with($data);
     }
 
     /**
@@ -316,6 +451,22 @@ class ThongKeController extends Controller
             $danhsach = $query->orderBy('ngay_nhap', 'desc')->get();
             $so_phieu_nhap = count($danhsach);
             
+            // --- Map Payments cho từng phiếu nhập ---
+            $nh_ids = $danhsach->pluck('_id')->toArray();
+            $nh_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $nh_ids);
+            $nhap_payments_map = [];
+            if(count($nh_ids) > 0) {
+                $raw_payments_ncc = \App\Models\CongNoNCC::raw(function($collection) use ($nh_ids) {
+                    return $collection->aggregate([
+                        ['$match' => ['id_nhaphang' => ['$in' => $nh_ids], 'loai_cong_no' => 1]],
+                        ['$group' => ['_id' => '$id_nhaphang', 'total_paid' => ['$sum' => '$tong_thanh_tien']]]
+                    ]);
+                });
+                foreach($raw_payments_ncc as $p) {
+                    $nhap_payments_map[(string)$p['_id']] = $p['total_paid'];
+                }
+            }
+            
             foreach($danhsach as $nh) {
                 // Total import value
                 $tong_gia_tri_nhap_goc += isset($nh['tong_thanh_tien']) ? doubleval($nh['tong_thanh_tien']) : 0;
@@ -323,7 +474,7 @@ class ThongKeController extends Controller
                 // Product count
                 if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
                     foreach($nh['hanghoa'] as $hh) {
-                        $so_san_pham_nhap += isset($hh['so_luong']) ? intval($hh['so_luong']) : 0;
+                        $so_san_pham_nhap += isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0;
                     }
                 }
             }
@@ -344,7 +495,7 @@ class ThongKeController extends Controller
                 
                  if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
                     foreach($th['hanghoa'] as $hh_tra) {
-                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? intval($hh_tra['so_luong_tra']) : 0;
+                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
                     }
                 }
             }
@@ -352,27 +503,247 @@ class ThongKeController extends Controller
             // 3. NET VALUES
             $tong_gia_tri_nhap = $tong_gia_tri_nhap_goc - $tong_gia_tri_tra;
             
-            // Calculate debt from CongNoNCC
-            $congno_query = \App\Models\CongNoNCC::where('ngay_gio', '>=', $start_date)
-                ->where('ngay_gio', '<=', $end_date);
-            if($id_nhacungcap) {
-                $congno_query->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
-            }
-            
-            $tong_phat_sinh_no = (clone $congno_query)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
-            $tong_da_thanh_toan = (clone $congno_query)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-            $tong_con_no = $tong_phat_sinh_no - $tong_da_thanh_toan;
+            // Calculate payment & debt based on actual import orders in the period
+        // Use nhap_payments_map which already has total paid per import
+        $tong_da_thanh_toan = 0;
+        foreach($danhsach as $nh) {
+            $nh_id = (string)$nh['_id'];
+            $tong_da_thanh_toan += isset($nhap_payments_map[$nh_id]) ? $nhap_payments_map[$nh_id] : 0;
+        }
+        $tong_con_no = $tong_gia_tri_nhap_goc - $tong_da_thanh_toan;
         }
         
         $so_san_pham = $so_san_pham_nhap - $so_san_pham_tra;
-        return view('Admin.ThongKe.thong-ke-nhap-hang')->with(compact(
+
+        $data = compact(
             'tu_ngay', 'den_ngay', 'id_nhacungcap',
             'nhacungcap_list', 'danhsach', 'ds_tra_hang_ncc',
             'tong_gia_tri_nhap', 'tong_gia_tri_nhap_goc', 'tong_gia_tri_tra',
             'tong_da_thanh_toan', 'tong_con_no',
-            'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham'
-        ));
+            'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham',
+            'nhap_payments_map'
+        );
+
+        if($request->input('action') == 'export_excel') {
+            return $this->exportNhapHangExcel($data);
+        }
+        if($request->input('action') == 'export_pdf') {
+            return $this->exportNhapHangPdf($data);
+        }
+
+        return view('Admin.ThongKe.thong-ke-nhap-hang')->with($data);
     }
+    private function exportBanHangExcel($data) {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Đơn Bán Hàng');
+        
+        // Headers cho Bán Hàng
+        $headers = ['STT', 'Mã Đơn', 'Ngày bán', 'Khách hàng', 'SĐT', 'SL SP', 'Tổng tiền', 'Tiền Hàng CT', 'Đã thanh toán', 'Còn nợ', 'Giá vốn', 'LN Ước tính', 'LN Thực tế', 'Ghi chú'];
+        $columnLetter = 'A';
+        foreach($headers as $header){
+            $sheet->setCellValue($columnLetter . '1', $header);
+            $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
+            $sheet->getStyle($columnLetter . '1')->getFont()->setBold(true);
+            $sheet->getStyle($columnLetter . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
+            $columnLetter++;
+        }
+        
+        $row = 2;
+        $i = 1;
+        foreach($data['danhsach'] as $ds){
+            $so_luong = isset($ds['filtered_so_luong']) ? $ds['filtered_so_luong'] : 0;
+            $gia_von_don = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
+            $doanh_thu_don = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : 0;
+            
+            if(!isset($ds['filtered_tong_thanh_tien'])) {
+                foreach($ds['hanghoa'] as $hh){
+                    $so_luong += $hh['so_luong'];
+                    $gia_von_don += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                }
+                $doanh_thu_don = $ds['tong_thanh_tien'];
+            }
+
+            $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
+            
+            if (isset($ds['filtered_da_thanh_toan'])) {
+                $da_thanh_toan = $ds['filtered_da_thanh_toan'];
+                $con_no = $ds['filtered_con_no'];
+            } else {
+                $da_thanh_toan = isset($data['don_payments_map'][(string)$ds['_id']]) ? $data['don_payments_map'][(string)$ds['_id']] : 0;
+                $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+            }
+            
+            $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
+
+            $sheet->setCellValue('A' . $row, $i++);
+            $sheet->setCellValue('B' . $row, $ds['ma_don_hang']);
+            $sheet->setCellValue('C' . $row, \App\Http\Controllers\ObjectController::getDate($ds['ngay_ban'],"d/m/Y H:i"));
+            $sheet->setCellValue('D' . $row, $ds['ho_ten']);
+            $sheet->setCellValueExplicit('E' . $row, $ds['dien_thoai'] ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('F' . $row, $so_luong);
+            $sheet->setCellValue('G' . $row, $doanh_thu_don);
+            $sheet->setCellValue('H' . $row, $ds['tien_hang_ct'] ?? 0);
+            $sheet->setCellValue('I' . $row, $da_thanh_toan);
+            $sheet->setCellValue('J' . $row, $con_no);
+            $sheet->setCellValue('K' . $row, $gia_von_don);
+            $sheet->setCellValue('L' . $row, $loi_nhuan_don);
+            $sheet->setCellValue('M' . $row, $loi_nhuan_thuc_te_don);
+            $sheet->setCellValue('N' . $row, $ds['ghi_chu'] ?? '');
+            
+            $sheet->getStyle('F'.$row.':M'.$row)->getNumberFormat()->setFormatCode('#,##0');
+            $row++;
+        }
+
+        // Tạo Sheet cho Trả Hàng
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Đơn Trả Hàng');
+        // Headers cho Trả Hàng
+        $headers2 = ['STT', 'Mã Trả hàng', 'Ngày trả', 'Đơn gốc', 'Khách hàng', 'SL Trả', 'Tiền trả lại', 'Tiền HCT trả', 'Tổng giá vốn'];
+        $col2 = 'A';
+        foreach($headers2 as $header){
+            $sheet2->setCellValue($col2 . '1', $header);
+            $sheet2->getColumnDimension($col2)->setAutoSize(true);
+            $sheet2->getStyle($col2 . '1')->getFont()->setBold(true);
+            $sheet2->getStyle($col2 . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
+            $col2++;
+        }
+
+        $row2 = 2;
+        $j = 1;
+        foreach($data['ds_tra_hang'] as $th){
+            $sl_tra = isset($th['filtered_so_luong']) ? $th['filtered_so_luong'] : 0;
+            $gv_tra = isset($th['filtered_tong_gia_von']) ? $th['filtered_tong_gia_von'] : 0;
+            $tien_tra_don = isset($th['filtered_tong_tien_tra']) ? $th['filtered_tong_tien_tra'] : 0;
+            
+            if(!isset($th['filtered_tong_tien_tra'])) {
+                if(isset($th['hanghoa']) && is_array($th['hanghoa'])){
+                    foreach($th['hanghoa'] as $hh){
+                        $sl_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
+                    }
+                }
+                $gv_tra = $th['tong_gia_von'] ?? 0;
+                if ($gv_tra == 0 && isset($th['hanghoa'])) {
+                     foreach($th['hanghoa'] as $hh) {
+                        $gv_tra += (isset($hh['gia_von']) ? $hh['gia_von'] : 0) * (isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0);
+                     }
+                }
+                $tien_tra_don = $th['tong_tien_tra'] ?? 0;
+            }
+
+            $sheet2->setCellValue('A' . $row2, $j++);
+            $sheet2->setCellValue('B' . $row2, $th['ma_tra_hang']);
+            $sheet2->setCellValue('C' . $row2, \App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i"));
+            $sheet2->setCellValue('D' . $row2, $th['ma_don_hang'] ?? '');
+            $sheet2->setCellValue('E' . $row2, $th['ho_ten']);
+            $sheet2->setCellValue('F' . $row2, $sl_tra);
+            $sheet2->setCellValue('G' . $row2, $tien_tra_don);
+            $sheet2->setCellValue('H' . $row2, $th['tien_hang_ct_tra'] ?? 0);
+            $sheet2->setCellValue('I' . $row2, $gv_tra);
+            
+            $sheet2->getStyle('F'.$row2.':I'.$row2)->getNumberFormat()->setFormatCode('#,##0');
+            $row2++;
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $writer = new Xlsx($spreadsheet);
+        $fileName = 'ThongKeBanHang_' . date('d-m-Y_H-i') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="'. $fileName .'"');
+        $writer->save('php://output');
+        exit;
+    }
+
+    private function exportBanHangPdf($data) {
+        $pdf = Pdf::loadView('Admin.ThongKe.export_ban_hang_pdf', $data);
+        return $pdf->stream('ThongKeBanHang_' . date('d-m-Y_H-i') . '.pdf');
+    }
+
+    private function exportNhapHangExcel($data) {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Phiếu Nhập Hàng');
+        
+        $headers = ['STT', 'Mã Phiếu', 'Số CT', 'Ngày nhập', 'Nhà cung cấp', 'SĐT', 'SL SP', 'Tổng tiền', 'Thanh toán', 'Nợ', 'Ghi chú'];
+        $col = 'A';
+        foreach($headers as $h){
+            $sheet->setCellValue($col . '1', $h);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getStyle($col . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
+            $col++;
+        }
+        
+        $row = 2;
+        $i = 1;
+        foreach($data['danhsach'] as $ds){
+            $so_luong = 0;
+            if(isset($ds['hanghoa']) && is_array($ds['hanghoa'])){
+                foreach($ds['hanghoa'] as $hh) $so_luong += $hh['so_luong'];
+            }
+            $tong_tien = $ds['tong_thanh_tien'] ?? $ds['thanh_tien'] ?? 0;
+            $da_thanh_toan = isset($data['nhap_payments_map'][(string)$ds['_id']]) ? $data['nhap_payments_map'][(string)$ds['_id']] : 0;
+            $con_no = $tong_tien - $da_thanh_toan;
+
+            $sheet->setCellValue('A' . $row, $i++);
+            $sheet->setCellValue('B' . $row, $ds['ma_nhap_hang'] ?? '');
+            $sheet->setCellValue('C' . $row, $ds['so_chung_tu'] ?? '');
+            $sheet->setCellValue('D' . $row, \App\Http\Controllers\ObjectController::getDate($ds['ngay_nhap'],"d/m/Y H:i"));
+            $sheet->setCellValue('E' . $row, $ds['ten_ncc']);
+            $sheet->setCellValueExplicit('F' . $row, $ds['dien_thoai'] ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('G' . $row, $so_luong);
+            $sheet->setCellValue('H' . $row, $tong_tien);
+            $sheet->setCellValue('I' . $row, $da_thanh_toan);
+            $sheet->setCellValue('J' . $row, $con_no);
+            $sheet->setCellValue('K' . $row, $ds['ghi_chu'] ?? '');
+            
+            $sheet->getStyle('G'.$row.':J'.$row)->getNumberFormat()->setFormatCode('#,##0');
+            $row++;
+        }
+
+        // Tạo Sheet cho Trả Hàng NCC
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Phiếu Trả Hàng NCC');
+        $headers2 = ['STT', 'Mã Trả hàng', 'Ngày trả', 'Ph.Nhập gốc', 'Nhà cung cấp', 'SL Trả', 'Tiền nhận lại'];
+        $col2 = 'A';
+        foreach($headers2 as $h){
+            $sheet2->setCellValue($col2 . '1', $h);
+            $sheet2->getColumnDimension($col2)->setAutoSize(true);
+            $sheet2->getStyle($col2 . '1')->getFont()->setBold(true);
+            $sheet2->getStyle($col2 . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
+            $col2++;
+        }
+
+        $row2 = 2;
+        $j = 1;
+        foreach($data['ds_tra_hang_ncc'] as $th){
+            $sl_tra = 0;
+            if(isset($th['hanghoa']) && is_array($th['hanghoa'])){
+                foreach($th['hanghoa'] as $hh) $sl_tra += isset($hh['so_luong_tra']) ? $hh['so_luong_tra'] : 0;
+            }
+            $sheet2->setCellValue('A' . $row2, $j++);
+            $sheet2->setCellValue('B' . $row2, $th['ma_tra_hang']);
+            $sheet2->setCellValue('C' . $row2, \App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i"));
+            $sheet2->setCellValue('D' . $row2, $th['ma_nhap_hang'] ?? '');
+            $sheet2->setCellValue('E' . $row2, $th['ten_ncc']);
+            $sheet2->setCellValue('F' . $row2, $sl_tra);
+            $sheet2->setCellValue('G' . $row2, $th['tong_tien_tra']);
+            
+            $sheet2->getStyle('F'.$row2.':G'.$row2)->getNumberFormat()->setFormatCode('#,##0');
+            $row2++;
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $writer = new Xlsx($spreadsheet);
+        $fileName = 'ThongKeNhapHang_' . date('d-m-Y_H-i') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="'. $fileName .'"');
+        $writer->save('php://output');
+        exit;
+    }
+
     function export_ton_kho(){
         $hanghoa = HangHoa::where('so_luong_ton', '>', 0)->get();
         // Fetch Units and Categories for mapping
