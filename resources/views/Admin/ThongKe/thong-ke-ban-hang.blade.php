@@ -6,18 +6,27 @@
     <style>
         .table-sticky-header {
             max-height: 65vh;
-            overflow-y: auto;
+            overflow: auto;
         }
+        
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
         .table-sticky-header thead th {
             position: sticky;
-            top: -1px;
-            z-index: 10;
+            top: 0;
+            z-index: 15;
+            background-color: #343a40 !important;
+            color: white;
         }
+        
         .table-sticky-header thead tr.summary-row td {
             position: sticky;
-            top: 55px; /* adjusted to overlap behind the th row without gaps */
-            z-index: 9;
-            background-color: #e9ecef !important; /* solid background from generic bg-light to prevent transparency */
+            top: 40px; /* Sẽ cập nhật bằng JS để chuẩn xác 100% */
+            z-index: 14;
+            background-color: #e9ecef !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
         }
@@ -53,14 +62,6 @@
                     @endforeach
                 </select>
             </div>
-            <label class="control-label col-md-1 text-right p-t-10">Loại SP</label>
-            <div class="col-12 col-md-2">
-                <select name="loai_san_pham" id="loai_san_pham" class="form-control">
-                    <option value="all" {{ ($loai_san_pham ?? 'all') == 'all' ? 'selected' : '' }}>Tất cả</option>
-                    <option value="1" {{ ($loai_san_pham ?? 'all') == '1' ? 'selected' : '' }}>Hàng chương trình</option>
-                    <option value="0" {{ ($loai_san_pham ?? 'all') == '0' ? 'selected' : '' }}>VVTN / Hàng thường</option>
-                </select>
-            </div>
         </div>
         <div class="row form-group">
             <label class="control-label col-md-1 text-right p-t-10">Trạng thái</label>
@@ -72,8 +73,10 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-1">
-                <button type="submit" name="submit" value="OK" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+            <div class="col-12 col-md-3">
+                <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+                <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
+                <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
             </div>
         </div>
         <div class="row mb-3">
@@ -105,14 +108,21 @@
 </div>
     <div id="stats-cards">
     <div class="row">
-        <div class="col-md-4 col-xl-3">
+        <div class="col-md-4 col-xl-2">
             <div class="card-box widget-flat border-success bg-success text-white" title="Tổng bán: {{ number_format($tong_doanh_thu_ban,0,",",".") }} - Trả: {{ number_format($tong_doanh_thu_tra,0,",",".") }}">
                 <i class="fas fa-money-bill-wave"></i>
                 <h4 class="text-white">{{ number_format($tong_doanh_thu,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Doanh thu thực</p>
             </div>
         </div>
-        <div class="col-md-4 col-xl-3">
+        <div class="col-md-4 col-xl-2">
+            <div class="card-box widget-flat border-info bg-info text-white" title="Tổng HCT bán: {{ number_format($tong_tien_hang_ct,0,",",".") }} - Trả HCT: {{ number_format($tong_tien_hang_ct_tra,0,",",".") }}">
+                <i class="fas fa-gift"></i>
+                <h4 class="text-white">{{ number_format($tong_tien_hang_ct - $tong_tien_hang_ct_tra,0,",",".") }}</h4>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Tiền Hàng CT</p>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-2">
             <div class="card-box bg-warning widget-flat border-warning text-white" title="Giá vốn bán: {{ number_format($tong_gia_von_ban,0,",",".") }} - Giá vốn trả: {{ number_format($tong_gia_von_tra,0,",",".") }}">
                 <i class="fas fa-boxes"></i>
                 <h4 class="text-white">{{ number_format($tong_gia_von,0,",",".") }}</h4>
@@ -236,6 +246,7 @@
                                 <th>Điện thoại</th>
                                 <th class="text-center" style="white-space: nowrap">SL SP</th>
                                 <th class="text-right" style="white-space: nowrap">Tổng tiền</th>
+                                <th class="text-right text-info" style="white-space: nowrap">Tiền Hàng CT</th>
                                 <th class="text-right" style="white-space: nowrap">Thanh toán</th>
                                 <th class="text-right" style="white-space: nowrap">Nợ</th>
                                 <th class="text-right" style="white-space: nowrap">Giá vốn</th>
@@ -246,8 +257,9 @@
                             </tr>
                             <tr class="bg-light text-dark font-weight-bold summary-row">
                                 <td colspan="5" class="text-right text-uppercase">TỔNG BÁN:</td>
-                                <td class="text-center text-primary">{{ $so_san_pham_ban }}</td>
+                                <td class="text-center text-primary">{{ number_format($so_san_pham_ban,0,",",".") }}</td>
                                 <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-info"><b>{{ number_format($tong_tien_hang_ct,0,",",".") }}</b></td>
                                 <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
                                 <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
@@ -280,13 +292,8 @@
                                         $da_thanh_toan = $ds['filtered_da_thanh_toan'];
                                         $con_no = $ds['filtered_con_no'];
                                     } else {
-                                        if (($loai_san_pham ?? 'all') === 'all') {
-                                            $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
-                                            $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
-                                        } else {
-                                            $da_thanh_toan = 0;
-                                            $con_no = 0;
-                                        }
+                                        $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
+                                        $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
                                     }
                                     
                                     $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
@@ -303,6 +310,7 @@
                                     <td>{{ $ds['dien_thoai'] }}</td>
                                     <td class="text-center">{{ number_format($so_luong,0,",",".") }}</td>
                                     <td class="text-right"><b>{{ number_format($doanh_thu_don,0,",",".") }}</b></td>
+                                    <td class="text-right text-info font-weight-bold">{{ number_format($ds['tien_hang_ct'] ?? 0,0,",",".") }}</td>
                                     <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
                                     <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
@@ -334,6 +342,7 @@
                                 <th>Khách hàng</th>
                                 <th>SL Trả</th>
                                 <th>Tiền trả lại</th>
+                                <th class="text-info">Tiền Hàng CT trả</th>
                                 <th>Tổng giá vốn</th>
                                 <th>Chi tiết</th>
                             </tr>
@@ -369,6 +378,7 @@
                                     <td>{{ $th['ho_ten'] }}</td>
                                     <td class="text-center">{{ number_format($sl_tra,0,",",".") }}</td>
                                     <td class="text-right text-danger font-weight-bold">{{ number_format($tien_tra_don,0,",",".") }}</td>
+                                    <td class="text-right text-info font-weight-bold">{{ number_format($th['tien_hang_ct_tra'] ?? 0,0,",",".") }}</td>
                                     <td class="text-right">{{ number_format($gv_tra,0,",",".") }}</td>
                                     <td class="text-center">
                                         <a href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $th['_id'] }}" class="btn btn-sm btn-info" target="_blank"><i class="fa fa-eye"></i> Xem</a>
@@ -379,8 +389,9 @@
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
                                 <td colspan="5" class="text-right">TỔNG TRẢ:</td>
-                                <td class="text-center text-danger">{{ $so_san_pham_tra }}</td>
+                                <td class="text-center text-danger">{{ number_format($so_san_pham_tra,0,",",".") }}</td>
                                 <td class="text-right text-danger">{{ number_format($tong_doanh_thu_tra,0,",",".") }}</td>
+                                <td class="text-right text-info">{{ number_format($tong_tien_hang_ct_tra,0,",",".") }}</td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
                                 <td></td>
                             </tr>
@@ -427,6 +438,22 @@
                 }
             });
 
+            // Adjust sticky summary row top dynamically 
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th').outerHeight();
+                if (headerHeight) {
+                    $('.table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+                }
+            }
+            // Run on load and window resize
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
+            
+            // Re-run after switching tabs just in case table visibility changes height calculations
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                adjustStickySummary();
+            });
+
             // Wrap existing stats cards
             // (cards are inside .row with col-md-6)
 
@@ -446,18 +473,20 @@
                 var daThanhToan = {{ $tong_da_thanh_toan ?? 0 }};
                 var conNo = {{ $tong_con_no ?? 0 }};
                 var loiNhuanThucTe = {{ $tong_loi_nhuan_thuc_te ?? 0 }};
+                var tienHangCT = {{ isset($tong_tien_hang_ct) ? $tong_tien_hang_ct - ($tong_tien_hang_ct_tra ?? 0) : 0 }};
 
                 // Chart 1: Revenue vs Cost vs Profit (Bar)
                 new Chart(document.getElementById('chartRevenue'), {
                     type: 'bar',
                     data: {
-                        labels: ['Doanh thu bán', 'Trả hàng', 'Doanh thu thực', 'Giá vốn thực', 'Lợi nhuận gộp', 'Lợi nhuận TT'],
+                        labels: ['Doanh thu bán', 'Trả hàng', 'Tiền HCT', 'Doanh thu thực', 'Giá vốn thực', 'Lợi nhuận gộp', 'Lợi nhuận TT'],
                         datasets: [{
                             label: 'Số tiền (VNĐ)',
-                            data: [doanhThuBan, doanhThuTra, doanhThuThuc, giaVonThuc, loiNhuan, loiNhuanThucTe],
+                            data: [doanhThuBan, doanhThuTra, tienHangCT, doanhThuThuc, giaVonThuc, loiNhuan, loiNhuanThucTe],
                             backgroundColor: [
                                 'rgba(40,167,69,0.8)',
                                 'rgba(255,193,7,0.8)',
+                                'rgba(23,162,184,0.8)', // Info color for HCT
                                 'rgba(0,123,255,0.8)',
                                 'rgba(253,126,20,0.8)',
                                 loiNhuan >= 0 ? 'rgba(23,162,184,0.8)' : 'rgba(220,53,69,0.8)',

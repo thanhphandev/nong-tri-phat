@@ -110,7 +110,9 @@
             <label class="mr-2">Đến ngày:</label>
             <input type="text" name="to_date" class="form-control datepicker mr-3" value="{{ $to_date }}" placeholder="dd/mm/yyyy" autocomplete="off">
             <button type="submit" class="btn btn-primary mr-2"><i class="fa fa-filter"></i> Lọc</button>
-            <a href="{{ env('APP_URL') }}admin/cong-no-ncc?id_nhacungcap={{ $id_nhacungcap }}" class="btn btn-light"><i class="fa fa-sync"></i> Reset</a>
+            <a href="{{ env('APP_URL') }}admin/cong-no-ncc?id_nhacungcap={{ $id_nhacungcap }}" class="btn btn-light mr-2"><i class="fa fa-sync"></i> Reset</a>
+            
+            <a href="{{ env('APP_URL') }}admin/cong-no-ncc/export-pdf?id_nhacungcap={{ $id_nhacungcap }}&from_date={{ $from_date }}&to_date={{ $to_date }}" target="_blank" class="btn btn-danger"><i class="fas fa-file-pdf"></i> Xuất PDF</a>
         </form>
     </div>
 

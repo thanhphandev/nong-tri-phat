@@ -49,8 +49,8 @@
                                 @if(!empty($hh['don_vi_le_info']))
                                     <br><small class="text-muted">{{ $hh['don_vi_le_info'] }}</small>
                                 @endif
-                                @if(isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh'])
-                                    <span class="badge badge-info ml-1">Hàng CT</span>
+                                @if(!empty($hh['hang_chuong_trinh']))
+                                    <br><small class="text-info">Hàng chương trình</small>
                                 @endif
                             </td>
                             <td class="text-center">{{ $hh['don_vi_tinh'] }}</td>

@@ -6,18 +6,27 @@
     <style>
         .table-sticky-header {
             max-height: 65vh;
-            overflow-y: auto;
+            overflow: auto;
         }
+        
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
         .table-sticky-header thead th {
             position: sticky;
-            top: -1px;
-            z-index: 10;
+            top: 0;
+            z-index: 15;
+            background-color: #343a40 !important;
+            color: white;
         }
+        
         .table-sticky-header thead tr.summary-row td {
             position: sticky;
-            top: 55px; /* adjusted to overlap behind the th row without gaps */
-            z-index: 9;
-            background-color: #e9ecef !important; /* solid background from generic bg-light to prevent transparency */
+            top: 40px; /* Sẽ cập nhật bằng JS để chuẩn xác 100% */
+            z-index: 14;
+            background-color: #e9ecef !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
         }
@@ -53,8 +62,10 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-2">
-                <button type="submit" name="submit" value="OK" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+            <div class="col-12 col-md-3">
+                <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+                <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
+                <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
             </div>
         </div>
         <div class="row mb-3">
@@ -321,6 +332,22 @@
                     $('#stats-charts-nh').hide();
                     $('#stats-cards-nh').show();
                 }
+            });
+
+            // Adjust sticky summary row top dynamically 
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th').outerHeight();
+                if (headerHeight) {
+                    $('.table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+                }
+            }
+            // Run on load and window resize
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
+            
+            // Re-run after switching tabs just in case table visibility changes height calculations
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                adjustStickySummary();
             });
 
             var chartsNHInitialized = false;

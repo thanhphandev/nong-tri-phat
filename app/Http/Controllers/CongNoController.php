@@ -7,6 +7,10 @@ use App\Http\Controllers\ObjectController;
 use App\Http\Controllers\LogController;
 use App\Models\KhachHang;
 use App\Models\CongNo;
+use App\Models\DonHang;
+use App\Models\TraHangKhach;
+use Carbon\Carbon;
+use PDF;
 use Validator;use Session;
 use Config;
 
@@ -332,7 +336,7 @@ class CongNoController extends Controller
             $congno->tong_thanh_tien = $so_tien_con_lai;
             $congno->ngay_gio = ObjectController::setDate();
             $congno->loai_cong_no = 1;
-            $congno->ghi_chu = ($data['ghi_chu'] ?? 'Thanh toán') . ' - Tiền dư/ứng trước';
+            $congno->ghi_chu = ($data['ghi_chu']);
             $congno->id_user = ObjectController::ObjectId($id_user);
             $congno->save();
             
@@ -353,6 +357,143 @@ class CongNoController extends Controller
         }
         Session::flash('msg', $msg);
         return redirect($data['url']);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $khach_hang_id = $request->khach_hang_id;
+        $fromDate = $request->from_date ? Carbon::parse(str_replace('/', '-', $request->from_date))->startOfDay() : null;
+        $toDate = $request->to_date ? Carbon::parse(str_replace('/', '-', $request->to_date))->endOfDay() : Carbon::now()->endOfDay();
+
+        $khachHang = KhachHang::findOrFail($khach_hang_id);
+        $khach_hang_id_mongo = ObjectController::ObjectId($khach_hang_id);
+
+        // 1. TÍNH NỢ ĐẦU KỲ
+        $noDauKy = isset($khachHang->no_dau_ky) ? (float)$khachHang->no_dau_ky : 0; // Lấy số dư nợ gốc ban đầu hệ thống
+        
+        if ($fromDate) {
+            $from_date_mongo = new \MongoDB\BSON\UTCDateTime($fromDate->getTimestamp() * 1000);
+            
+            // Tổng nợ tăng (0) và giảm (1) trước thời điểm lọc
+            $tongTangCu = CongNo::where('id_khachhang', $khach_hang_id_mongo)
+                                ->where('loai_cong_no', 0)
+                                ->where('ngay_gio', '<', $from_date_mongo)
+                                ->sum('tong_thanh_tien');
+    
+            $tongGiamCu = CongNo::where('id_khachhang', $khach_hang_id_mongo)
+                                ->where('loai_cong_no', 1)
+                                ->where('ngay_gio', '<', $from_date_mongo)
+                                ->sum('tong_thanh_tien');
+    
+            $noDauKy += ($tongTangCu - $tongGiamCu);
+        }
+    
+        // 2. LẤY PHÁT SINH TRONG KỲ
+        $start_mongo = $fromDate ? new \MongoDB\BSON\UTCDateTime($fromDate->getTimestamp() * 1000) : null;
+        $end_mongo = new \MongoDB\BSON\UTCDateTime($toDate->getTimestamp() * 1000);
+    
+        $phatSinh = CongNo::where('id_khachhang', $khach_hang_id_mongo)
+                            ->where('ngay_gio', '<=', $end_mongo)
+                            ->when($start_mongo, function($q) use ($start_mongo) {
+                                return $q->where('ngay_gio', '>=', $start_mongo);
+                            })
+                            ->get();
+    
+        // Lấy tất cả ID đơn hàng và ID phiếu trả hàng để lấy chi tiết
+        $donHangIds = $phatSinh->pluck('id_donhang')->filter()->map(function($id) { return (string)$id; })->unique()->toArray();
+        $traHangIds = $phatSinh->pluck('id_trahangkhach')->filter()->map(function($id) { return (string)$id; })->unique()->toArray();
+
+        $donHangObjectIds = array_map(function($id) { return ObjectController::ObjectId($id); }, $donHangIds);
+        $traHangObjectIds = array_map(function($id) { return ObjectController::ObjectId($id); }, $traHangIds);
+    
+        $dataDonHang = DonHang::whereIn('_id', $donHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
+        $dataTraHang = TraHangKhach::whereIn('_id', $traHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
+    
+        $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) {
+            return $item->ngay_gio->toDateTime()->getTimestamp();
+        });
+
+        $groupedPhatSinh = [];
+        foreach ($phatSinhTrongKyRaw as $item) {
+            $key = '';
+            if ($item->id_donhang) {
+                $key = 'dh_' . (string)$item->id_donhang;
+            } else {
+                $key = 'cn_' . (string)$item->_id;
+            }
+            
+            if (!isset($groupedPhatSinh[$key])) {
+                $groupedPhatSinh[$key] = clone $item;
+                $groupedPhatSinh[$key]->tien_hang = 0;
+                $groupedPhatSinh[$key]->thanh_toan = 0;
+            }
+
+            if ($item->loai_cong_no == 0) {
+                $groupedPhatSinh[$key]->tien_hang += $item->tong_thanh_tien;
+            } else {
+                $groupedPhatSinh[$key]->thanh_toan += $item->tong_thanh_tien;
+            }
+        }
+
+        $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
+
+        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataDonHang, $dataTraHang, $units) {
+            $item->time = $item->ngay_gio;
+            $item->timestamp_sort = $item->ngay_gio->toDateTime()->getTimestamp();
+            $item->details = [];
+    
+            // Nếu là đơn hàng bán (Tăng nợ)
+            if ($item->id_donhang && isset($dataDonHang[(string)$item->id_donhang])) {
+                $details = $dataDonHang[(string)$item->id_donhang]->hanghoa ?? [];
+                
+                $item->details = collect($details)->map(function($ct) use ($units) {
+                    if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) {
+                        $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le'];
+                    } else {
+                        $id_dvt = $ct['id_donvitinh'] ?? null;
+                        $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? ''));
+                    }
+                    return $ct;
+                })->toArray();
+                
+                $item->ma_phieu = $dataDonHang[(string)$item->id_donhang]->ma_don_hang;
+                $item->so_chung_tu = $dataDonHang[(string)$item->id_donhang]->so_chung_tu ?? null;
+            } 
+            // Nếu là phiếu trả hàng (Giảm nợ)
+            elseif (isset($item->id_trahangkhach) && $item->id_trahangkhach && isset($dataTraHang[(string)$item->id_trahangkhach])) {
+                $details = $dataTraHang[(string)$item->id_trahangkhach]->hanghoa ?? [];
+                
+                $item->details = collect($details)->map(function($ct) use ($units) {
+                    if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) {
+                        $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le'];
+                    } else {
+                        $id_dvt = $ct['id_donvitinh'] ?? null;
+                        $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? ''));
+                    }
+                    return $ct;
+                })->toArray();
+
+                $item->ma_phieu = $dataTraHang[(string)$item->id_trahangkhach]->ma_phieu_tra;
+            }
+    
+            return $item;
+        })->sortBy('timestamp_sort')->values();
+
+        // 3. RENDER RA VIEW
+        $pdf = PDF::loadView('Admin.CongNo.export_pdf', [
+            'khachHang' => $khachHang,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'noDauKy' => $noDauKy,
+            'phatSinhTrongKy' => $phatSinhTrongKy
+        ]);
+
+        // Đặt hướng giấy ngang (Landscape) do báo cáo nhiều cột (8 cột)
+        $pdf->setPaper('a4', 'landscape');
+        
+        $customerCode = isset($khachHang->ma_khach_hang) ? $khachHang->ma_khach_hang : 'KH'.substr($khach_hang_id, -5);
+
+        return $pdf->stream('Bao_Cao_Cong_No_'.$customerCode.'.pdf');
     }
 
     static function check_KhachHang($id = ''){

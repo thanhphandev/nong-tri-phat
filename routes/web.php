@@ -104,9 +104,11 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
 
     Route::get('cong-no', 'CongNoController@list')->middleware('role:Admin,Manager');
     Route::post('cong-no/thanh-toan', 'CongNoController@thanh_toan')->middleware('role:Admin,Manager');
+    Route::get('cong-no/export-pdf', 'CongNoController@exportPdf')->middleware('role:Admin,Manager');
 
     Route::get('cong-no-ncc', 'CongNoNCCController@list')->middleware('role:Admin,Manager');
     Route::post('cong-no-ncc/thanh-toan', 'CongNoNCCController@thanh_toan')->middleware('role:Admin,Manager');
+    Route::get('cong-no-ncc/export-pdf', 'CongNoNCCController@exportPdfNCC')->middleware('role:Admin,Manager');
 
     // Route::get('thong-ke/so-luong-hang-hoa', 'ThongKeController@so_luong_hang_hoa')->middleware('role:Admin,Manager');
     Route::get('thong-ke/export-ton-kho', 'ThongKeController@export_ton_kho')->middleware('role:Admin,Manager');
