@@ -6,17 +6,28 @@
     <style>
         .table-sticky-header {
             max-height: 65vh;
-            overflow-y: auto;
+            overflow: auto;
         }
+        
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 0;
+        }
+        
         .table-sticky-header thead th {
             position: sticky;
-            top: -1px;
-            z-index: 10;
+            top: 0;
+            z-index: 15;
+            background-color: #343a40 !important;
+            color: white;
         }
-        .table-sticky-header thead tr.summary-row th {
+        
+        .table-sticky-header thead tr.summary-row th,
+        .table-sticky-header thead tr.summary-row td {
             position: sticky;
-            top: 36px;
-            z-index: 9;
+            top: 40px; /* Adjusted by JS */
+            z-index: 14;
             background-color: #f8f9fa !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
@@ -92,6 +103,7 @@
                         $sum_con_no += $ds['con_no'] ?? 0;
                     }
                 @endphp
+
 				<div class="table-responsive table-sticky-header">
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
@@ -279,6 +291,13 @@
                     $(this).val(val);
                 }
             });
+
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th:not([colspan])').outerHeight() || 40;
+                $('.table-sticky-header thead tr.summary-row th, .table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+            }
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
         });
     </script>
 @endsection

@@ -5,6 +5,33 @@
     <link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/datatables/dataTables.bootstrap4.css" rel="stylesheet" type="text/css" />
+    <style>
+        .table-sticky-header {
+            max-height: 65vh;
+            overflow: auto;
+        }
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 0;
+        }
+        .table-sticky-header thead th {
+            position: sticky;
+            top: 0;
+            z-index: 15;
+            background-color: #343a40 !important;
+            color: white;
+        }
+        .table-sticky-header thead tr.summary-row th,
+        .table-sticky-header thead tr.summary-row td {
+            position: sticky;
+            top: 40px; /* Adjust via JS */
+            z-index: 14;
+            background-color: #f8f9fa !important;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #dee2e6;
+        }
+    </style>
 @endsection
 @section('body')
 <div class="container-fluid">
@@ -41,10 +68,28 @@
         </form>
     </div>
 
+    @php 
+        $tong_no_all = 0;
+        $tong_da_tt_all = 0;
+        $tong_con_no_all = 0;
+        $filter_status = request('trang_thai_no');
+        foreach($nhacungcap_list as $ncc) {
+            $show = true;
+            if($filter_status == 'con_no' && $ncc['con_no'] <= 0) $show = false;
+            if($filter_status == 'het_no' && $ncc['con_no'] > 0) $show = false;
+            if($show) {
+                $tong_no_all += $ncc['tong_no'];
+                $tong_da_tt_all += $ncc['tong_tra'];
+                $tong_con_no_all += $ncc['con_no'];
+            }
+        }
+    @endphp
+
     <!-- Supplier Debt Table -->
     <div class="card-box">
+        <div class="table-responsive table-sticky-header">
         <table class="table table-bordered table-striped table-hover table-sm" id="table-debt">
-            <thead class="thead-light">
+            <thead class="thead-dark">
                 <tr>
                     <th class="text-center" width="5%">STT</th>
                     <th>Nhà cung cấp</th>
@@ -53,6 +98,13 @@
                     <th class="text-right">Đã thanh toán</th>
                     <th class="text-right">Còn nợ</th>
                     <th class="text-center">Thao tác</th>
+                </tr>
+                <tr class="bg-light text-dark summary-row">
+                    <th colspan="3" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
+                    <th class="text-right text-info font-weight-bold">{{ number_format($tong_no_all, 0, ",", ".") }}</th>
+                    <th class="text-right text-success font-weight-bold">{{ number_format($tong_da_tt_all, 0, ",", ".") }}</th>
+                    <th class="text-right text-danger font-weight-bold">{{ number_format($tong_con_no_all, 0, ",", ".") }}</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -89,6 +141,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 
     @else
@@ -312,6 +365,16 @@
             @if(Session::get('msg'))
                 $.toast({ heading:"Thông báo", text:"{{ Session::get('msg') }}", icon:"success", hideAfter:3000, position:"top-right" });
             @endif
+
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th:not([colspan])').outerHeight() || 40;
+                $('.table-sticky-header thead tr.summary-row th, .table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+            }
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
+            $('#table-debt').on('draw.dt', function() {
+                setTimeout(adjustStickySummary, 50);
+            });
         });
     </script>
 @endsection

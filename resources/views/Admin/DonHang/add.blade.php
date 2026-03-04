@@ -280,10 +280,11 @@
 
                     var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
                     var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+                    var programItem = repo.hang_chuong_trinh ? " <span class='badge badge-warning' style='font-size:10px;'><i class='fas fa-gift'></i> Hàng C.Trình</span>" : "";
 
                     var markup = "<div class='product-result'>" +
                         "<div class='product-title'>" +
-                        "<span>" + repo.ten + "</span>" +
+                        "<span>" + repo.ten + programItem + "</span>" +
                         "<span class='product-ma'>" + repo.ma + "</span>" +
                         "</div>" +
                         "<div class='product-info'>" +

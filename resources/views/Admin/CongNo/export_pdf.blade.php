@@ -130,7 +130,7 @@
                     @foreach($item->details as $ct)
                     <tr class="row-detail">
                         <td></td>
-                        <td class="indent">- {{ $ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'Không rõ tên') }}</td>
+                        <td class="indent">- {{ $ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'Không rõ tên') }} @if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) <strong>(Hàng C.Trình)</strong> @endif</td>
                         <td class="text-center">{{ $ct['so_luong'] ?? 0 }}</td>
                         <td class="text-center">{{ $ct['don_vi_tinh_hien_thi'] ?? ($ct['don_vi'] ?? ($ct['don_vi_tinh'] ?? '')) }}</td>
                         <td class="text-right">{{ isset($ct['don_gia']) ? number_format($ct['don_gia'], 0, ',', '.') : '0' }}</td>

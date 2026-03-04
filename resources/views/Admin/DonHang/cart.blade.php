@@ -17,6 +17,9 @@
 		@if($co_ban_le)
 			<span class="badge badge-success ml-1" title="Có thể xả lẻ">{{ $hh['don_vi_le'] }} (1={{ $hh['ty_le_quy_doi'] ?? 1 }})</span>
 		@endif
+		@if(isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh'])
+			<span class="badge badge-warning ml-1" title="Hàng chương trình"><i class="fas fa-gift"></i> Hàng C.Trình</span>
+		@endif
 		@if($thieu_hang)
 			<div class="alert alert-danger p-1 m-1" style="font-size: 11px;">
 				<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn {{ number_format($so_luong_ton,2,",",".") }}, sẽ trừ âm {{ number_format($so_luong - $so_luong_ton,2,",",".") }}
