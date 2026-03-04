@@ -9,6 +9,7 @@
         h2 { margin-bottom: 5px; font-size: 14px; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
+        .text-left { text-align: left; }
         .font-weight-bold { font-weight: bold; }
         .text-danger { color: #dc3545; }
         .text-primary { color: #007bff; }
@@ -22,6 +23,10 @@
         .summary-box { border: 1px solid #333; padding: 10px; margin-bottom: 15px; background: #f9f9f9; }
         .summary-box table { border: none; margin: 0; }
         .summary-box td { border: none; padding: 3px; }
+        .row-master { background-color: #f0f0f0; font-weight: bold; }
+        .row-detail { background-color: #ffffff; color: #333; }
+        .row-detail td { border-top: 1px dashed #999; }
+        .indent { padding-left: 12px !important; font-style: italic; }
     </style>
 </head>
 <body>
@@ -52,26 +57,30 @@
         <thead>
             <tr>
                 <th width="3%">STT</th>
-                <th width="8%">Mã Đơn</th>
-                <th width="10%">Ngày bán</th>
-                <th width="15%">Khách hàng</th>
-                <th width="5%">SL SP</th>
-                <th width="10%">Tổng tiền</th>
+                <th width="15%">Diễn giải</th>
+                <th width="5%">SL</th>
+                <th width="5%">ĐVT</th>
+                <th width="9%">Đơn giá</th>
+                <th width="5%">CK%</th>
+                <th width="10%">Thành tiền</th>
                 <th width="10%">Thanh toán</th>
-                <th width="10%">Còn nợ</th>
-                <th width="10%">Giá vốn</th>
-                <th width="10%">LN Ước tính</th>
-                <th width="10%">LN Thực tế</th>
+                <th width="9%">Còn nợ</th>
+                <th width="9%">Giá vốn</th>
+                <th width="9%">LN Ước tính</th>
+                <th width="9%">LN Thực tế</th>
             </tr>
             <tr class="bg-light font-weight-bold">
-                <td colspan="4" class="text-right">TỔNG BÁN:</td>
+                <td colspan="2" class="text-right">TỔNG BÁN:</td>
                 <td class="text-center">{{ number_format($so_san_pham_ban,0,",",".") }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
                 <td class="text-right text-success">{{ number_format($tong_doanh_thu_ban,0,",",".") }}</td>
                 <td class="text-right text-primary">{{ number_format($tong_da_thanh_toan,0,",",".") }}</td>
                 <td class="text-right text-danger">{{ number_format($tong_con_no,0,",",".") }}</td>
                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                <td class="text-right text-primary">{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</td>
-                <td class="text-right text-dark">{{ number_format($tong_da_thanh_toan - $tong_gia_von_ban,0,",",".") }}</td>
+                <td class="text-right text-primary">{{ number_format(max(0, $tong_doanh_thu_ban - $tong_gia_von_ban),0,",",".") }}</td>
+                <td class="text-right text-dark">{{ number_format(max(0, $tong_da_thanh_toan - $tong_gia_von_ban),0,",",".") }}</td>
             </tr>
         </thead>
         <tbody>
@@ -89,7 +98,7 @@
                         $doanh_thu_don = $ds['tong_thanh_tien'];
                     }
 
-                    $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
+                    $loi_nhuan_don = isset($ds['filtered_loi_nhuan']) ? $ds['filtered_loi_nhuan'] : max(0, $doanh_thu_don - $gia_von_don);
                     
                     if (isset($ds['filtered_da_thanh_toan'])) {
                         $da_thanh_toan = $ds['filtered_da_thanh_toan'];
@@ -97,21 +106,26 @@
                     } else {
                         if (($loai_san_pham ?? 'all') === 'all') {
                             $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
-                            $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                            $con_no = max(0, $doanh_thu_don - $da_thanh_toan);
                         } else {
                             $da_thanh_toan = 0;
                             $con_no = 0;
                         }
                     }
                     
-                    $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
+                    $loi_nhuan_thuc_te_don = isset($ds['filtered_loi_nhuan_thuc_te']) ? $ds['filtered_loi_nhuan_thuc_te'] : max(0, $da_thanh_toan - $gia_von_don);
                 @endphp
-                <tr>
+                {{-- Master row: order summary --}}
+                <tr class="row-master">
                     <td class="text-center">{{ $key + 1 }}</td>
-                    <td class="text-center">{{ $ds['ma_don_hang'] }}</td>
-                    <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_ban'],"d/m H:i") }}</td>
-                    <td>{{ $ds['ho_ten'] }}</td>
+                    <td class="text-left">
+                        {{ $ds['ma_don_hang'] }} - {{ $ds['ho_ten'] }}
+                        <br><span style="font-weight:normal; font-size:9px;">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_ban'],"d/m H:i") }}</span>
+                    </td>
                     <td class="text-center">{{ number_format($so_luong,0,",",".") }}</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
                     <td class="text-right">{{ number_format($doanh_thu_don,0,",",".") }}</td>
                     <td class="text-right">{{ number_format($da_thanh_toan,0,",",".") }}</td>
                     <td class="text-right {{ $con_no > 0 ? 'text-danger' : '' }}">{{ number_format($con_no,0,",",".") }}</td>
@@ -119,6 +133,25 @@
                     <td class="text-right">{{ number_format($loi_nhuan_don,0,",",".") }}</td>
                     <td class="text-right">{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</td>
                 </tr>
+                {{-- Detail rows: product breakdown --}}
+                @if(isset($ds['hanghoa']) && is_array($ds['hanghoa']))
+                    @foreach($ds['hanghoa'] as $hh)
+                    <tr class="row-detail">
+                        <td></td>
+                        <td class="indent">- {{ $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A') }} @if(isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh']) <strong>(HCT)</strong> @endif</td>
+                        <td class="text-center">{{ $hh['so_luong'] ?? 0 }}</td>
+                        <td class="text-center" style="font-size:9px;">{{ $hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? '') }}</td>
+                        <td class="text-right">{{ number_format($hh['don_gia'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="text-center">{{ $hh['chiet_khau'] ?? 0 }}</td>
+                        <td class="text-right">{{ number_format($hh['thanh_tien'] ?? 0, 0, ',', '.') }}</td>
+                        <td></td>
+                        <td></td>
+                        <td class="text-right" style="font-size:9px;">{{ number_format(isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * ($hh['so_luong'] ?? 0) : 0), 0, ',', '.') }}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    @endforeach
+                @endif
             @endforeach
         </tbody>
     </table>
@@ -129,14 +162,21 @@
     <table>
         <thead>
             <tr>
-                <th width="5%">STT</th>
-                <th width="12%">Mã Trả</th>
-                <th width="15%">Ngày trả</th>
-                <th width="12%">Đơn gốc</th>
-                <th width="20%">Khách hàng</th>
-                <th width="8%">SL Trả</th>
-                <th width="15%">Tiền trả lại</th>
-                <th width="15%">Tổng giá vốn</th>
+                <th width="3%">STT</th>
+                <th width="20%">Diễn giải</th>
+                <th width="6%">SL</th>
+                <th width="6%">ĐVT</th>
+                <th width="10%">Đơn giá</th>
+                <th width="12%">Tiền trả lại</th>
+                <th width="12%">Giá vốn</th>
+            </tr>
+            <tr class="bg-light font-weight-bold">
+                <td colspan="2" class="text-right">TỔNG TRẢ:</td>
+                <td class="text-center text-danger">{{ number_format($so_san_pham_tra,0,",",".") }}</td>
+                <td></td>
+                <td></td>
+                <td class="text-right text-danger">{{ number_format($tong_doanh_thu_tra,0,",",".") }}</td>
+                <td class="text-right">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
             </tr>
         </thead>
         <tbody>
@@ -161,26 +201,33 @@
                         $tien_tra_don = $th['tong_tien_tra'] ?? 0;
                     }
                 @endphp
-                <tr>
+                <tr class="row-master">
                     <td class="text-center">{{ $key + 1 }}</td>
-                    <td class="text-center">{{ $th['ma_tra_hang'] }}</td>
-                    <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i") }}</td>
-                    <td class="text-center">{{ $th['ma_don_hang'] ?? '-' }}</td>
-                    <td>{{ $th['ho_ten'] }}</td>
+                    <td class="text-left">
+                        {{ $th['ma_tra_hang'] }} - {{ $th['ho_ten'] }}
+                        <br><span style="font-weight:normal; font-size:9px;">{{ App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i") }} | Đơn gốc: {{ $th['ma_don_hang'] ?? '-' }}</span>
+                    </td>
                     <td class="text-center">{{ number_format($sl_tra,0,",",".") }}</td>
+                    <td></td>
+                    <td></td>
                     <td class="text-right text-danger font-weight-bold">{{ number_format($tien_tra_don,0,",",".") }}</td>
                     <td class="text-right">{{ number_format($gv_tra,0,",",".") }}</td>
                 </tr>
+                @if(isset($th['hanghoa']) && is_array($th['hanghoa']))
+                    @foreach($th['hanghoa'] as $hh)
+                    <tr class="row-detail">
+                        <td></td>
+                        <td class="indent">- {{ $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A') }}</td>
+                        <td class="text-center">{{ $hh['so_luong_tra'] ?? 0 }}</td>
+                        <td class="text-center" style="font-size:9px;">{{ $hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? '') }}</td>
+                        <td class="text-right">{{ number_format($hh['don_gia'] ?? 0, 0, ',', '.') }}</td>
+                        <td class="text-right">({{ number_format(($hh['don_gia'] ?? 0) * ($hh['so_luong_tra'] ?? 0), 0, ',', '.') }})</td>
+                        <td></td>
+                    </tr>
+                    @endforeach
+                @endif
             @endforeach
         </tbody>
-        <tfoot class="bg-light font-weight-bold">
-            <tr>
-                <td colspan="5" class="text-right">TỔNG TRẢ:</td>
-                <td class="text-center text-danger">{{ number_format($so_san_pham_tra,0,",",".") }}</td>
-                <td class="text-right text-danger">{{ number_format($tong_doanh_thu_tra,0,",",".") }}</td>
-                <td class="text-right">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
-            </tr>
-        </tfoot>
     </table>
     @endif
     

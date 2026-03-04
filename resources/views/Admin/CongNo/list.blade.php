@@ -166,6 +166,7 @@
             <a href="{{ env('APP_URL') }}admin/cong-no?id_khachhang={{ $id_khachhang }}" class="btn btn-light mr-2"><i class="fa fa-sync"></i> Reset</a>
             
             <a href="{{ env('APP_URL') }}admin/cong-no/export-pdf?khach_hang_id={{ $id_khachhang }}&from_date={{ $from_date }}&to_date={{ $to_date }}" target="_blank" class="btn btn-danger"><i class="fas fa-file-pdf"></i> Xuất PDF</a>
+            <a href="{{ env('APP_URL') }}admin/cong-no/export-excel?khach_hang_id={{ $id_khachhang }}&from_date={{ $from_date }}&to_date={{ $to_date }}" class="btn btn-success"><i class="fas fa-file-excel"></i> Xuất Excel</a>
         </form>
     </div>
 

@@ -79,15 +79,16 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 10%;">Ngày/Giờ</th>
-                <th style="width: 22%;">Diễn giải</th>
-                <th style="width: 6%;">SL</th>
-                <th style="width: 6%;">ĐVT</th>
-                <th style="width: 10%;">Đơn giá</th>
-                <th style="width: 6%;">CK %</th>
-                <th style="width: 12%;">Tiền hàng</th>
-                <th style="width: 12%;">Thanh toán</th>
-                <th style="width: 16%;">Còn nợ</th>
+                <th style="width: 9%;">Ngày/Giờ</th>
+                <th style="width: 19%;">Diễn giải</th>
+                <th style="width: 5%;">SL</th>
+                <th style="width: 5%;">ĐVT</th>
+                <th style="width: 9%;">Đơn giá</th>
+                <th style="width: 5%;">CK %</th>
+                <th style="width: 11%;">Tiền hàng</th>
+                <th style="width: 11%;">Thanh toán</th>
+                <th style="width: 13%;">Còn nợ</th>
+                <th style="width: 13%;">Hàng C.Trình</th>
             </tr>
         </thead>
         <tbody>
@@ -95,12 +96,25 @@
                 <td class="text-center"></td>
                 <td colspan="7">DƯ NỢ ĐẦU KỲ</td>
                 <td class="text-right">{{ number_format($noDauKy, 0, ',', '.') }}</td>
+                <td></td>
             </tr>
 
-            @php $luyKe = $noDauKy; @endphp
+            @php $luyKe = $noDauKy; $tongHangCT = 0; @endphp
 
             @foreach($phatSinhTrongKy as $item)
-                @php $luyKe += $item->tien_hang - $item->thanh_toan; @endphp
+                @php 
+                    $luyKe += $item->tien_hang - $item->thanh_toan;
+                    // Tính tiền hàng chương trình cho phiếu này
+                    $hangCT_don = 0;
+                    if(isset($item->details) && is_array($item->details)) {
+                        foreach($item->details as $_ct) {
+                            if(isset($_ct['hang_chuong_trinh']) && $_ct['hang_chuong_trinh']) {
+                                $hangCT_don += ($_ct['thanh_tien'] ?? 0);
+                            }
+                        }
+                    }
+                    $tongHangCT += $hangCT_don;
+                @endphp
 
                 <tr class="row-master">
                     <td class="text-center">{{ $item->time->toDateTime()->format('d/m/Y H:i') }}</td>
@@ -124,6 +138,7 @@
                     <td class="text-right">{{ $item->tien_hang > 0 ? number_format($item->tien_hang, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ $item->thanh_toan > 0 ? number_format($item->thanh_toan, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $hangCT_don > 0 ? number_format($hangCT_don, 0, ',', '.') : '' }}</td>
                 </tr>
 
                 @if(isset($item->details) && is_array($item->details) && count($item->details) > 0)
@@ -144,6 +159,7 @@
                         </td>
                         <td></td>
                         <td></td>
+                        <td class="text-right" style="font-size: 9px;">@if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) {{ number_format($ct['thanh_tien'] ?? 0, 0, ',', '.') }} @endif</td>
                     </tr>
                     @endforeach
                 @endif
@@ -152,6 +168,7 @@
             <tr class="row-total">
                 <td colspan="8" class="text-right">TỔNG NỢ CUỐI KỲ:</td>
                 <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
+                <td class="text-right">{{ number_format($tongHangCT, 0, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>

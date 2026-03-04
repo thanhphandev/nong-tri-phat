@@ -24,74 +24,154 @@
         
         .table-sticky-header thead tr.summary-row td {
             position: sticky;
-            top: 40px; /* Sẽ cập nhật bằng JS để chuẩn xác 100% */
+            top: 40px;
             z-index: 14;
             background-color: #e9ecef !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
         }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .filter-panel .filter-header {
+            background: linear-gradient(90deg, #343a40, #495057);
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .filter-panel .filter-header h5 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .filter-panel .filter-header .header-actions a {
+            color: #fff;
+            text-decoration: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 6px;
+            transition: background 0.2s;
+        }
+        .filter-panel .filter-header .header-actions a:hover { background: rgba(255,255,255,0.15); }
+        .filter-panel .filter-header .header-actions a.btn-back { background: rgba(0,123,255,0.3); }
+        .filter-panel .filter-header .header-actions a.btn-refresh { background: rgba(40,167,69,0.3); }
+        .filter-panel .filter-body {
+            padding: 15px 20px;
+        }
+        .filter-panel .filter-body .input-group-text {
+            background: #fff;
+            border-right: 0;
+            color: #6c757d;
+        }
+        .filter-panel .filter-body .form-control {
+            border-left: 0;
+        }
+        .filter-panel .filter-body .form-control:focus {
+            box-shadow: none;
+            border-color: #80bdff;
+        }
+        .filter-panel .filter-body .select2-container--default .select2-selection--single {
+            height: 38px;
+            border-color: #ced4da;
+        }
+        .filter-panel .filter-body .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 36px;
+        }
+        .filter-panel .filter-body .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+        .date-presets .btn {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .date-presets .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .action-buttons .btn {
+            padding: 7px 16px;
+            font-weight: 600;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        .action-buttons .btn i { margin-right: 4px; }
     </style>
 @endsection
 @section('body')
-<div class="card-box">
-    <div class="row">
-        <div class="col-12">
-            <h3 class="m-t-0">
-                <a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a>
-                <a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
-                Thống kê Bán hàng
-            </h3>
+<div class="filter-panel mb-3">
+    <div class="filter-header">
+        <h5><i class="fas fa-chart-line mr-2"></i> Thống kê Bán hàng</h5>
+        <div class="header-actions">
+            <a href="{{ env('APP_URL') }}admin" class="btn-back"><i class="fa fa-reply-all"></i> Trở về</a>
+            <a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang" class="btn-refresh"><i class="fa fa-sync-alt"></i> Làm mới</a>
         </div>
     </div>
-    <form action="{{ env('APP_URL') }}admin/thong-ke/ban-hang" method="GET" id="FilterForm">
-        <div class="row form-group">
-            <label class="control-label col-md-1 text-right p-t-10">Từ ngày</label>
-            <div class="col-12 col-md-2">
-                <input type="text" name="tu_ngay" id="tu_ngay" value="{{ $tu_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off" />
+    <div class="filter-body">
+        <form action="{{ env('APP_URL') }}admin/thong-ke/ban-hang" method="GET" id="FilterForm">
+            <div class="row align-items-end">
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="far fa-calendar-alt mr-1"></i>Từ ngày</label>
+                    <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text"><i class="far fa-calendar"></i></span></div>
+                        <input type="text" name="tu_ngay" id="tu_ngay" value="{{ $tu_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off" />
+                    </div>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="far fa-calendar-alt mr-1"></i>Đến ngày</label>
+                    <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text"><i class="far fa-calendar"></i></span></div>
+                        <input type="text" name="den_ngay" id="den_ngay" value="{{ $den_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="fas fa-user mr-1"></i>Khách hàng</label>
+                    <select name="id_khachhang" id="id_khachhang" class="form-control select2" style="width:100%;">
+                        <option value="">-- Tất cả --</option>
+                        @foreach($khachhang_list as $kh)
+                            <option value="{{ $kh['_id'] }}" {{ ($id_khachhang ?? '') == (string)$kh['_id'] ? 'selected' : '' }}>{{ $kh['ho_ten'] }} - {{ $kh['dien_thoai'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="fas fa-tag mr-1"></i>Trạng thái</label>
+                    <select name="tinh_trang" id="tinh_trang" class="form-control">
+                        <option value="">Tất cả</option>
+                        @foreach($tinhtrang as $kt => $vt)
+                            <option value="{{ $kt }}" {{ ($tinh_trang ?? '') === (string)$kt ? 'selected' : '' }}>{{ $vt }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="action-buttons d-flex flex-wrap" style="gap:6px;">
+                        <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
+                        <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
+                        <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
+                    </div>
+                </div>
             </div>
-            <label class="control-label col-md-1 text-right p-t-10">Đến ngày</label>
-            <div class="col-12 col-md-2">
-                <input type="text" name="den_ngay" id="den_ngay" value="{{ $den_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off">
+            <div class="date-presets text-center mt-2 pt-2" style="border-top: 1px dashed #ced4da;">
+                <span class="small text-muted mr-2"><i class="fas fa-clock mr-1"></i>Nhanh:</span>
+                <button type="button" class="btn btn-outline-secondary date-filter" 
+                        data-start="{{ date('d/m/Y', strtotime('-1 day')) }}" 
+                        data-end="{{ date('d/m/Y') }}">
+                    Hôm nay
+                </button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('d/m/Y', strtotime('monday this week')) }}" data-end="{{ date('d/m/Y', strtotime('sunday this week')) }}">Tuần này</button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('01/m/Y') }}" data-end="{{ date('t/m/Y') }}">Tháng này</button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('01/m/Y', strtotime('last month')) }}" data-end="{{ date('t/m/Y', strtotime('last month')) }}">Tháng trước</button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('01/01/Y') }}" data-end="{{ date('31/12/Y') }}">Năm nay</button>
             </div>
-            <label class="control-label col-md-1 text-right p-t-10">Khách hàng</label>
-            <div class="col-12 col-md-2">
-                <select name="id_khachhang" id="id_khachhang" class="form-control select2" style="width:100%;">
-                    <option value="">-- Tất cả --</option>
-                    @foreach($khachhang_list as $kh)
-                        <option value="{{ $kh['_id'] }}" {{ ($id_khachhang ?? '') == (string)$kh['_id'] ? 'selected' : '' }}>{{ $kh['ho_ten'] }} - {{ $kh['dien_thoai'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-        <div class="row form-group">
-            <label class="control-label col-md-1 text-right p-t-10">Trạng thái</label>
-            <div class="col-12 col-md-2">
-                <select name="tinh_trang" id="tinh_trang" class="form-control">
-                    <option value="">Tất cả</option>
-                    @foreach($tinhtrang as $kt => $vt)
-                        <option value="{{ $kt }}" {{ ($tinh_trang ?? '') === (string)$kt ? 'selected' : '' }}>{{ $vt }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-12 col-md-3">
-                <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
-                <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
-                <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-        </div>
-        <div class="row mb-3">
-             <div class="col-12 text-center">
-                 <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y') }}" data-end="{{ date('d/m/Y') }}">Hôm nay</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('yesterday')) }}" data-end="{{ date('d/m/Y', strtotime('yesterday')) }}">Hôm qua</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('monday this week')) }}" data-end="{{ date('d/m/Y', strtotime('sunday this week')) }}">Tuần này</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y') }}" data-end="{{ date('t/m/Y') }}">Tháng này</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y', strtotime('last month')) }}" data-end="{{ date('t/m/Y', strtotime('last month')) }}">Tháng trước</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/01/Y') }}" data-end="{{ date('31/12/Y') }}">Năm nay</button>
-                 </div>
-             </div>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 
 @if($tu_ngay && $den_ngay)
@@ -263,15 +343,15 @@
                                 <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
                                 <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
-                                <td class="text-right text-dark"><b>{{ number_format($tong_da_thanh_toan - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-success"><b>{{ number_format(max(0, $tong_doanh_thu_ban - $tong_gia_von_ban),0,",",".") }}</b></td>
+                                <td class="text-right text-success"><b>{{ number_format(max(0, $tong_da_thanh_toan - $tong_gia_von_ban),0,",",".") }}</b></td>
                                 <td colspan="2"></td>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($danhsach as $key => $ds)
                                 @php
-                                    // Use filtered values if available, else fallback to standard logic for backward compatibility
+                                    // Use filtered values if available, else fallback to standard logic
                                     $so_luong = isset($ds['filtered_so_luong']) ? $ds['filtered_so_luong'] : 0;
                                     $gia_von_don = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
                                     $doanh_thu_don = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : 0;
@@ -285,7 +365,8 @@
                                         $doanh_thu_don = $ds['tong_thanh_tien'];
                                     }
 
-                                    $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
+                                    // LN Ước tính: Doanh thu đơn - Giá vốn đơn (đảm bảo >= 0)
+                                    $loi_nhuan_don = isset($ds['filtered_loi_nhuan']) ? $ds['filtered_loi_nhuan'] : max(0, $doanh_thu_don - $gia_von_don);
                                     
                                     // Calculate payment and debt
                                     if (isset($ds['filtered_da_thanh_toan'])) {
@@ -293,10 +374,11 @@
                                         $con_no = $ds['filtered_con_no'];
                                     } else {
                                         $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
-                                        $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                        $con_no = max(0, $doanh_thu_don - $da_thanh_toan);
                                     }
                                     
-                                    $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
+                                    // LN Thực tế: Tiền đã thu - Giá vốn (đảm bảo >= 0)
+                                    $loi_nhuan_thuc_te_don = isset($ds['filtered_loi_nhuan_thuc_te']) ? $ds['filtered_loi_nhuan_thuc_te'] : max(0, $da_thanh_toan - $gia_von_don);
                                     
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
                                     elseif($ds['tinh_trang'] == 1) $tt_badge = 'badge-success';
@@ -314,8 +396,8 @@
                                     <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
                                     <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
-                                    <td class="text-right {{ $loi_nhuan_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
-                                    <td class="text-right {{ $loi_nhuan_thuc_te_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</b></td>
+                                    <td class="text-right text-success"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
+                                    <td class="text-right text-success"><b>{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</b></td>
                                     <td class="text-center"><span class="badge {{ $tt_badge }}">{{ $tinhtrang[$ds['tinh_trang']] ?? 'N/A' }}</span></td>
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
                                 </tr>
