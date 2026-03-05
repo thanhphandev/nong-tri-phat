@@ -27,25 +27,25 @@
         .header {
             display: table;
             width: 100%;
-            margin-bottom: 5mm;
+            margin-bottom: 3mm;
             border-bottom: 2px solid #dc3545;
-            padding-bottom: 3mm;
+            padding-bottom: 2mm;
         }
         .header-left {
             display: table-cell;
-            width: 22mm;
-            vertical-align: top;
+            width: 35mm;
+            vertical-align: middle;
         }
-        .header-left img { width: 50mm; }
+        .header-left img { width: 35mm; }
         .header-right {
             display: table-cell;
-            vertical-align: top;
-            padding-left: 3mm;
+            vertical-align: middle;
+            padding-left: 5mm;
         }
         .company-info {
-            font-size: 9pt;
+            font-size: 10pt;
             color: #333;
-            margin-top: 1mm;
+            margin-top: 0;
         }
 
         /* Title */
@@ -142,7 +142,7 @@
         .signature-section {
             display: table;
             width: 100%;
-            margin-top: 8mm;
+            margin-top: 4mm;
             text-align: center;
             font-size: 10pt;
         }
@@ -151,7 +151,7 @@
             width: 50%;
             padding: 0 5mm;
         }
-        .signature-title { font-weight: bold; margin-bottom: 15mm; }
+        .signature-title { font-weight: bold; margin-bottom: 8mm; }
         .signature-name { font-weight: bold; }
         .signature-company { font-weight: bold; color: #d71a21; white-space: nowrap; }
 
@@ -235,7 +235,7 @@
         <div class="header-right">
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
-                SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
+                SĐT: <strong style="font-size: 12pt; color: #d71a21;">0916.160.509</strong> - Gmail: luuvinhtri79@gmail.com
             </div>
         </div>
     </div>

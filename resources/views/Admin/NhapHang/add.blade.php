@@ -6,7 +6,7 @@
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<form action="{{ env('APP_URL') }}admin/nhap-hang/create" method="post" id="dinhkemform">
+<form action="{{ env('APP_URL') }}admin/nhap-hang/preview" method="post" id="dinhkemform">
 {{ csrf_field() }}
 <div class="row">
     <!-- Cột trái: Tìm kiếm sản phẩm & Giỏ hàng nhập -->
@@ -153,8 +153,8 @@
                     </div>
                 </div>
 
-                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold" onclick="return confirm('Chắc chắn Nhập đơn hàng này?');"> 
-                    <i class="fas fa-check-circle mr-1"></i> NHẬP HÀNG
+                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold"> 
+                    <i class="fas fa-eye mr-1"></i> XEM TRƯỚC PHIẾU NHẬP
                 </button>
         </div>
     </div>

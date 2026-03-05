@@ -27,25 +27,25 @@
         .header {
             display: table;
             width: 100%;
-            margin-bottom: 5mm;
+            margin-bottom: 3mm;
             border-bottom: 2px solid #28a745;
-            padding-bottom: 3mm;
+            padding-bottom: 2mm;
         }
         .header-left {
             display: table-cell;
-            width: 22mm;
-            vertical-align: top;
+            width: 35mm;
+            vertical-align: middle;
         }
-        .header-left img { width: 50mm; }
+        .header-left img { width: 35mm; }
         .header-right {
             display: table-cell;
-            vertical-align: top;
-            padding-left: 3mm;
+            vertical-align: middle;
+            padding-left: 5mm;
         }
         .company-info {
-            font-size: 9pt;
+            font-size: 10pt;
             color: #333;
-            margin-top: 1mm;
+            margin-top: 0;
         }
 
         /* Title */
@@ -142,7 +142,7 @@
         .signature-section {
             display: table;
             width: 100%;
-            margin-top: 8mm;
+            margin-top: 4mm;
             text-align: center;
             font-size: 10pt;
         }
@@ -151,7 +151,7 @@
             width: 50%;
             padding: 0 5mm;
         }
-        .signature-title { font-weight: bold; margin-bottom: 15mm; }
+        .signature-title { font-weight: bold; margin-bottom: 8mm; }
         .signature-name { font-weight: bold; }
         .signature-company { font-weight: bold; color: #d71a21; white-space: nowrap; }
 
@@ -187,6 +187,28 @@
             margin: 0 5px;
         }
         .back-btn:hover { background: #5a6268; color: white; }
+        .save-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 14pt;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        .save-btn:hover { background: #0069d9; }
+        .preview-banner {
+            text-align: center;
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            padding: 3mm;
+            margin-bottom: 4mm;
+            font-size: 11pt;
+            font-weight: bold;
+            color: #856404;
+        }
 
         /* Print Styles */
         @media print {
@@ -212,6 +234,7 @@
                 display: block !important;
             }
             .print-btn-container { display: none !important; }
+            .preview-banner { display: none !important; }
             .items-table th {
                 background-color: #28a745 !important;
                 color: white !important;
@@ -227,6 +250,11 @@
 <body>
 
 <div class="invoice-wrapper">
+    @if(isset($is_preview) && $is_preview)
+    <div class="preview-banner">
+        ⚠ ĐÂY LÀ BẢN XEM TRƯỚC - CHƯA LƯU VÀO HỆ THỐNG
+    </div>
+    @endif
     <!-- Header -->
     <div class="header">
         <div class="header-left">
@@ -235,7 +263,7 @@
         <div class="header-right">
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
-                SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
+                SĐT: <strong style="font-size: 12pt; color: #d71a21;">0916.160.509</strong> - Gmail: luuvinhtri79@gmail.com
             </div>
         </div>
     </div>
@@ -329,38 +357,59 @@
         </div>
         <table class="summary-table">
             <tr>
-                <td class="summary-label">Tổng cộng:</td>
+                <td class="summary-label">Tổng tiền phiếu nhập:</td>
                 <td class="summary-value text-bold">{{ number_format($gia_tri_lo_nay, 0, ",", ".") }}</td>
             </tr>
+
             @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
                 @foreach($lich_su_thanh_toan as $ls)
                 <tr>
-                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt;">
-                        - Chi tiền ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
+                        - Đã chi trả ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
                     </td>
-                    <td class="summary-value">-{{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
+                    <td class="summary-value" style="color: #28a745;">
+                        - {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
+                    </td>
                 </tr>
                 @endforeach
             @else
                 @if($da_thanh_toan_lo_nay > 0)
                 <tr>
-                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt;">- Đã thanh toán:</td>
-                    <td class="summary-value">-{{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}</td>
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
+                        - Đã chi trả:
+                    </td>
+                    <td class="summary-value" style="color: #28a745;">
+                        - {{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}
+                    </td>
                 </tr>
                 @endif
             @endif
-            <tr class="summary-total">
-                <td class="summary-label">Dư nợ hiện tại:</td>
-                <td class="summary-value">{{ number_format($tong_no_moi, 0, ",", ".") }}</td>
+
+            @if(isset($cong_no_ton_ncc) && $cong_no_ton_ncc != 0)
+            <tr style="border-top: 1px dashed #ccc;">
+                <td class="summary-label">Công nợ cũ tồn đọng:</td>
+                <td class="summary-value">{{ $cong_no_ton_ncc > 0 ? '+' : '' }} {{ number_format($cong_no_ton_ncc, 0, ",", ".") }}</td>
+            </tr>
+            @endif
+
+            @php
+                $cong_no_ncc_val = isset($cong_no_ton_ncc) ? $cong_no_ton_ncc : 0;
+                $tong_cuoi_cung = (float)$cong_no_ncc_val + (float)$tong_no_moi;
+            @endphp
+            
+            <tr class="summary-total" style="border-top: 2px solid #333; font-size: 1.1em;">
+                <td class="summary-label"><strong>TỔNG NỢ TÍCH LŨY:</strong></td>
+                <td class="summary-value" style="color: #d9534f;">
+                    <strong>{{ number_format($tong_cuoi_cung, 0, ",", ".") }}</strong>
+                </td>
             </tr>
         </table>
     </div>
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_no_moi) }} đồng.</em>
+        Tổng nợ bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_cuoi_cung) }}</em>
     </div>
-
 
     <!-- Signature Section -->
     <div class="signature-section">
@@ -375,13 +424,40 @@
 </div>
 
 <div class="print-btn-container">
-    <a href="{{ env('APP_URL').'admin/nhap-hang' }}" class="back-btn">
-        TRỞ VỀ
-    </a>
-    <button class="print-btn" onclick="window.print()">
-        IN PHIẾU (A5)
-    </button>
+    @if(isset($is_preview) && $is_preview)
+        <a href="javascript:history.back()" class="back-btn">
+            ◀ QUAY LẠI SỬA
+        </a>
+        <form action="{{ env('APP_URL') }}admin/nhap-hang/create" method="post" style="display: inline;" id="formSaveOrder">
+            {{ csrf_field() }}
+            <input type="hidden" name="from_preview" value="1">
+            <button type="submit" class="save-btn" id="btnSaveOrder">
+                💾 LƯU PHIẾU NHẬP
+            </button>
+        </form>
+        <button class="print-btn" onclick="window.print()">
+            🖨 IN PHIẾU (A5)
+        </button>
+    @else
+        <a href="{{ env('APP_URL').'admin/nhap-hang' }}" class="back-btn">
+            ◀ TRỞ VỀ
+        </a>
+        <button class="print-btn" onclick="window.print()">
+            🖨 IN PHIẾU (A5)
+        </button>
+    @endif
 </div>
+
+@if(isset($is_preview) && $is_preview)
+<script>
+    document.getElementById('btnSaveOrder').addEventListener('click', function(e) {
+        if (!confirm('Bạn có chắc chắn muốn LƯU phiếu nhập này vào hệ thống?')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
+@endif
 
 </body>
 </html>

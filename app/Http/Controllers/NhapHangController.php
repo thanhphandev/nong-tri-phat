@@ -137,8 +137,107 @@ class NhapHangController extends Controller
         return view('Admin.NhapHang.add')->with(compact('nhacungcap'));
     }
 
-    function create(Request $request){
+    function preview(Request $request) {
         $data = $request->all();
+        
+        $id_nhacungcap_cart = isset($data['id_nhacungcap_cart']) && $data['id_nhacungcap_cart'] ? $data['id_nhacungcap_cart'] : (isset($data['id_nhacungcap']) ? $data['id_nhacungcap'] : null);
+        if (!$id_nhacungcap_cart) {
+            return redirect()->back()->withErrors(['Vui lòng chọn nhà cung cấp'])->withInput();
+        }
+        
+        if (!isset($data['id_hanghoa_cart']) || empty($data['id_hanghoa_cart'])) {
+            return redirect()->back()->withErrors(['Giỏ hàng trống. Vui lòng thêm hàng hóa vào giỏ'])->withInput();
+        }
+
+        $ncc = NhaCungCap::find($id_nhacungcap_cart);
+        if (!$ncc) {
+            return redirect()->back()->withErrors(['Không tìm thấy nhà cung cấp'])->withInput();
+        }
+
+        $tong_thanh_tien = doubleval($data['thanh_tien']);
+        $thanh_toan = isset($data['thanh_toan']) ? ObjectController::convertStr2Number_1($data['thanh_toan']) : 0;
+
+        // Build hanghoa preview list
+        $arr_hanghoa = [];
+        if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            foreach($data['id_hanghoa_cart'] as $key => $value){
+                $hh = HangHoa::find($value);
+                if (!$hh) continue;
+                $so_luong = floatval($data['so_luong_cart'][$key]);
+                $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
+                $tt = doubleval($data['thanh_tien_cart'][$key]);
+                
+                $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
+                $ngay_het_han_preview = null;
+                if(isset($data['ngay_het_han_cart'][$key]) && $data['ngay_het_han_cart'][$key]){
+                    $date_convert = ObjectController::convertDateTime($data['ngay_het_han_cart'][$key]);
+                    $ngay_het_han_preview = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
+                }
+
+                // Map DVT
+                $don_vi_tinh = 'Bao/Chai';
+                if (!empty($hh['id_donvitinh'])) {
+                    $dvt = DonViTinh::find($hh['id_donvitinh']);
+                    if ($dvt) $don_vi_tinh = $dvt['ten'];
+                }
+
+                $arr_hanghoa[] = [
+                    'ten' => $hh['ten'],
+                    'don_vi_tinh' => $don_vi_tinh,
+                    'so_luong' => $so_luong,
+                    'don_gia' => $don_gia,
+                    'thanh_tien' => $tt,
+                    'ngay_het_han' => $ngay_het_han_preview
+                ];
+            }
+        }
+
+        // Build preview nh object
+        $nh = collect([
+            'ma_nhap_hang' => '(Xem trước)',
+            'so_chung_tu' => $data['so_chung_tu'] ?? '',
+            'ten_ncc' => $ncc['ten'],
+            'dia_chi' => $ncc['dia_chi'] ?? '',
+            'dien_thoai' => $ncc['dien_thoai'] ?? '',
+            'ngay_giao' => isset($data['ngay_giao']) ? ObjectController::convertDateTime($data['ngay_giao']) : ObjectController::setDate(),
+            'ngay_chung_tu' => (isset($data['ngay_chung_tu']) && $data['ngay_chung_tu']) ? ObjectController::convertDateTime($data['ngay_chung_tu']) : null,
+            'ngay_nhap' => ObjectController::setDate(),
+            'hanghoa' => $arr_hanghoa,
+            'tong_thanh_tien' => $tong_thanh_tien,
+        ]);
+
+        $gia_tri_lo_nay = $tong_thanh_tien;
+        $da_thanh_toan_lo_nay = $thanh_toan;
+        $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
+
+        // Tính công nợ tồn của NCC
+        $id_ncc_obj = ObjectController::ObjectId($id_nhacungcap_cart);
+        $congno_ncc_sum = CongNoNCC::where('id_nhacungcap', '=', $id_ncc_obj)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
+        $thanhtoan_ncc_sum = CongNoNCC::where('id_nhacungcap', '=', $id_ncc_obj)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
+        $cong_no_ton_ncc = $congno_ncc_sum - $thanhtoan_ncc_sum;
+
+        $lich_su_thanh_toan = collect();
+        if ($thanh_toan > 0) {
+            $lich_su_thanh_toan = collect([[
+                'tong_thanh_tien' => $thanh_toan,
+                'ngay_gio' => ObjectController::setDate(),
+            ]]);
+        }
+
+        // Store form data in session for later confirmation
+        $request->session()->put('preview_nhap_hang', $data);
+
+        $is_preview = true;
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'is_preview', 'cong_no_ton_ncc'));
+    }
+
+    function create(Request $request){
+        if ($request->input('from_preview') == '1' && $request->session()->has('preview_nhap_hang')) {
+            $data = $request->session()->get('preview_nhap_hang');
+            $request->session()->forget('preview_nhap_hang');
+        } else {
+            $data = $request->all();
+        }
         
         // Use id_nhacungcap if id_nhacungcap_cart is empty
         $id_nhacungcap_cart = isset($data['id_nhacungcap_cart']) && $data['id_nhacungcap_cart'] ? $data['id_nhacungcap_cart'] : (isset($data['id_nhacungcap']) ? $data['id_nhacungcap'] : null);
@@ -432,7 +531,14 @@ class NhapHangController extends Controller
                                        ->get();
         $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
 
-        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan'));
+        // 3. Tính công nợ tồn NCC (KHÔNG tính phiếu nhập hiện tại)
+        $congno_ncc_sum = CongNoNCC::where('id_nhacungcap', '=', $id_ncc)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
+        $thanhtoan_ncc_sum = CongNoNCC::where('id_nhacungcap', '=', $id_ncc)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
+        $tong_no_ncc = $congno_ncc_sum - $thanhtoan_ncc_sum;
+        // Trừ đi nợ của phiếu hiện tại để ra công nợ tồn (các phiếu khác)
+        $cong_no_ton_ncc = $tong_no_ncc - ($tong_no_moi > 0 ? $tong_no_moi : 0);
+
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'cong_no_ton_ncc'));
     }
     function tra_no(Request $request) {
         $data = $request->all();

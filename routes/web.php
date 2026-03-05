@@ -79,6 +79,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
 
     Route::get('don-hang', 'DonHangController@list')->middleware('role:Admin,Manager');
     Route::get('don-hang/add', 'DonHangController@add')->middleware('role:Admin,Manager');
+    Route::post('don-hang/preview', 'DonHangController@preview')->middleware('role:Admin,Manager');
     Route::post('don-hang/create', 'DonHangController@create')->middleware('role:Admin,Manager');
     Route::get('don-hang/edit/{id}', 'DonHangController@edit')->middleware('role:Admin,Manager');
     Route::post('don-hang/update', 'DonHangController@update')->middleware('role:Admin,Manager');
@@ -93,6 +94,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
 
     Route::get('nhap-hang', 'NhapHangController@list')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/add', 'NhapHangController@add')->middleware('role:Admin,Manager');
+    Route::post('nhap-hang/preview', 'NhapHangController@preview')->middleware('role:Admin,Manager');
     Route::post('nhap-hang/create', 'NhapHangController@create')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/edit/{id}', 'NhapHangController@edit')->middleware('role:Admin,Manager');
     Route::post('nhap-hang/update', 'NhapHangController@update')->middleware('role:Admin,Manager');

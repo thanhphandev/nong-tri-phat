@@ -27,25 +27,25 @@
         .header {
             display: table;
             width: 100%;
-            margin-bottom: 5mm;
+            margin-bottom: 3mm;
             border-bottom: 2px solid #28a745;
-            padding-bottom: 3mm;
+            padding-bottom: 2mm;
         }
         .header-left {
             display: table-cell;
-            width: 22mm;
-            vertical-align: top;
+            width: 35mm;
+            vertical-align: middle;
         }
-        .header-left img { width: 50mm; }
+        .header-left img { width: 35mm; }
         .header-right {
             display: table-cell;
-            vertical-align: top;
-            padding-left: 3mm;
+            vertical-align: middle;
+            padding-left: 5mm;
         }
         .company-info {
-            font-size: 9pt;
+            font-size: 10pt;
             color: #333;
-            margin-top: 1mm;
+            margin-top: 0;
         }
 
         /* Title */
@@ -64,6 +64,18 @@
             margin-top: 2mm;
         }
         .title-sub .code { color: #d71a21; font-weight: bold; }
+
+        /* Preview Banner */
+        .preview-banner {
+            text-align: center;
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            padding: 3mm;
+            margin-bottom: 4mm;
+            font-size: 11pt;
+            font-weight: bold;
+            color: #856404;
+        }
 
         /* Info Section */
         .info-section {
@@ -130,6 +142,34 @@
             padding-top: 2mm;
         }
 
+        /* Debt Info */
+        .debt-info {
+            border: 1px solid #e0e0e0;
+            border-radius: 3mm;
+            padding: 3mm;
+            margin-bottom: 4mm;
+            font-size: 10pt;
+            background: #f8f9fa;
+        }
+        .debt-info-title {
+            font-weight: bold;
+            font-size: 10pt;
+            color: #495057;
+            margin-bottom: 2mm;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 1mm;
+        }
+        .debt-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1mm 0;
+        }
+        .debt-label { color: #555; }
+        .debt-value { font-weight: bold; }
+        .debt-value.text-danger { color: #d71a21; }
+        .debt-value.text-warning { color: #e67e22; }
+        .debt-value.text-success { color: #28a745; }
+
         /* Amount Words */
         .amount-words {
             font-size: 10pt;
@@ -142,7 +182,7 @@
         .signature-section {
             display: table;
             width: 100%;
-            margin-top: 8mm;
+            margin-top: 4mm;
             text-align: center;
             font-size: 10pt;
         }
@@ -151,7 +191,7 @@
             width: 50%;
             padding: 0 5mm;
         }
-        .signature-title { font-weight: bold; margin-bottom: 15mm; }
+        .signature-title { font-weight: bold; margin-bottom: 8mm; }
         .signature-name { font-weight: bold; }
         .signature-company { font-weight: bold; color: #d71a21; white-space: nowrap; }
 
@@ -187,6 +227,18 @@
             margin: 0 5px;
         }
         .back-btn:hover { background: #5a6268; color: white; }
+        .save-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 14pt;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        .save-btn:hover { background: #0069d9; }
 
         /* Print Styles */
         @media print {
@@ -212,6 +264,7 @@
                 display: block !important;
             }
             .print-btn-container { display: none !important; }
+            .preview-banner { display: none !important; }
             .items-table th {
                 background-color: #28a745 !important;
                 color: white !important;
@@ -227,6 +280,12 @@
 <body>
 
 <div class="invoice-wrapper">
+    @if(isset($is_preview) && $is_preview)
+    <div class="preview-banner">
+        ⚠ ĐÂY LÀ BẢN XEM TRƯỚC - CHƯA LƯU VÀO HỆ THỐNG
+    </div>
+    @endif
+
     <!-- Header -->
     <div class="header">
         <div class="header-left">
@@ -235,7 +294,7 @@
         <div class="header-right">
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
-                SĐT: 0916.160.509 - Gmail: luuvinhtri79@gmail.com
+                SĐT: <strong style="font-size: 12pt; color: #d71a21;">0916.160.509</strong> - Gmail: luuvinhtri79@gmail.com
             </div>
         </div>
     </div>
@@ -304,7 +363,7 @@
             @if(env('BANK_STK'))
             <div style="font-weight: bold; margin-bottom: 2mm;">THÔNG TIN THANH TOÁN</div>
             <div style="margin-bottom: 2mm;">
-                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ $dh->con_no ?? 0 }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 35mm;">
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ isset($dh->con_no) ? $dh->con_no : ($dh['con_no'] ?? 0) }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 35mm;">
             </div>
             <div>
                 STK: <b>{{ env('BANK_STK') }}</b><br>
@@ -314,32 +373,49 @@
             @endif
         </div>
         <table class="summary-table">
-            <tr>
-                <td class="summary-label">Tổng cộng:</td>
-                <td class="summary-value text-bold">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
-            </tr>
-            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
-                @foreach($lich_su_thanh_toan as $ls)
-                <tr>
-                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt;">
-                        - Thanh toán ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
-                    </td>
-                    <td class="summary-value">-{{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
-                </tr>
-                @endforeach
-            @endif
-            <tr class="summary-total">
-                <td class="summary-label">Còn lại:</td>
-                <td class="summary-value">{{ number_format($dh->con_no ?? 0, 0, ",", ".") }}</td>
-            </tr>
-        </table>
+    <tr>
+        <td class="summary-label">Tổng tiền đơn hàng:</td>
+        <td class="summary-value text-bold">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
+    </tr>
+
+    @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+        @foreach($lich_su_thanh_toan as $ls)
+        <tr>
+            <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
+                - Đã thanh toán ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+            </td>
+            <td class="summary-value" style="color: #28a745;">
+                - {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
+            </td>
+        </tr>
+        @endforeach
+    @endif
+
+    @if(isset($cong_no_ton) && $cong_no_ton != 0)
+    <tr style="border-top: 1px dashed #ccc;">
+        <td class="summary-label">Công nợ cũ tồn đọng:</td>
+        <td class="summary-value">+ {{ number_format($cong_no_ton, 0, ",", ".") }}</td>
+    </tr>
+    @endif
+
+    @php
+        $con_no_val = isset($dh->con_no) ? $dh->con_no : ($dh['con_no'] ?? 0);
+        $tong_cuoi_cung = (float)$cong_no_ton + (float)$con_no_val;
+    @endphp
+    
+    <tr class="summary-total" style="border-top: 2px solid #333; font-size: 1.1em;">
+        <td class="summary-label"><strong>TỔNG CÒN LẠI:</strong></td>
+        <td class="summary-value" style="color: #d9534f;">
+            <strong>{{ number_format($tong_cuoi_cung, 0, ",", ".") }}</strong>
+        </td>
+    </tr>
+</table>
     </div>
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($dh->con_no ?? 0) }} đồng.</em>
+        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_cuoi_cung) }}.</em>
     </div>
-
 
     <!-- Signature Section -->
     <div class="signature-section">
@@ -355,13 +431,42 @@
 </div>
 
 <div class="print-btn-container">
-    <a href="{{ env('APP_URL').'admin/don-hang' }}" class="back-btn">
-        ◀ TRỞ VỀ
-    </a>
-    <button class="print-btn" onclick="window.print()">
-        🖨 IN PHIẾU (A5)
-    </button>
+    @if(isset($is_preview) && $is_preview)
+        {{-- Preview mode: Back to edit + Save + Print --}}
+        <a href="javascript:history.back()" class="back-btn">
+            ◀ QUAY LẠI SỬA
+        </a>
+        <form action="{{ env('APP_URL') }}admin/don-hang/create" method="post" style="display: inline;" id="formSaveOrder">
+            {{ csrf_field() }}
+            <input type="hidden" name="from_preview" value="1">
+            <button type="submit" class="save-btn" id="btnSaveOrder">
+                💾 LƯU ĐƠN HÀNG
+            </button>
+        </form>
+        <button class="print-btn" onclick="window.print()">
+            🖨 IN PHIẾU (A5)
+        </button>
+    @else
+        {{-- Normal mode: Back + Print --}}
+        <a href="{{ env('APP_URL').'admin/don-hang' }}" class="back-btn">
+            ◀ TRỞ VỀ
+        </a>
+        <button class="print-btn" onclick="window.print()">
+            🖨 IN PHIẾU (A5)
+        </button>
+    @endif
 </div>
+
+@if(isset($is_preview) && $is_preview)
+<script>
+    document.getElementById('btnSaveOrder').addEventListener('click', function(e) {
+        if (!confirm('Bạn có chắc chắn muốn LƯU đơn hàng này vào hệ thống?')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
+@endif
 
 </body>
 </html>

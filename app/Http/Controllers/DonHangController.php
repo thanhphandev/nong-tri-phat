@@ -13,6 +13,7 @@ use App\Models\DonViTinh;
 use App\Traits\CodeGeneratorTrait;
 use Validator;use Session;
 use Config;
+use App\Models\NhaCungCap;
 class DonHangController extends Controller
 {
     use CodeGeneratorTrait;
@@ -103,8 +104,108 @@ class DonHangController extends Controller
     	return view('Admin.DonHang.add')->with(compact('khachhang','hanghoa','loai_khach_hang','id_khachhang'));
     }
 
-    function create(Request $request) {
+    function preview(Request $request) {
         $data = $request->all();
+        
+        $id_khachhang_cart = isset($data['id_khachhang_cart']) && $data['id_khachhang_cart'] ? $data['id_khachhang_cart'] : (isset($data['id_khachhang']) ? $data['id_khachhang'] : null);
+        if (!$id_khachhang_cart) {
+            return redirect()->back()->withErrors(['Vui lòng chọn khách hàng'])->withInput();
+        }
+        
+        if (!isset($data['id_hanghoa_cart']) || empty($data['id_hanghoa_cart'])) {
+            return redirect()->back()->withErrors(['Giỏ hàng trống. Vui lòng thêm hàng hóa vào giỏ'])->withInput();
+        }
+
+        $kh = KhachHang::find($id_khachhang_cart);
+        if (!$kh) {
+            return redirect()->back()->withErrors(['Không tìm thấy khách hàng'])->withInput();
+        }
+
+        $tong_thanh_tien = ObjectController::convertStr2Number_1($data['tong-thanh-tien']);
+        $thanh_toan = ObjectController::convertStr2Number_1($data['thanh-toan']);
+
+        // Build hanghoa preview list
+        $arr_hanghoa = [];
+        if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            foreach($data['id_hanghoa_cart'] as $key => $value){
+                $hh = HangHoa::find($value);
+                if (!$hh) continue;
+                $so_luong = floatval($data['so_luong_cart'][$key]);
+                $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
+                $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
+                $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
+                $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
+
+                // Map DVT
+                $don_vi_tinh = 'Bao/Chai';
+                $don_vi_le_info = '';
+                if (!empty($hh['id_donvitinh'])) {
+                    $dvt = DonViTinh::find($hh['id_donvitinh']);
+                    if ($dvt) $don_vi_tinh = $dvt['ten'];
+                }
+
+                if ($don_vi_ban == 'retail' && !empty($hh['don_vi_le'])) {
+                    $don_vi_le_info = '(1 ' . $don_vi_tinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
+                    $don_vi_tinh = $hh['don_vi_le'];
+                }
+
+                $arr_hanghoa[] = [
+                    'ten' => $hh['ten'],
+                    'don_vi_tinh' => $don_vi_tinh,
+                    'don_vi_le_info' => $don_vi_le_info,
+                    'so_luong' => $so_luong,
+                    'don_gia' => $don_gia,
+                    'chiet_khau' => $chiet_khau,
+                    'thanh_tien' => $thanh_tien,
+                ];
+            }
+        }
+
+        // Build preview dh object
+        $dh = collect([
+            'ma_don_hang' => '(Xem trước)',
+            'ho_ten' => $kh['ho_ten'],
+            'dia_chi' => $kh['dia_chi'] ?? '',
+            'dien_thoai' => $kh['dien_thoai'] ?? '',
+            'ngay_ban' => ObjectController::setDate(),
+            'hanghoa' => $arr_hanghoa,
+            'tong_thanh_tien' => $tong_thanh_tien,
+        ]);
+
+        // Nợ đơn này = tong_thanh_tien - thanh_toan
+        $con_no_don_nay = $tong_thanh_tien - $thanh_toan;
+        $dh->put('con_no', $con_no_don_nay);
+        $dh->put('da_thanh_toan', $thanh_toan);
+
+        // Tính công nợ tồn của khách hàng (KHÔNG tính đơn này)
+        $id_kh = ObjectController::ObjectId($id_khachhang_cart);
+        $congno_sum = CongNo::where('id_khachhang', '=', $id_kh)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
+        $thanhtoan_sum = CongNo::where('id_khachhang', '=', $id_kh)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
+        $cong_no_ton = $congno_sum - $thanhtoan_sum;
+
+        $lich_su_thanh_toan = collect();
+        if ($thanh_toan > 0) {
+            $lich_su_thanh_toan = collect([[
+                'tong_thanh_tien' => $thanh_toan,
+                'ngay_gio' => ObjectController::setDate(),
+            ]]);
+        }
+
+        // Store form data in session for later confirmation
+        $request->session()->put('preview_don_hang', $data);
+
+        $is_preview = true;
+        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'lich_su_thanh_toan', 'is_preview', 'cong_no_ton'));
+    }
+
+    function create(Request $request) {
+        // If coming from preview, load form data from session
+        if ($request->input('from_preview') == '1' && $request->session()->has('preview_don_hang')) {
+            $data = $request->session()->get('preview_don_hang');
+            $request->session()->forget('preview_don_hang');
+        } else {
+            $data = $request->all();
+        }
         
         $id_khachhang_cart = isset($data['id_khachhang_cart']) && $data['id_khachhang_cart'] ? $data['id_khachhang_cart'] : (isset($data['id_khachhang']) ? $data['id_khachhang'] : null);
         if (!$id_khachhang_cart) {
@@ -338,11 +439,7 @@ class DonHangController extends Controller
         );
         LogController::addLog($querLog);
         Session::flash('msg', 'Tạo đơn hàng thành công');
-        if(isset($data['in_hoa_don']) && $data['in_hoa_don'] == "1"){
-            return redirect(env('APP_URL'). 'admin/don-hang/in-phieu-giao-hang/' . $id);
-        } else {
-            return redirect(env('APP_URL'). 'admin/don-hang');
-        }
+        return redirect(env('APP_URL'). 'admin/don-hang/in-phieu-giao-hang/' . $id);
     }
 
     function add_cart(Request $request){
@@ -613,7 +710,16 @@ class DonHangController extends Controller
                                     ->orderBy('ngay_gio', 'asc')
                                     ->get();
 
-        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'lich_su_thanh_toan'));
+        // 3. Tính công nợ tồn của khách hàng (KHÔNG tính đơn hiện tại)
+        $id_kh = $dh->id_khachhang;
+        $congno_sum = CongNo::where('id_khachhang', '=', $id_kh)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
+        $thanhtoan_sum = CongNo::where('id_khachhang', '=', $id_kh)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
+        $tong_no_kh = $congno_sum - $thanhtoan_sum;
+        // Trừ đi nợ của đơn hiện tại để ra công nợ tồn (các đơn khác)
+        $cong_no_ton = $tong_no_kh - ($dh->con_no > 0 ? $dh->con_no : 0);
+
+        $is_preview = false;
+        return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'lich_su_thanh_toan', 'is_preview', 'cong_no_ton'));
     }
 
     function edit($id) {

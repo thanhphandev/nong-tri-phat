@@ -5,7 +5,7 @@
     <link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<form action="{{ env('APP_URL') }}admin/don-hang/create" method="post" id="dinhkemform">
+<form action="{{ env('APP_URL') }}admin/don-hang/preview" method="post" id="dinhkemform">
 {{ csrf_field() }}
 <div class="row">
     <!-- Left Column: Products and Cart -->
@@ -145,17 +145,9 @@
                     <textarea name="ghi_chu" id="ghi_chu" class="form-control" rows="2" placeholder="Ghi chú đơn hàng..."></textarea>
                 </div>
 
-                <!-- Invoice Checkbox -->
-                <div class="form-group mb-3">
-                    <div class="custom-control custom-checkbox custom-control-lg">
-                        <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
-                        <label class="custom-control-label font-weight-bold text-primary" for="InHoaDonCheck" style="padding-top: 2px;">In hóa đơn sau khi lưu</label>
-                    </div>
-                </div>
-
                 <!-- Submit Button -->
-                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold" onclick="return confirm('Chắc chắn tạo Đơn hàng?');">
-                    <i class="fas fa-check-circle mr-1"></i> HOÀN TẤT ĐƠN HÀNG
+                <button type="submit" id="updateCart" class="btn btn-primary btn-block btn-lg waves-effect waves-light font-weight-bold">
+                    <i class="fas fa-eye mr-1"></i> XEM TRƯỚC HÓA ĐƠN
                 </button>
         </div>
     </div>
