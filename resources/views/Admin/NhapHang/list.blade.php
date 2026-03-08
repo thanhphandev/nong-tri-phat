@@ -170,7 +170,7 @@
                                             <a class="dropdown-item tra-no-btn" href="javascript:void(0)" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_nhap_hang'] }}" data-no="{{ $ds['con_no'] }}"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
                                         @endif
                                         <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a>
+                                        {{-- <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a> --}}
                                     </div>
                                 </div>
                             </td>

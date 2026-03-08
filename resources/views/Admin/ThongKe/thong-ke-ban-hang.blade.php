@@ -150,11 +150,22 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4 mb-2">
+                <div class="col-md-1 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1" title="Số dòng hiển thị"><i class="fas fa-list-ol"></i> Dòng</label>
+                    <select name="limit" id="limit" class="form-control px-1" onchange="$('#FilterForm').submit();">
+                        <option value="15" {{ (isset($limit) && $limit == '15') ? 'selected' : '' }}>15</option>
+                        <option value="20" {{ (isset($limit) && $limit == '20') ? 'selected' : '' }}>20</option>
+                        <option value="30" {{ (isset($limit) && $limit == '30') ? 'selected' : '' }}>30</option>
+                        <option value="50" {{ (!isset($limit) || $limit == '50') ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ (isset($limit) && $limit == '100') ? 'selected' : '' }}>100</option>
+                        <option value="all" {{ (isset($limit) && $limit == 'all') ? 'selected' : '' }}>All</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
                     <div class="action-buttons d-flex flex-wrap" style="gap:6px;">
-                        <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
-                        <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
-                        <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
+                        <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary px-2"><i class="fas fa-filter"></i> Lọc</button>
+                        <button type="submit" name="action" value="export_excel" class="btn btn-success px-2"><i class="fas fa-file-excel"></i> Excel</button>
+                        <button type="submit" name="action" value="export_pdf" class="btn btn-danger px-2" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
                     </div>
                 </div>
             </div>
@@ -294,6 +305,16 @@
                 </div>
             </div>
         </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-trophy mr-1 text-warning"></i> TOP 10 Sản phẩm Doanh thu cao nhất</h5>
+                    <div style="position:relative; height:400px;">
+                        <canvas id="chartTopProducts"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <hr>
@@ -410,7 +431,7 @@
                                     else $tt_badge = 'badge-danger';
                                 @endphp
                                 <tr>
-                                    <td class="text-center">{{ $key + 1 }}</td>
+                                    <td class="text-center">{{ method_exists($danhsach, 'firstItem') ? $danhsach->firstItem() + $key : $key + 1 }}</td>
                                     <td class="text-center"><b><a href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $ds['_id'] }}" target="_blank">{{ $ds['ma_don_hang'] }}</a></b></td>
                                     <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_ban'],"d/m/Y H:i") }}</td>
                                     <td>{{ $ds['ho_ten'] }}</td>
@@ -428,6 +449,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+                <div class="mt-3">
+                    {{ method_exists($danhsach, 'links') ? $danhsach->appends(request()->query())->links('pagination::bootstrap-4') : '' }}
                 </div>
             @else
                 <div class="alert alert-warning mt-3">Không có đơn bán hàng trong khoảng thời gian này.</div>
@@ -477,7 +501,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td class="text-center">{{ $key + 1 }}</td>
+                                    <td class="text-center">{{ method_exists($ds_tra_hang, 'firstItem') ? $ds_tra_hang->firstItem() + $key : $key + 1 }}</td>
                                     <td class="text-center"><b>{{ $th['ma_tra_hang'] }}</b></td>
                                     <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i") }}</td>
                                     <td class="text-center">{{ $th['ma_don_hang'] ?? '-' }}</td>
@@ -503,6 +527,9 @@
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+                <div class="mt-3">
+                    {{ method_exists($ds_tra_hang, 'links') ? $ds_tra_hang->appends(request()->query())->links('pagination::bootstrap-4') : '' }}
                 </div>
             @else
                 <div class="alert alert-info mt-3">Không có đơn trả hàng nào trong khoảng thời gian này.</div>
@@ -692,6 +719,88 @@
                                         var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
                                         var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
                                         return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 4: Top 10 Products (Mixed Chart: Bar for Revenue, Line for Quantity)
+                var topProductsNames = {!! json_encode(array_column($top_10_products, 'ten')) !!};
+                var topProductsRevenue = {!! json_encode(array_column($top_10_products, 'doanh_thu')) !!};
+                var topProductsQty = {!! json_encode(array_column($top_10_products, 'so_luong')) !!};
+
+                new Chart(document.getElementById('chartTopProducts'), {
+                    type: 'bar',
+                    data: {
+                        labels: topProductsNames,
+                        datasets: [
+                            {
+                                type: 'line',
+                                label: 'Số lượng bán',
+                                data: topProductsQty,
+                                borderColor: 'rgba(40,167,69,1)',
+                                backgroundColor: 'rgba(40,167,69,0.2)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.3,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Doanh thu (VNĐ)',
+                                data: topProductsRevenue,
+                                backgroundColor: 'rgba(0,123,255,0.85)',
+                                borderRadius: 4,
+                                barPercentage: 0.6,
+                                yAxisID: 'y'
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'x', // standard vertical bars (labels on x)
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            x: {
+                                ticks: { font: { size: 11 }, maxRotation: 45, minRotation: 45 }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Doanh thu (VNĐ)', font: {weight: 'bold'} },
+                                ticks: {
+                                    callback: function(v) {
+                                        if(v >= 1000000) return (v/1000000).toFixed(1) + 'tr';
+                                        if(v >= 1000) return (v/1000).toFixed(0) + 'k';
+                                        return v;
+                                    }
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: { display: true, text: 'Số lượng bán', font: {weight: 'bold'} },
+                                grid: { drawOnChartArea: false }, // only draw grid lines for one axis
+                            }
+                        },
+                        plugins: {
+                            legend: { display: true, position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        if (ctx.dataset.label === 'Doanh thu (VNĐ)') {
+                                            return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                        } else {
+                                            return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('vi-VN');
+                                        }
                                     }
                                 }
                             }

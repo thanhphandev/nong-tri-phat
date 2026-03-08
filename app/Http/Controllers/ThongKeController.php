@@ -203,9 +203,10 @@ class ThongKeController extends Controller
         $den_ngay = $request->input('den_ngay');
         $id_khachhang = $request->input('id_khachhang');
         $tinh_trang = $request->input('tinh_trang');
+        $limit_req = $request->input('limit', 50);
         
         // Get list of customers for filter dropdown
-        $khachhang_list = KhachHang::orderBy('ho_ten', 'asc')->get();
+        $khachhang_list = KhachHang::orderBy('ho_ten', 'asc')->get(['_id', 'ho_ten', 'dien_thoai']);
         $tinhtrang = [0 => 'Đang xử lý', 1 => 'Thành công', 2 => 'Đã hủy - Nhập kho lại', 3 => 'Đã hủy'];
         
         // Initialize statistics
@@ -230,6 +231,8 @@ class ThongKeController extends Controller
         
         $tong_tien_hang_ct = 0;
         $tong_tien_hang_ct_tra = 0;
+        
+        $top_products_map = [];
         
         if(!$tu_ngay || !$den_ngay) {
             $tu_ngay = Carbon::now()->subDays(30)->format('d/m/Y');
@@ -289,6 +292,20 @@ class ThongKeController extends Controller
                             // Calculate Revenue
                             $item_revenue = isset($hh['thanh_tien']) ? doubleval($hh['thanh_tien']) : 0;
                             $dh_doanh_thu_ban += $item_revenue;
+                            
+                            // Calculate TOP Products
+                            $hh_id_str = isset($hh['id_hanghoa']) ? (string)$hh['id_hanghoa'] : '';
+                            if ($hh_id_str) {
+                                if (!isset($top_products_map[$hh_id_str])) {
+                                    $top_products_map[$hh_id_str] = [
+                                        'ten' => $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A'),
+                                        'so_luong' => 0,
+                                        'doanh_thu' => 0
+                                    ];
+                                }
+                                $top_products_map[$hh_id_str]['so_luong'] += $item_qty;
+                                $top_products_map[$hh_id_str]['doanh_thu'] += $item_revenue;
+                            }
                             
                             if ($is_promo) {
                                 $dh_tien_hang_ct += $item_revenue;
@@ -372,6 +389,15 @@ class ThongKeController extends Controller
                         $item_revenue = isset($hh_tra['thanh_tien_tra']) ? doubleval($hh_tra['thanh_tien_tra']) : ((isset($hh_tra['don_gia']) ? doubleval($hh_tra['don_gia']) : 0) * $sl);
                         $th_doanh_thu_tra += $item_revenue;
                         
+                        // Deduct TOP Products
+                        $hh_id_str = isset($hh_tra['id_hanghoa']) ? (string)$hh_tra['id_hanghoa'] : '';
+                        if ($hh_id_str && isset($top_products_map[$hh_id_str])) {
+                            $top_products_map[$hh_id_str]['so_luong'] -= $sl;
+                            $top_products_map[$hh_id_str]['doanh_thu'] -= $item_revenue;
+                            if($top_products_map[$hh_id_str]['so_luong'] < 0) $top_products_map[$hh_id_str]['so_luong'] = 0;
+                            if($top_products_map[$hh_id_str]['doanh_thu'] < 0) $top_products_map[$hh_id_str]['doanh_thu'] = 0;
+                        }
+                        
                         if ($is_promo) {
                             $th_tien_hang_ct_tra += $item_revenue;
                         }
@@ -448,16 +474,46 @@ class ThongKeController extends Controller
         $ty_le_loi_nhuan = $tong_doanh_thu > 0 ? round(($tong_loi_nhuan / $tong_doanh_thu) * 100, 2) : 0;
         $ty_le_loi_nhuan_thuc_te = ($tong_da_thanh_toan > 0) ? round(($tong_loi_nhuan_thuc_te / $tong_da_thanh_toan) * 100, 2) : 0;
         
+        // Tính toán TOP 10 sản phẩm bán chạy nhất
+        usort($top_products_map, function($a, $b) {
+            return $b['doanh_thu'] <=> $a['doanh_thu'];
+        });
+        $top_10_products = array_slice($top_products_map, 0, 10);
+
         // === RESOLVE DVT (đơn vị tính) cho tất cả hàng hóa ===
         $all_dvt_ids = collect();
+        $all_hh_ids = collect();
+        
+        foreach($danhsach as $dh) {
+            if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+                foreach($dh['hanghoa'] as $hh) {
+                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) $all_hh_ids->push($hh['id_hanghoa']);
+                }
+            }
+        }
+        foreach($ds_tra_hang as $th) {
+            if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                foreach($th['hanghoa'] as $hh) {
+                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) $all_hh_ids->push($hh['id_hanghoa']);
+                }
+            }
+        }
+        
+        $all_hh_ids = $all_hh_ids->unique()->filter()->values();
+        $hh_map = [];
+        if($all_hh_ids->count() > 0) {
+            $hh_objs = HangHoa::whereIn('_id', $all_hh_ids->map(fn($id) => ObjectController::ObjectId($id))->toArray())->get(['_id', 'id_donvitinh']);
+            foreach($hh_objs as $h) {
+                $hh_map[(string)$h->_id] = isset($h->id_donvitinh) ? (string)$h->id_donvitinh : null;
+                if(isset($h->id_donvitinh)) $all_dvt_ids->push($h->id_donvitinh);
+            }
+        }
+        
+        // Cập nhật DVT có sẵn
         foreach($danhsach as $dh) {
             if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
                 foreach($dh['hanghoa'] as $hh) {
                     if(isset($hh['id_donvitinh']) && $hh['id_donvitinh']) $all_dvt_ids->push($hh['id_donvitinh']);
-                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) {
-                        $product = HangHoa::find((string)$hh['id_hanghoa']);
-                        if($product && isset($product['id_donvitinh'])) $all_dvt_ids->push($product['id_donvitinh']);
-                    }
                 }
             }
         }
@@ -465,10 +521,6 @@ class ThongKeController extends Controller
             if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
                 foreach($th['hanghoa'] as $hh) {
                     if(isset($hh['id_donvitinh']) && $hh['id_donvitinh']) $all_dvt_ids->push($hh['id_donvitinh']);
-                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) {
-                        $product = HangHoa::find((string)$hh['id_hanghoa']);
-                        if($product && isset($product['id_donvitinh'])) $all_dvt_ids->push($product['id_donvitinh']);
-                    }
                 }
             }
         }
@@ -486,8 +538,8 @@ class ThongKeController extends Controller
                     if(!isset($hh_ref['don_vi_tinh']) || !$hh_ref['don_vi_tinh']) {
                         $dvt_id = isset($hh_ref['id_donvitinh']) ? (string)$hh_ref['id_donvitinh'] : '';
                         if(!$dvt_id && isset($hh_ref['id_hanghoa'])) {
-                            $p = HangHoa::find((string)$hh_ref['id_hanghoa']);
-                            if($p && isset($p['id_donvitinh'])) $dvt_id = (string)$p['id_donvitinh'];
+                            $d_id = $hh_map[(string)$hh_ref['id_hanghoa']] ?? null;
+                            if($d_id) $dvt_id = $d_id;
                         }
                         $hh_ref['don_vi_tinh'] = isset($dvt_map[$dvt_id]) ? $dvt_map[$dvt_id] : '';
                     }
@@ -503,8 +555,8 @@ class ThongKeController extends Controller
                     if(!isset($hh_ref['don_vi_tinh']) || !$hh_ref['don_vi_tinh']) {
                         $dvt_id = isset($hh_ref['id_donvitinh']) ? (string)$hh_ref['id_donvitinh'] : '';
                         if(!$dvt_id && isset($hh_ref['id_hanghoa'])) {
-                            $p = HangHoa::find((string)$hh_ref['id_hanghoa']);
-                            if($p && isset($p['id_donvitinh'])) $dvt_id = (string)$p['id_donvitinh'];
+                            $d_id = $hh_map[(string)$hh_ref['id_hanghoa']] ?? null;
+                            if($d_id) $dvt_id = $d_id;
                         }
                         $hh_ref['don_vi_tinh'] = isset($dvt_map[$dvt_id]) ? $dvt_map[$dvt_id] : '';
                     }
@@ -523,7 +575,8 @@ class ThongKeController extends Controller
             'tong_loi_nhuan_thuc_te', 'ty_le_loi_nhuan_thuc_te',
             'tong_da_thanh_toan', 'tong_con_no', 
             'so_don_hang', 'so_san_pham_ban', 'so_don_tra', 'so_san_pham_tra',
-            'don_payments_map', 'tong_tien_hang_ct', 'tong_tien_hang_ct_tra'
+            'don_payments_map', 'tong_tien_hang_ct', 'tong_tien_hang_ct_tra',
+            'top_10_products'
         );
 
         if($request->input('action') == 'export_excel') {
@@ -532,6 +585,29 @@ class ThongKeController extends Controller
         if($request->input('action') == 'export_pdf') {
             return $this->exportBanHangPdf($data);
         }
+
+        // Apply pagination for the View rendering only
+        $page_ban = \Illuminate\Pagination\Paginator::resolveCurrentPage('page');
+        $perPage_ban = $limit_req === 'all' ? max($danhsach->count(), 1) : intval($limit_req);
+        $danhsach_paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+            $danhsach->forPage($page_ban, $perPage_ban)->values(),
+            $danhsach->count(),
+            $perPage_ban,
+            $page_ban,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]
+        );
+        $data['danhsach'] = $danhsach_paginated;
+
+        $page_tra = \Illuminate\Pagination\Paginator::resolveCurrentPage('page_tra');
+        $ds_tra_hang_paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+            $ds_tra_hang->forPage($page_tra, $perPage_ban)->values(),
+            $ds_tra_hang->count(),
+            $perPage_ban,
+            $page_tra,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query(), 'pageName' => 'page_tra']
+        );
+        $data['ds_tra_hang'] = $ds_tra_hang_paginated;
+        $data['limit'] = $limit_req;
 
         return view('Admin.ThongKe.thong-ke-ban-hang')->with($data);
     }
@@ -543,9 +619,10 @@ class ThongKeController extends Controller
         $tu_ngay = $request->input('tu_ngay');
         $den_ngay = $request->input('den_ngay');
         $id_nhacungcap = $request->input('id_nhacungcap');
+        $limit_req = $request->input('limit', 50);
         
         // Get list of suppliers for filter dropdown
-        $nhacungcap_list = \App\Models\NhaCungCap::orderBy('ten', 'asc')->get();
+        $nhacungcap_list = \App\Models\NhaCungCap::orderBy('ten', 'asc')->get(['_id', 'ten', 'dien_thoai']);
         
         // Initialize statistics
         $danhsach = collect();
@@ -561,6 +638,8 @@ class ThongKeController extends Controller
         $so_phieu_tra = 0;
         $so_san_pham_nhap = 0;
         $so_san_pham_tra = 0;
+        
+        $top_products_map = [];
 
         if(!$tu_ngay || !$den_ngay) {
             $tu_ngay = Carbon::now()->subDays(30)->format('d/m/Y');
@@ -602,10 +681,26 @@ class ThongKeController extends Controller
                 // Total import value
                 $tong_gia_tri_nhap_goc += isset($nh['tong_thanh_tien']) ? doubleval($nh['tong_thanh_tien']) : 0;
                 
-                // Product count
+                // Product count and Top Products
                 if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
                     foreach($nh['hanghoa'] as $hh) {
-                        $so_san_pham_nhap += isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0;
+                        $item_qty = isset($hh['so_luong']) ? doubleval($hh['so_luong']) : 0;
+                        $so_san_pham_nhap += $item_qty;
+                        
+                        // Calculate TOP Imported Products (using gia_von * so_luong to calculate item value if not provided)
+                        $hh_id_str = isset($hh['id_hanghoa']) ? (string)$hh['id_hanghoa'] : '';
+                        $item_val = isset($hh['thanh_tien']) ? doubleval($hh['thanh_tien']) : ((isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0) * $item_qty);
+                        if ($hh_id_str) {
+                            if (!isset($top_products_map[$hh_id_str])) {
+                                $top_products_map[$hh_id_str] = [
+                                    'ten' => $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A'),
+                                    'so_luong' => 0,
+                                    'gia_tri' => 0
+                                ];
+                            }
+                            $top_products_map[$hh_id_str]['so_luong'] += $item_qty;
+                            $top_products_map[$hh_id_str]['gia_tri'] += $item_val;
+                        }
                     }
                 }
             }
@@ -626,7 +721,18 @@ class ThongKeController extends Controller
                 
                  if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
                     foreach($th['hanghoa'] as $hh_tra) {
-                        $so_san_pham_tra += isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
+                        $item_qty = isset($hh_tra['so_luong_tra']) ? doubleval($hh_tra['so_luong_tra']) : 0;
+                        $so_san_pham_tra += $item_qty;
+                        
+                        // Deduct TOP Imported Products
+                        $hh_id_str = isset($hh_tra['id_hanghoa']) ? (string)$hh_tra['id_hanghoa'] : '';
+                        $item_val = isset($hh_tra['thanh_tien_tra']) ? doubleval($hh_tra['thanh_tien_tra']) : ((isset($hh_tra['don_gia']) ? doubleval($hh_tra['don_gia']) : 0) * $item_qty);
+                        if ($hh_id_str && isset($top_products_map[$hh_id_str])) {
+                            $top_products_map[$hh_id_str]['so_luong'] -= $item_qty;
+                            $top_products_map[$hh_id_str]['gia_tri'] -= $item_val;
+                            if($top_products_map[$hh_id_str]['so_luong'] < 0) $top_products_map[$hh_id_str]['so_luong'] = 0;
+                            if($top_products_map[$hh_id_str]['gia_tri'] < 0) $top_products_map[$hh_id_str]['gia_tri'] = 0;
+                        }
                     }
                 }
             }
@@ -645,17 +751,47 @@ class ThongKeController extends Controller
         }
         
         $so_san_pham = $so_san_pham_nhap - $so_san_pham_tra;
+        
+        // Tính toán TOP 10 sản phẩm nhập nhiều nhất
+        usort($top_products_map, function($a, $b) {
+            return $b['gia_tri'] <=> $a['gia_tri'];
+        });
+        $top_10_products = array_slice($top_products_map, 0, 10);
 
         // === RESOLVE DVT cho nhập hàng ===
         $all_dvt_ids_nh = collect();
+        $all_hh_ids_nh = collect();
+        
+        foreach($danhsach as $nh) {
+            if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
+                foreach($nh['hanghoa'] as $hh) {
+                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) $all_hh_ids_nh->push($hh['id_hanghoa']);
+                }
+            }
+        }
+        foreach($ds_tra_hang_ncc as $th) {
+            if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
+                foreach($th['hanghoa'] as $hh) {
+                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) $all_hh_ids_nh->push($hh['id_hanghoa']);
+                }
+            }
+        }
+        
+        $all_hh_ids_nh = $all_hh_ids_nh->unique()->filter()->values();
+        $hh_map_nh = [];
+        if($all_hh_ids_nh->count() > 0) {
+            $hh_objs = HangHoa::whereIn('_id', $all_hh_ids_nh->map(fn($id) => ObjectController::ObjectId($id))->toArray())->get(['_id', 'id_donvitinh']);
+            foreach($hh_objs as $h) {
+                $hh_map_nh[(string)$h->_id] = isset($h->id_donvitinh) ? (string)$h->id_donvitinh : null;
+                if(isset($h->id_donvitinh)) $all_dvt_ids_nh->push($h->id_donvitinh);
+            }
+        }
+        
+        // Cập nhật DVT có sẵn
         foreach($danhsach as $nh) {
             if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
                 foreach($nh['hanghoa'] as $hh) {
                     if(isset($hh['id_donvitinh']) && $hh['id_donvitinh']) $all_dvt_ids_nh->push($hh['id_donvitinh']);
-                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) {
-                        $p = HangHoa::find((string)$hh['id_hanghoa']);
-                        if($p && isset($p['id_donvitinh'])) $all_dvt_ids_nh->push($p['id_donvitinh']);
-                    }
                 }
             }
         }
@@ -663,10 +799,6 @@ class ThongKeController extends Controller
             if(isset($th['hanghoa']) && is_array($th['hanghoa'])) {
                 foreach($th['hanghoa'] as $hh) {
                     if(isset($hh['id_donvitinh']) && $hh['id_donvitinh']) $all_dvt_ids_nh->push($hh['id_donvitinh']);
-                    if(isset($hh['id_hanghoa']) && $hh['id_hanghoa']) {
-                        $p = HangHoa::find((string)$hh['id_hanghoa']);
-                        if($p && isset($p['id_donvitinh'])) $all_dvt_ids_nh->push($p['id_donvitinh']);
-                    }
                 }
             }
         }
@@ -683,8 +815,8 @@ class ThongKeController extends Controller
                     if(!isset($hh_ref['don_vi_tinh']) || !$hh_ref['don_vi_tinh']) {
                         $dvt_id = isset($hh_ref['id_donvitinh']) ? (string)$hh_ref['id_donvitinh'] : '';
                         if(!$dvt_id && isset($hh_ref['id_hanghoa'])) {
-                            $p = HangHoa::find((string)$hh_ref['id_hanghoa']);
-                            if($p && isset($p['id_donvitinh'])) $dvt_id = (string)$p['id_donvitinh'];
+                            $h_id = $hh_map_nh[(string)$hh_ref['id_hanghoa']] ?? null;
+                            if($h_id) $dvt_id = $h_id;
                         }
                         $hh_ref['don_vi_tinh'] = isset($dvt_map_nh[$dvt_id]) ? $dvt_map_nh[$dvt_id] : '';
                     }
@@ -700,8 +832,8 @@ class ThongKeController extends Controller
                     if(!isset($hh_ref['don_vi_tinh']) || !$hh_ref['don_vi_tinh']) {
                         $dvt_id = isset($hh_ref['id_donvitinh']) ? (string)$hh_ref['id_donvitinh'] : '';
                         if(!$dvt_id && isset($hh_ref['id_hanghoa'])) {
-                            $p = HangHoa::find((string)$hh_ref['id_hanghoa']);
-                            if($p && isset($p['id_donvitinh'])) $dvt_id = (string)$p['id_donvitinh'];
+                            $h_id = $hh_map_nh[(string)$hh_ref['id_hanghoa']] ?? null;
+                            if($h_id) $dvt_id = $h_id;
                         }
                         $hh_ref['don_vi_tinh'] = isset($dvt_map_nh[$dvt_id]) ? $dvt_map_nh[$dvt_id] : '';
                     }
@@ -717,7 +849,7 @@ class ThongKeController extends Controller
             'tong_gia_tri_nhap', 'tong_gia_tri_nhap_goc', 'tong_gia_tri_tra',
             'tong_da_thanh_toan', 'tong_con_no',
             'so_phieu_nhap', 'so_san_pham_nhap', 'so_phieu_tra', 'so_san_pham_tra', 'so_san_pham',
-            'nhap_payments_map'
+            'nhap_payments_map', 'top_10_products'
         );
 
         if($request->input('action') == 'export_excel') {
@@ -726,6 +858,29 @@ class ThongKeController extends Controller
         if($request->input('action') == 'export_pdf') {
             return $this->exportNhapHangPdf($data);
         }
+
+        // Apply pagination for the View rendering only
+        $page_ban = \Illuminate\Pagination\Paginator::resolveCurrentPage('page');
+        $perPage_ban = $limit_req === 'all' ? max($danhsach->count(), 1) : intval($limit_req);
+        $danhsach_paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+            $danhsach->forPage($page_ban, $perPage_ban)->values(),
+            $danhsach->count(),
+            $perPage_ban,
+            $page_ban,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]
+        );
+        $data['danhsach'] = $danhsach_paginated;
+
+        $page_tra = \Illuminate\Pagination\Paginator::resolveCurrentPage('page_tra');
+        $ds_tra_hang_ncc_paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+            $ds_tra_hang_ncc->forPage($page_tra, $perPage_ban)->values(),
+            $ds_tra_hang_ncc->count(),
+            $perPage_ban,
+            $page_tra,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query(), 'pageName' => 'page_tra']
+        );
+        $data['ds_tra_hang_ncc'] = $ds_tra_hang_ncc_paginated;
+        $data['limit'] = $limit_req;
 
         return view('Admin.ThongKe.thong-ke-nhap-hang')->with($data);
     }

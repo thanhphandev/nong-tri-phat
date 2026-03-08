@@ -217,7 +217,7 @@
                                             @endif
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
                                             <div class="dropdown-divider"></div>
-                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa đơn</a>
+{{-- <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa đơn</a> --}}
                                         </div>
                                     </div>
                                 </td>
