@@ -159,6 +159,7 @@ class DonHangController extends Controller
                 $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
+                $gui_kho = isset($data['gui_kho_cart'][$key]) ? intval($data['gui_kho_cart'][$key]) : 0;
 
                 // Map DVT
                 $don_vi_tinh = 'Bao/Chai';
@@ -184,6 +185,7 @@ class DonHangController extends Controller
                     'don_gia' => $don_gia,
                     'chiet_khau' => $chiet_khau,
                     'thanh_tien' => $thanh_tien,
+                    'gui_kho' => $gui_kho,
                 ];
             }
         }
@@ -279,6 +281,7 @@ class DonHangController extends Controller
                 $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $id_hanghoa = ObjectController::ObjectId($value);
+                $gui_kho = isset($data['gui_kho_cart'][$key]) ? intval($data['gui_kho_cart'][$key]) : 0;
                 
                 // Đơn vị bán: main (chuẩn) hoặc retail (lẻ)
                 $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
@@ -423,6 +426,7 @@ class DonHangController extends Controller
                     'ty_le_quy_doi' => $hh['ty_le_quy_doi'] ?? 1,
                     // Cấu hình Hàng chương trình
                     'hang_chuong_trinh' => isset($hh['hang_chuong_trinh']) ? $hh['hang_chuong_trinh'] : false,
+                    'gui_kho' => $gui_kho,
                 ));
             }
         }
@@ -942,5 +946,77 @@ class DonHangController extends Controller
         }
 
         return $tong_gia_von;
+    }
+
+    public function da_lay_hang($id) {
+        $dh = DonHang::find($id);
+        if(!$dh){
+            Session::flash('msg', 'Không tìm thấy đơn hàng');
+            return redirect()->back();
+        }
+
+        $arr_hanghoa = [];
+        $changed = false;
+        if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])){
+            foreach($dh['hanghoa'] as $hh) {
+                if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1){
+                    $hh['gui_kho'] = 0;
+                    $changed = true;
+                }
+                $arr_hanghoa[] = $hh;
+            }
+        }
+
+        if($changed) {
+            $dh->hanghoa = $arr_hanghoa;
+            $dh->save();
+            
+            $id_user = Session::get('user.id');
+            $querLog = array(
+                'id_user' => ObjectController::ObjectId($id_user),
+                'action' => 'da_lay_hang_gui_kho',
+                'id_collection' => $id,
+                'collection' => 'don_hang',
+                'data' => $dh->toArray()
+            );
+            LogController::addLog($querLog);
+            Session::flash('msg', 'Đã đánh dấu khách lấy toàn bộ hàng gửi kho!');
+        } else {
+            Session::flash('msg', 'Đơn hàng này không có mục nào đang gửi kho chưa lấy!');
+        }
+
+        return redirect()->back();
+    }
+
+    public function update_gui_kho(Request $request) {
+        $id = $request->input('id_donhang');
+        $index = $request->input('index');
+        $gui_kho = $request->input('gui_kho');
+        
+        $dh = DonHang::find($id);
+        if($dh && isset($dh->hanghoa) && is_array($dh->hanghoa)){
+            $arr_hanghoa = $dh->hanghoa;
+            if(isset($arr_hanghoa[$index])){
+                $arr_hanghoa[$index]['gui_kho'] = intval($gui_kho);
+                $dh->hanghoa = $arr_hanghoa;
+                $dh->save();
+                
+                $id_user = Session::get('user.id');
+                $querLog = array(
+                    'id_user' => ObjectController::ObjectId($id_user),
+                    'action' => 'cap_nhat_gui_kho_don_hang',
+                    'id_collection' => $id,
+                    'collection' => 'don_hang',
+                    'data' => [
+                        'index' => $index,
+                        'gui_kho' => $gui_kho
+                    ]
+                );
+                LogController::addLog($querLog);
+                
+                return response()->json(['error' => false, 'msg' => 'Cập nhật thành công']);
+            }
+        }
+        return response()->json(['error' => true, 'msg' => 'Có lỗi xảy ra']);
     }
 }

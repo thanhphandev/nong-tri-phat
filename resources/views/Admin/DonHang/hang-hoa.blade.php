@@ -12,7 +12,12 @@
 		@foreach($dh['hanghoa'] as $hh)
 		<tr>
 			<td class="text-center"><b>{{ $hh['ma'] }}</b></td>
-			<td>{{ $hh['ten'] }}</td>
+			<td>
+			    {{ $hh['ten'] }}
+			    @if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1)
+			        <span class="badge badge-warning" style="font-size: 10px;"><i class="fas fa-warehouse"></i> Gửi kho</span>
+			    @endif
+			</td>
 			<td class="text-right">{{ $hh['so_luong'] }}</td>
 			<td class="text-right">{{ number_format($hh['don_gia'],0,",",".") }}</td>
 			<td class="text-right">

@@ -44,6 +44,13 @@
 			</span>
 			@endif
 		</div>
+		<div class="mt-1">
+		    <label style="cursor: pointer; font-size: 12px;" class="mb-0 text-primary font-weight-bold">
+		        <input type="hidden" name="gui_kho_cart[]" value="0" class="gui-kho-hidden">
+		        <input type="checkbox" value="1" class="gui-kho-checkbox mr-1" onchange="$(this).prev('.gui-kho-hidden').val(this.checked ? 1 : 0);">
+		        <i class="fas fa-warehouse"></i> Gửi kho (chưa lấy)
+		    </label>
+		</div>
 	</td>
 	<td class="text-center" align="center" style="width:140px;max-width:140px;">
         <div class="input-group input-group-sm">

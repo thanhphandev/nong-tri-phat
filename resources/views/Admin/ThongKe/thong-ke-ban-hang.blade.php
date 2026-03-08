@@ -446,7 +446,7 @@
                                 <th>Ngày trả</th>
                                 <th>Đơn gốc</th>
                                 <th>Khách hàng</th>
-                                <th>SL Trả</th>
+                                <th>SL</th>
                                 <th>Tiền trả lại</th>
                                 <th class="text-info">Tiền Hàng CT trả</th>
                                 <th>Tổng giá vốn</th>

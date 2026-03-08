@@ -137,8 +137,13 @@
 							@php
 								$so_luong = 0;
                                 $tong_gia_von = 0;
+                                $has_gui_kho = false;
 								foreach($ds['hanghoa'] as $hh){
 									$so_luong += $hh['so_luong'];
+                                    // Check gui kho
+                                    if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1){
+                                        $has_gui_kho = true;
+                                    }
                                     // Calculate Total Cost
                                     if(isset($hh['gia_von_thuc_te'])){
                                         $tong_gia_von += $hh['gia_von_thuc_te'];
@@ -155,7 +160,12 @@
                                 $loi_nhuan = $ds['tong_thanh_tien'] - $tong_gia_von;
 							@endphp
 							<tr>
-								<td class="text-center"><b>{{ $ds['ma_don_hang'] }}</b></td>
+								<td class="text-center">
+								    <b>{{ $ds['ma_don_hang'] }}</b>
+								    @if($has_gui_kho)
+								        <br><span class="badge badge-warning mt-1" title="Có hàng gửi kho chưa lấy"><i class="fas fa-warehouse"></i> Gửi kho</span>
+								    @endif
+								</td>
 								<td>{{ $ds['ho_ten'] }}</td>
 								<td>{{ $ds['dien_thoai'] }}</td>
 								<td class="text-right">
@@ -201,6 +211,9 @@
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
                                             @if($con_no > 0)
                                                 <a class="dropdown-item btn-tra-no" href="#" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                            @endif
+                                            @if($has_gui_kho)
+                                                <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/da-lay-hang/{{ $ds['_id'] }}" onclick="return confirm('Khách đã lấy toàn bộ hàng gửi kho của đơn này?');"><i class="fas fa-box-open text-info mr-2"></i> Đã lấy hàng</a>
                                             @endif
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
                                             <div class="dropdown-divider"></div>
