@@ -78,35 +78,43 @@
         <thead>
             <tr>
                 <th style="width: 10%;">Ngày/Giờ</th>
-                <th style="width: 22%;">Diễn giải</th>
-                <th style="width: 6%;">SL</th>
-                <th style="width: 6%;">ĐVT</th>
-                <th style="width: 10%;">Đơn giá</th>
-                <th style="width: 11%;">Tiền hàng</th>
-                <th style="width: 11%;">Thanh toán</th>
-                <th style="width: 12%;">Còn nợ</th>
-                <th style="width: 12%;">Ghi chú</th>
+                <th style="width: 20%;">Diễn giải</th>
+                <th style="width: 5%;">SL</th>
+                <th style="width: 5%;">ĐVT</th>
+                <th style="width: 9%;">Đơn giá</th>
+                <th style="width: 10%;">Tiền hàng</th>
+                <th style="width: 10%;">Trả hàng</th>
+                <th style="width: 10%;">Thanh toán</th>
+                <th style="width: 11%;">Còn nợ</th>
+                <th style="width: 10%;">Ghi chú</th>
             </tr>
         </thead>
         <tbody>
             <tr class="row-opening">
                 <td class="text-center"></td>
-                <td colspan="6">DƯ NỢ ĐẦU KỲ</td>
+                <td colspan="7">DƯ NỢ ĐẦU KỲ</td>
                 <td class="text-right">{{ number_format($noDauKy, 0, ',', '.') }}</td>
                 <td></td>
             </tr>
 
-            @php $luyKe = $noDauKy; @endphp
+            @php $luyKe = $noDauKy; $tongTraHang = 0; @endphp
 
             @foreach($phatSinhTrongKy as $item)
-                @php $luyKe += $item->tien_hang - $item->thanh_toan; @endphp
+                @php 
+                    $luyKe += $item->tien_hang - $item->thanh_toan; 
+                    
+                    $isTraHang = isset($item->id_trahangncc) && $item->id_trahangncc;
+                    if($isTraHang) {
+                        $tongTraHang += $item->thanh_toan;
+                    }
+                @endphp
 
                 <tr class="row-master">
                     <td class="text-center">{{ $item->time->toDateTime()->format('d/m/Y H:i') }}</td>
                     <td class="text-left">
                         @if($item->id_nhaphang) 
                             Nhập hàng: {{ $item->ma_phieu }}
-                        @elseif(isset($item->id_trahangncc)) 
+                        @elseif($isTraHang) 
                             Trả hàng: {{ $item->ma_phieu }}
                         @else 
                             {{ $item->tien_hang > 0 ? 'Phát sinh nợ' : 'Phiếu chi' }}
@@ -116,30 +124,58 @@
                     <td></td>
                     <td></td>
                     <td class="text-right">{{ $item->tien_hang > 0 ? number_format($item->tien_hang, 0, ',', '.') : '-' }}</td>
-                    <td class="text-right">{{ $item->thanh_toan > 0 ? number_format($item->thanh_toan, 0, ',', '.') : '-' }}</td>
+                    <td class="text-right" style="{{ $item->co_tra_hang ? 'color: #d71a21;' : '' }}">{{ $item->co_tra_hang ? number_format($item->tong_tra_hang, 0, ',', '.') : '-' }}</td>
+                    <td class="text-right">{{ $item->thanh_toan_thuc_te > 0 ? number_format($item->thanh_toan_thuc_te, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
                     <td style="font-weight: normal; font-size: 9px;">{{ $item->ghi_chu }}</td>
                 </tr>
 
                 @if(isset($item->details) && count($item->details) > 0)
                     @foreach($item->details as $ct)
-                    <tr class="row-detail">
-                        <td></td>
-                        <td class="indent">- {{ $ct['ten'] ?? $ct['ten_hanghoa'] }}</td>
-                        <td class="text-center">{{ $ct['so_luong'] ?? 0 }}</td>
-                        <td class="text-center">{{ $ct['don_vi_tinh_hien_thi'] ?? '' }}</td>
-                        <td class="text-right">{{ number_format($ct['don_gia'] ?? 0, 0, ',', '.') }}</td>
-                        <td class="text-right">{{ number_format($ct['thanh_tien'] ?? 0, 0, ',', '.') }}</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
+                        @php
+                            $soLuongBan = $ct['so_luong'] ?? 0;
+                            $soLuongTra = $ct['so_luong_tra'] ?? 0;
+                            $tienTraHang = $ct['tien_tra_hang'] ?? 0;
+                            $thanhTienBan = $ct['thanh_tien'] ?? 0;
+                        @endphp
+                        <tr class="row-detail">
+                            <td></td>
+                            <td class="indent">
+                                - {{ $ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'Không rõ tên') }}
+                            </td>
+                            
+                            <td class="text-center">
+                                {{ number_format($soLuongBan) }}
+                                @if($soLuongTra > 0)
+                                    <br><small style="color: #d71a21;">(Trả {{ number_format($soLuongTra) }})</small>
+                                @endif
+                            </td>
+                            
+                            <td class="text-center">{{ $ct['don_vi_tinh_hien_thi'] ?? '' }}</td>
+                            <td class="text-right">{{ isset($ct['don_gia']) ? number_format($ct['don_gia'], 0, ',', '.') : '0' }}</td>
+                            
+                            <td class="text-right">
+                                {{ number_format($thanhTienBan, 0, ',', '.') }}
+                            </td>
+                            
+                            <td class="text-right" style="color: #d71a21;">
+                                @if($tienTraHang > 0)
+                                    {{ number_format($tienTraHang, 0, ',', '.') }}
+                                @endif
+                            </td>
+                            
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
                     @endforeach
                 @endif
             @endforeach
             
             <tr class="row-total">
-                <td colspan="7" class="text-right">TỔNG NỢ CUỐI KỲ:</td>
+                <td colspan="6" class="text-right">TỔNG NỢ CUỐI KỲ:</td>
+                <td class="text-right" style="color: #d71a21;">{{ $tongTraHang > 0 ? number_format($tongTraHang, 0, ',', '.') : '' }}</td>
+                <td></td>
                 <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
                 <td></td>
             </tr>

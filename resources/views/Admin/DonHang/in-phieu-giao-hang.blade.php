@@ -182,7 +182,7 @@
         .signature-section {
             display: table;
             width: 100%;
-            margin-top: 4mm;
+            margin-top: 8mm;
             text-align: center;
             font-size: 10pt;
         }
@@ -191,7 +191,7 @@
             width: 50%;
             padding: 0 5mm;
         }
-        .signature-title { font-weight: bold; margin-bottom: 8mm; }
+        .signature-title { font-weight: bold; margin-bottom: 15mm; }
         .signature-name { font-weight: bold; }
         .signature-company { font-weight: bold; color: #d71a21; white-space: nowrap; }
 

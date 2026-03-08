@@ -126,7 +126,31 @@ class DonHangController extends Controller
 
         // Build hanghoa preview list
         $arr_hanghoa = [];
+        
+        $hanghoa_ncc_map = [];
         if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            $hh_ids = array_unique($data['id_hanghoa_cart']);
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+            
+            $nhap_hangs = \App\Models\NhapHang::whereIn('hanghoa.id_hanghoa', $hh_obj_ids)
+                            ->orderBy('ngay_nhap', 'desc')
+                            ->get(['hanghoa', 'id_nhacungcap', 'ten_ncc']);
+            foreach($nhap_hangs as $nh) {
+                if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
+                    foreach($nh['hanghoa'] as $hh_item) {
+                        if (isset($hh_item['id_hanghoa'])) {
+                            $hh_id = (string)$hh_item['id_hanghoa'];
+                            if (!isset($hanghoa_ncc_map[$hh_id])) {
+                                $hanghoa_ncc_map[$hh_id] = [
+                                    'id_nhacungcap' => $nh->id_nhacungcap ?? null,
+                                    'ten_ncc' => $nh->ten_ncc ?? 'Không xác định'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
                 if (!$hh) continue;
@@ -151,6 +175,9 @@ class DonHangController extends Controller
 
                 $arr_hanghoa[] = [
                     'ten' => $hh['ten'],
+                    // Snapshot Supplier
+                    'id_nhacungcap' => $hanghoa_ncc_map[(string)$value]['id_nhacungcap'] ?? null,
+                    'ten_ncc' => $hanghoa_ncc_map[(string)$value]['ten_ncc'] ?? 'Không xác định',
                     'don_vi_tinh' => $don_vi_tinh,
                     'don_vi_le_info' => $don_vi_le_info,
                     'so_luong' => $so_luong,
@@ -220,7 +247,31 @@ class DonHangController extends Controller
         $arr_hanghoa = array();
         $tong_thanh_tien = ObjectController::convertStr2Number_1($data['tong-thanh-tien']);
         $thanh_toan = ObjectController::convertStr2Number_1($data['thanh-toan']);
+        
+        $hanghoa_ncc_map = [];
         if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            $hh_ids = array_unique($data['id_hanghoa_cart']);
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+            
+            $nhap_hangs = \App\Models\NhapHang::whereIn('hanghoa.id_hanghoa', $hh_obj_ids)
+                            ->orderBy('ngay_nhap', 'desc')
+                            ->get(['hanghoa', 'id_nhacungcap', 'ten_ncc']);
+            foreach($nhap_hangs as $nh) {
+                if(isset($nh['hanghoa']) && is_array($nh['hanghoa'])) {
+                    foreach($nh['hanghoa'] as $hh_item) {
+                        if (isset($hh_item['id_hanghoa'])) {
+                            $hh_id = (string)$hh_item['id_hanghoa'];
+                            if (!isset($hanghoa_ncc_map[$hh_id])) {
+                                $hanghoa_ncc_map[$hh_id] = [
+                                    'id_nhacungcap' => $nh->id_nhacungcap ?? null,
+                                    'ten_ncc' => $nh->ten_ncc ?? 'Không xác định'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+            
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = HangHoa::find($value);
                 $so_luong = floatval($data['so_luong_cart'][$key]);
@@ -361,6 +412,9 @@ class DonHangController extends Controller
                     'chiet_khau' => $chiet_khau, 
                     'thanh_tien' => $thanh_tien,
                     'gia_von_thuc_te' => $tong_gia_von_thuc_te, // Total Cost for this line
+                    // Snapshot Supplier
+                    'id_nhacungcap' => $hanghoa_ncc_map[(string)$id_hanghoa]['id_nhacungcap'] ?? null,
+                    'ten_ncc' => $hanghoa_ncc_map[(string)$id_hanghoa]['ten_ncc'] ?? 'Không xác định',
                     // Thông tin bán lẻ
                     'don_vi_ban' => $don_vi_ban,
                     'so_luong_tru_kho' => $sl_can_tru_kho,

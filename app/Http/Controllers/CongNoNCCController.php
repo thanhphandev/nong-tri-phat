@@ -406,6 +406,12 @@ class CongNoNCCController extends Controller
         $dataNhapHang = NhapHang::whereIn('_id', $nhapHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
         $dataTraHang = \App\Models\TraHangNCC::whereIn('_id', $traHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
     
+        $traHangNCCs = \App\Models\TraHangNCC::whereIn('id_nhaphang', $nhapHangObjectIds)->get();
+        $traHangByNhapHang = [];
+        foreach($traHangNCCs as $th) {
+            $traHangByNhapHang[(string)$th->id_nhaphang][] = $th;
+        }
+
         $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) {
             return $item->ngay_gio->toDateTime()->getTimestamp();
         });
@@ -434,27 +440,68 @@ class CongNoNCCController extends Controller
 
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
-        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $units) {
+        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $traHangByNhapHang, $units) {
             $item->time = $item->ngay_gio;
             $item->timestamp_sort = $item->ngay_gio->toDateTime()->getTimestamp();
             $item->details = [];
+            $item->tong_tra_hang = 0;
+            $item->co_tra_hang = false;
     
             // Nếu là đơn hàng bán (Tăng nợ)
             if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
                 $details = $dataNhapHang[(string)$item->id_nhaphang]->hanghoa ?? [];
                 
-                $item->details = collect($details)->map(function($ct) use ($units) {
+                $mappedDetails = collect($details)->map(function($ct) use ($units) {
                     if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) {
                         $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le'];
                     } else {
                         $id_dvt = $ct['id_donvitinh'] ?? null;
                         $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? ''));
                     }
+                    $ct['is_tra_hang'] = false;
                     return $ct;
                 })->toArray();
+                
+                if (isset($traHangByNhapHang[(string)$item->id_nhaphang])) {
+                    $item->co_tra_hang = true;
+                    foreach ($traHangByNhapHang[(string)$item->id_nhaphang] as $traHang) {
+                        $traHangDetails = $traHang->hanghoa ?? [];
+                        foreach ($traHangDetails as $thCT) {
+                            $found = false;
+                            foreach ($mappedDetails as &$origCT) {
+                                if ((string)($origCT['id_hanghoa'] ?? '') === (string)($thCT['id_hanghoa'] ?? '')) {
+                                    $origCT['so_luong_tra'] = ($origCT['so_luong_tra'] ?? 0) + ($thCT['so_luong_tra'] ?? 0);
+                                    $origCT['tien_tra_hang'] = ($origCT['tien_tra_hang'] ?? 0) + ($thCT['thanh_tien'] ?? 0);
+                                    $found = true;
+                                    break;
+                                }
+                            }
+                            if (!$found) {
+                                $thCT['is_tra_hang'] = true;
+                                $thCT['so_luong'] = $thCT['so_luong_tra'] ?? 0;
+                                if (isset($thCT['cho_phep_ban_le']) && $thCT['cho_phep_ban_le'] == true && !empty($thCT['don_vi_le'])) {
+                                    $thCT['don_vi_tinh_hien_thi'] = $thCT['don_vi_le'];
+                                } else {
+                                    $id_dvt = $thCT['id_donvitinh'] ?? null;
+                                    $thCT['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($thCT['don_vi_tinh'] ?? ($thCT['don_vi'] ?? ''));
+                                }
+                                // $mappedDetails[] = $thCT;
+                            }
+                            $item->tong_tra_hang += ($thCT['thanh_tien'] ?? 0);
+                        }
+                    }
+                }
 
+                $item->details = $mappedDetails;
                 $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
                 $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
+                
+                if ($item->tong_tra_hang > 0) {
+                    $item->thanh_toan_thuc_te = $item->thanh_toan - $item->tong_tra_hang;
+                    if ($item->thanh_toan_thuc_te < 0) $item->thanh_toan_thuc_te = 0;
+                } else {
+                    $item->thanh_toan_thuc_te = $item->thanh_toan;
+                }
             } 
             // Nếu là phiếu trả hàng (Giảm nợ)
             elseif (isset($item->id_trahangncc) && $item->id_trahangncc && isset($dataTraHang[(string)$item->id_trahangncc])) {
@@ -467,10 +514,16 @@ class CongNoNCCController extends Controller
                         $id_dvt = $ct['id_donvitinh'] ?? null;
                         $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? ''));
                     }
+                    $ct['is_tra_hang'] = true;
                     return $ct;
                 })->toArray();
 
+                $item->co_tra_hang = true;
+                $item->tong_tra_hang = $item->thanh_toan;
+                $item->thanh_toan_thuc_te = 0;
                 $item->ma_phieu = $dataTraHang[(string)$item->id_trahangncc]->ma_tra_hang;
+            } else {
+                $item->thanh_toan_thuc_te = $item->thanh_toan;
             }
     
             return $item;
@@ -529,6 +582,12 @@ class CongNoNCCController extends Controller
 
         $dataNhapHang = NhapHang::whereIn('_id', $nhapHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
         $dataTraHang = \App\Models\TraHangNCC::whereIn('_id', $traHangObjectIds)->get()->keyBy(function($i) { return (string)$i->_id; });
+        
+        $traHangNCCs = \App\Models\TraHangNCC::whereIn('id_nhaphang', $nhapHangObjectIds)->get();
+        $traHangByNhapHang = [];
+        foreach($traHangNCCs as $th) {
+            $traHangByNhapHang[(string)$th->id_nhaphang][] = $th;
+        }
 
         $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) { return $item->ngay_gio->toDateTime()->getTimestamp(); });
 
@@ -546,27 +605,76 @@ class CongNoNCCController extends Controller
 
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
-        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $units) {
+        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $traHangByNhapHang, $units) {
             $item->time = $item->ngay_gio;
             $item->timestamp_sort = $item->ngay_gio->toDateTime()->getTimestamp();
             $item->details = [];
+            $item->tong_tra_hang = 0;
+            $item->co_tra_hang = false;
+
             if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
                 $details = $dataNhapHang[(string)$item->id_nhaphang]->hanghoa ?? [];
-                $item->details = collect($details)->map(function($ct) use ($units) {
+                $mappedDetails = collect($details)->map(function($ct) use ($units) {
                     if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) { $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le']; }
                     else { $id_dvt = $ct['id_donvitinh'] ?? null; $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? '')); }
+                    $ct['is_tra_hang'] = false;
                     return $ct;
                 })->toArray();
+                
+                if (isset($traHangByNhapHang[(string)$item->id_nhaphang])) {
+                    $item->co_tra_hang = true;
+                    foreach ($traHangByNhapHang[(string)$item->id_nhaphang] as $traHang) {
+                        $traHangDetails = $traHang->hanghoa ?? [];
+                        foreach ($traHangDetails as $thCT) {
+                            $found = false;
+                            foreach ($mappedDetails as &$origCT) {
+                                if ((string)($origCT['id_hanghoa'] ?? '') === (string)($thCT['id_hanghoa'] ?? '')) {
+                                    $origCT['so_luong_tra'] = ($origCT['so_luong_tra'] ?? 0) + ($thCT['so_luong_tra'] ?? 0);
+                                    $origCT['tien_tra_hang'] = ($origCT['tien_tra_hang'] ?? 0) + ($thCT['thanh_tien'] ?? 0);
+                                    $found = true;
+                                    break;
+                                }
+                            }
+                            if (!$found) {
+                                $thCT['is_tra_hang'] = true;
+                                $thCT['so_luong'] = $thCT['so_luong_tra'] ?? 0;
+                                if (isset($thCT['cho_phep_ban_le']) && $thCT['cho_phep_ban_le'] == true && !empty($thCT['don_vi_le'])) {
+                                    $thCT['don_vi_tinh_hien_thi'] = $thCT['don_vi_le'];
+                                } else {
+                                    $id_dvt = $thCT['id_donvitinh'] ?? null;
+                                    $thCT['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($thCT['don_vi_tinh'] ?? ($thCT['don_vi'] ?? ''));
+                                }
+                                $mappedDetails[] = $thCT;
+                            }
+                            $item->tong_tra_hang += ($thCT['thanh_tien'] ?? 0);
+                        }
+                    }
+                }
+                
+                $item->details = $mappedDetails;
                 $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
                 $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
+                
+                if ($item->tong_tra_hang > 0) {
+                    $item->thanh_toan_thuc_te = $item->thanh_toan - $item->tong_tra_hang;
+                    if ($item->thanh_toan_thuc_te < 0) $item->thanh_toan_thuc_te = 0;
+                } else {
+                    $item->thanh_toan_thuc_te = $item->thanh_toan;
+                }
             } elseif (isset($item->id_trahangncc) && $item->id_trahangncc && isset($dataTraHang[(string)$item->id_trahangncc])) {
                 $details = $dataTraHang[(string)$item->id_trahangncc]->hanghoa ?? [];
                 $item->details = collect($details)->map(function($ct) use ($units) {
                     if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) { $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le']; }
                     else { $id_dvt = $ct['id_donvitinh'] ?? null; $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? '')); }
+                    $ct['is_tra_hang'] = true;
                     return $ct;
                 })->toArray();
+                $item->co_tra_hang = true;
+                $item->tong_tra_hang = $item->thanh_toan;
+                $item->thanh_toan_thuc_te = 0;
                 $item->ma_phieu = $dataTraHang[(string)$item->id_trahangncc]->ma_tra_hang;
+            } else {
+                $item->thanh_toan_thuc_te = $item->thanh_toan;
             }
             return $item;
         })->sortBy('timestamp_sort')->values();
@@ -578,14 +686,14 @@ class CongNoNCCController extends Controller
 
         // --- Info header ---
         $sheet->setCellValue('A1', 'BÁO CÁO CHI TIẾT CÔNG NỢ NHÀ CUNG CẤP');
-        $sheet->mergeCells('A1:I1');
+        $sheet->mergeCells('A1:J1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
         $fromStr = $fromDate ? $fromDate->format('d/m/Y') : 'bắt đầu';
         $toStr = $toDate->format('d/m/Y');
         $sheet->setCellValue('A2', "Từ ngày: $fromStr đến ngày: $toStr");
-        $sheet->mergeCells('A2:I2');
+        $sheet->mergeCells('A2:J2');
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('A2')->getFont()->setItalic(true);
 
@@ -595,13 +703,13 @@ class CongNoNCCController extends Controller
         $sheet->getStyle('A3:A4')->getFont()->setBold(true);
 
         // --- Table Headers (row 6) ---
-        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'Tiền hàng', 'Thanh toán', 'Còn nợ', 'Ghi chú'];
+        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'Tiền hàng', 'Trả hàng', 'Thanh toán', 'Còn nợ', 'Ghi chú'];
         $col = 'A';
         foreach($headers as $h) {
             $sheet->setCellValue($col . '6', $h);
             $col++;
         }
-        $headerStyle = $sheet->getStyle('A6:I6');
+        $headerStyle = $sheet->getStyle('A6:J6');
         $headerStyle->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF343A40');
         $headerStyle->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
@@ -610,24 +718,27 @@ class CongNoNCCController extends Controller
         // --- Dư nợ đầu kỳ ---
         $row = 7;
         $sheet->setCellValue('B' . $row, 'DƯ NỢ ĐẦU KỲ');
-        $sheet->setCellValue('H' . $row, $noDauKy);
-        $sheet->getStyle('A' . $row . ':I' . $row)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $row . ':I' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0E0');
-        $sheet->getStyle('A' . $row . ':I' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->setCellValue('I' . $row, $noDauKy);
+        $sheet->getStyle('A' . $row . ':J' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row . ':J' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0E0');
+        $sheet->getStyle('A' . $row . ':J' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
         $luyKe = $noDauKy;
+        $tongTraHang = 0;
         $row++;
 
         // --- Data rows ---
         foreach($phatSinhTrongKy as $item) {
             $luyKe += $item->tien_hang - $item->thanh_toan;
 
+            $tongTraHang += $item->tong_tra_hang;
+
             $label = '';
             if($item->id_nhaphang) {
                 $label = 'Nhập hàng: ' . ($item->ma_phieu ?? '');
                 if(isset($item->so_chung_tu) && $item->so_chung_tu) $label .= ' (SCT: ' . $item->so_chung_tu . ')';
-            } elseif(isset($item->id_trahangncc) && $item->id_trahangncc) {
+            } elseif($item->co_tra_hang && !$item->id_nhaphang) {
                 $label = 'Trả hàng: ' . ($item->ma_phieu ?? '');
             } else {
                 $label = $item->tien_hang > 0 ? 'Phát sinh nợ' : 'Phiếu chi';
@@ -636,54 +747,87 @@ class CongNoNCCController extends Controller
             $sheet->setCellValue('A' . $row, $item->time->toDateTime()->format('d/m/Y H:i'));
             $sheet->setCellValue('B' . $row, $label);
             $sheet->setCellValue('F' . $row, $item->tien_hang > 0 ? $item->tien_hang : '');
-            $sheet->setCellValue('G' . $row, $item->thanh_toan > 0 ? $item->thanh_toan : '');
-            $sheet->setCellValue('H' . $row, $luyKe);
-            $sheet->setCellValue('I' . $row, $item->ghi_chu ?? '');
+            $sheet->setCellValue('G' . $row, $item->co_tra_hang ? $item->tong_tra_hang : '');
+            $sheet->setCellValue('H' . $row, $item->thanh_toan_thuc_te > 0 ? $item->thanh_toan_thuc_te : '');
+            $sheet->setCellValue('I' . $row, $luyKe);
+            $sheet->setCellValue('J' . $row, $item->ghi_chu ?? '');
 
-            $sheet->getStyle('A' . $row . ':I' . $row)->getFont()->setBold(true);
-            $sheet->getStyle('A' . $row . ':I' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
-            $sheet->getStyle('A' . $row . ':I' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-            $sheet->getStyle('F' . $row . ':H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('A' . $row . ':J' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $row . ':J' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
+            $sheet->getStyle('A' . $row . ':J' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            $sheet->getStyle('F' . $row . ':I' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            if($item->co_tra_hang) {
+                $sheet->getStyle('G' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+            }
             $row++;
 
             // Detail rows
             if(isset($item->details) && is_array($item->details) && count($item->details) > 0) {
                 foreach($item->details as $ct) {
-                    $sheet->setCellValue('B' . $row, '  - ' . ($ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'N/A')));
-                    $sheet->setCellValue('C' . $row, $ct['so_luong'] ?? 0);
+                    $isTraHangForDetail = $ct['is_tra_hang'] ?? false;
+                    $tienTraHang = $ct['tien_tra_hang'] ?? 0;
+                    $soLuongTra = $ct['so_luong_tra'] ?? 0;
+                    $soLuongBan = $ct['so_luong'] ?? 0;
+                    $thanhTienBan = $ct['thanh_tien'] ?? 0;
+
+                    $tenSP = '  - ' . ($ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'N/A'));
+                    if($isTraHangForDetail) $tenSP .= ' (Trả)';
+                    
+                    $sl = $isTraHangForDetail ? ($soLuongTra > 0 ? $soLuongTra : $soLuongBan) : $soLuongBan;
+                    if (!$isTraHangForDetail && $soLuongTra > 0) {
+                        $sl .= "\n(Trả " . number_format($soLuongTra) . ")";
+                    }
+                    
+                    $sheet->setCellValue('B' . $row, $tenSP);
+                    $sheet->setCellValue('C' . $row, $sl);
+                    // Add word-wrap to column C to properly display "\n"
+                    $sheet->getStyle('C' . $row)->getAlignment()->setWrapText(true);
+
                     $sheet->setCellValue('D' . $row, $ct['don_vi_tinh_hien_thi'] ?? '');
                     $sheet->setCellValue('E' . $row, $ct['don_gia'] ?? 0);
-                    $sheet->setCellValue('F' . $row, $ct['thanh_tien'] ?? 0);
+                    
+                    if (!$isTraHangForDetail) {
+                        $sheet->setCellValue('F' . $row, $thanhTienBan);
+                    }
+
+                    if ($tienTraHang > 0) {
+                        $sheet->setCellValue('G' . $row, $tienTraHang);
+                        $sheet->getStyle('G' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                    } elseif ($isTraHangForDetail) {
+                        $sheet->setCellValue('G' . $row, $thanhTienBan);
+                        $sheet->getStyle('G' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                    }
 
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
-                    $sheet->getStyle('A' . $row . ':I' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                    $sheet->getStyle('A' . $row . ':J' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
                     $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('E' . $row . ':F' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('E' . $row . ':G' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $row++;
                 }
             }
         }
 
         // --- Tổng nợ cuối kỳ ---
-        $sheet->mergeCells('A' . $row . ':G' . $row);
+        $sheet->mergeCells('A' . $row . ':F' . $row);
         $sheet->setCellValue('A' . $row, 'TỔNG NỢ CUỐI KỲ:');
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
-        $sheet->setCellValue('H' . $row, $luyKe);
-        $totalStyle = $sheet->getStyle('A' . $row . ':I' . $row);
+        $sheet->setCellValue('G' . $row, $tongTraHang > 0 ? $tongTraHang : '');
+        $sheet->setCellValue('I' . $row, $luyKe);
+        $totalStyle = $sheet->getStyle('A' . $row . ':J' . $row);
         $totalStyle->getFont()->setBold(true)->setSize(12);
         $totalStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFD0D0D0');
         $totalStyle->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('G' . $row . ':I' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
         // --- Column alignments ---
         $sheet->getStyle('A7:A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('C7:C' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('D7:D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('E7:H' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('E7:I' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
         
         // Freeze panes & filter
         $sheet->freezePane('A7');
-        $sheet->setAutoFilter('A6:I6');
+        $sheet->setAutoFilter('A6:J6');
         
         // Column widths
         $sheet->getColumnDimension('A')->setWidth(18);
@@ -692,9 +836,10 @@ class CongNoNCCController extends Controller
         $sheet->getColumnDimension('D')->setWidth(10);
         $sheet->getColumnDimension('E')->setWidth(15);
         $sheet->getColumnDimension('F')->setWidth(18);
-        $sheet->getColumnDimension('G')->setWidth(18);
+        $sheet->getColumnDimension('G')->setWidth(16);
         $sheet->getColumnDimension('H')->setWidth(18);
-        $sheet->getColumnDimension('I')->setWidth(20);
+        $sheet->getColumnDimension('I')->setWidth(18);
+        $sheet->getColumnDimension('J')->setWidth(20);
 
         // Output
         $supplierCode = isset($nhaCungCap->ma) ? $nhaCungCap->ma : 'NCC'.substr($id_nhacungcap, -5);

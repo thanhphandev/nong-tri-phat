@@ -330,8 +330,7 @@
                                 <th class="text-right" style="white-space: nowrap">Thanh toán</th>
                                 <th class="text-right" style="white-space: nowrap">Nợ</th>
                                 <th class="text-right" style="white-space: nowrap">Giá vốn</th>
-                                <th class="text-right" style="white-space: nowrap">LN Ước tính</th>
-                                <th class="text-right" style="white-space: nowrap">LN Thực tế</th>
+                                <th class="text-right" style="white-space: nowrap">Lợi nhuận</th>
                                 <th class="text-center">Trạng thái</th>
                                 <th>Ghi chú</th>
                             </tr>
@@ -343,8 +342,31 @@
                                 <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
                                 <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                                <td class="text-right text-success"><b>{{ number_format(max(0, $tong_doanh_thu_ban - $tong_gia_von_ban),0,",",".") }}</b></td>
-                                <td class="text-right text-success"><b>{{ number_format(max(0, $tong_da_thanh_toan - $tong_gia_von_ban),0,",",".") }}</b></td>
+                                @php
+                                    $tong_loi_nhuan_uoc_tinh_table = 0;
+                                    $tong_loi_nhuan_thuc_te_table = 0;
+                                    foreach($danhsach as $ds) {
+                                        $dht = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : ($ds['tong_thanh_tien'] ?? 0);
+                                        $dgv = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
+                                        if (!isset($ds['filtered_tong_gia_von'])) {
+                                            $dgv = 0;
+                                            if (isset($ds['hanghoa']) && is_array($ds['hanghoa'])) {
+                                                foreach($ds['hanghoa'] as $hh) {
+                                                     $dgv += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                                                }
+                                            }
+                                        }
+                                        
+                                        $ln_don = $dht - $dgv;
+                                        $tong_loi_nhuan_uoc_tinh_table += $ln_don;
+                                        
+                                        $dt_cn = isset($ds['filtered_con_no']) ? $ds['filtered_con_no'] : max(0, $dht - (isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0));
+                                        if ($dt_cn <= 0) {
+                                            $tong_loi_nhuan_thuc_te_table += $ln_don;
+                                        }
+                                    }
+                                @endphp
+                                <td class="text-right text-success"><b>{{ number_format($tong_loi_nhuan_uoc_tinh_table,0,",",".") }}</b></td>
                                 <td colspan="2"></td>
                             </tr>
                         </thead>
@@ -365,9 +387,6 @@
                                         $doanh_thu_don = $ds['tong_thanh_tien'];
                                     }
 
-                                    // LN Ước tính: Doanh thu đơn - Giá vốn đơn (đảm bảo >= 0)
-                                    $loi_nhuan_don = isset($ds['filtered_loi_nhuan']) ? $ds['filtered_loi_nhuan'] : max(0, $doanh_thu_don - $gia_von_don);
-                                    
                                     // Calculate payment and debt
                                     if (isset($ds['filtered_da_thanh_toan'])) {
                                         $da_thanh_toan = $ds['filtered_da_thanh_toan'];
@@ -377,8 +396,14 @@
                                         $con_no = max(0, $doanh_thu_don - $da_thanh_toan);
                                     }
                                     
-                                    // LN Thực tế: Tiền đã thu - Giá vốn (đảm bảo >= 0)
-                                    $loi_nhuan_thuc_te_don = isset($ds['filtered_loi_nhuan_thuc_te']) ? $ds['filtered_loi_nhuan_thuc_te'] : max(0, $da_thanh_toan - $gia_von_don);
+                                    // Lợi nhuận
+                                    if (isset($ds['filtered_loi_nhuan'])) {
+                                        $loi_nhuan_don = $ds['filtered_loi_nhuan'];
+                                        $loi_nhuan_thuc_te_don = $ds['filtered_loi_nhuan_thuc_te'];
+                                    } else {
+                                        $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
+                                        $loi_nhuan_thuc_te_don = ($con_no > 0) ? 0 : $loi_nhuan_don;
+                                    }
                                     
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
                                     elseif($ds['tinh_trang'] == 1) $tt_badge = 'badge-success';
@@ -397,7 +422,6 @@
                                     <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
                                     <td class="text-right text-success"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
-                                    <td class="text-right text-success"><b>{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</b></td>
                                     <td class="text-center"><span class="badge {{ $tt_badge }}">{{ $tinhtrang[$ds['tinh_trang']] ?? 'N/A' }}</span></td>
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
                                 </tr>
