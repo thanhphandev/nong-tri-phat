@@ -421,43 +421,58 @@ class DonHangController extends Controller
                     }
                     
                     // Nếu vẫn còn số lượng cần trừ (không đủ hàng), tính giá vốn cho phần thiếu
-                    $sl_thieu = $sl_can_tru; // Lưu lại số lượng thiếu để trừ vào so_luong_ton
+                    $sl_thieu = $sl_can_tru; 
                     if($sl_can_tru > 0){
                         // Dùng giá vốn mặc định cho phần thiếu
                         $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
                         $tong_gia_von_thuc_te += $sl_can_tru * $default_cost;
                         $sl_da_tru += $sl_can_tru;
+                        
+                        // Trừ vào lô cuối cùng (lô mới nhất hoặc lô cuối non-expired) để phản ánh dư nợ kho
+                        $target_idx = ($last_valid_batch_index >= 0) ? $last_valid_batch_index : (count($new_batches) - 1);
+                        if($target_idx >= 0){
+                             $batch_to_update = $new_batches[$target_idx];
+                             $batch_to_update['so_luong_con_lai'] = (isset($batch_to_update['so_luong_con_lai']) ? floatval($batch_to_update['so_luong_con_lai']) : 0) - $sl_can_tru;
+                             $new_batches[$target_idx] = $batch_to_update;
+                        }
+                        
                         $sl_can_tru = 0;
                     }
                     
-                    // Lọc chỉ giữ các lô còn hàng (so_luong_con_lai > 0)
-                    $positive_batches = [];
-                    foreach($new_batches as $b){
-                        if(isset($b['so_luong_con_lai']) && floatval($b['so_luong_con_lai']) > 0){
-                            $positive_batches[] = $b;
+                    // Giới hạn số lượng lô trong database để tránh quá tải (giữ tối đa 100 lô)
+                    // Ưu tiên giữ lại các lô còn hàng và các lô mới nhất
+                    if(count($new_batches) > 100){
+                        // Phân loại lô
+                        $with_qty = [];
+                        $empty = [];
+                        foreach($new_batches as $b){
+                            if(isset($b['so_luong_con_lai']) && floatval($b['so_luong_con_lai']) != 0){
+                                $with_qty[] = $b;
+                            } else {
+                                $empty[] = $b;
+                            }
+                        }
+                        
+                        // Nếu số lô có hàng đã > 100, chỉ giữ 100 lô có hàng mới nhất (theo ngày hết hạn/nhập)
+                        if(count($with_qty) >= 100){
+                            $new_batches = array_slice($with_qty, -100);
+                        } else {
+                            // Giữ lại tất cả lô có hàng, và bù thêm các lô trống mới nhất cho đủ 100
+                            $needed = 100 - count($with_qty);
+                            $latest_empty = array_slice($empty, -$needed);
+                            $new_batches = array_merge($with_qty, $latest_empty);
                         }
                     }
-                    
-                    // Giới hạn 50 lô (ưu tiên lô gần hết hạn)
-                    if(count($positive_batches) > 50){
-                        // Sắp xếp theo ngày hết hạn
-                        usort($positive_batches, function($a, $b) {
-                            $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? (int)$a['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
-                            $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? (int)$b['ngay_het_han']->toDateTime()->getTimestamp() : PHP_INT_MAX;
-                            return $t1 - $t2;
-                        });
-                        $positive_batches = array_slice($positive_batches, 0, 50);
-                    }
 
-                    $hanghoa_db->ds_lo_hang = $positive_batches;
+                    $hanghoa_db->ds_lo_hang = $new_batches;
                     
-                    // Tính so_luong_ton = tổng các lô còn lại - số lượng thiếu
+                    // Tính so_luong_ton = tổng các lô còn lại
                     $current_total_stock = 0;
-                    foreach($positive_batches as $b){
+                    foreach($new_batches as $b){
                          $current_total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                     }
-                    // Trừ thêm phần thiếu để so_luong_ton có thể âm
-                    $hanghoa_db->so_luong_ton = $current_total_stock - $sl_thieu;
+                    // Trừ thêm phần thiếu để so_luong_ton có thể âm (Trường hợp cho phép bán âm)
+                    $hanghoa_db->so_luong_ton = $current_total_stock;
                     
                     $hanghoa_db->save();
                 } else {

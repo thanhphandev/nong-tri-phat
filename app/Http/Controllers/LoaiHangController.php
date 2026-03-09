@@ -6,14 +6,29 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\ObjectController;
 use App\Http\Controllers\LogController;
 use App\Models\LoaiHang;
+use App\Models\HangHoa;
 use Validator;
 class LoaiHangController extends Controller
 {
     //
 
     function list(){
-        $danhsach = LoaiHang::All();
-        return view('Admin.LoaiHang.list')->with(compact('danhsach'));
+        $danhsach = LoaiHang::orderBy('ten', 'asc')->get();
+        
+        $raw_counts = HangHoa::raw(function($collection) {
+            return $collection->aggregate([
+                ['$group' => ['_id' => '$id_loaihang', 'count' => ['$sum' => 1]]]
+            ]);
+        });
+        
+        $lh_counts = [];
+        foreach($raw_counts as $c) {
+            if ($c['_id']) {
+                $lh_counts[(string)$c['_id']] = $c['count'];
+            }
+        }
+
+        return view('Admin.LoaiHang.list')->with(compact('danhsach', 'lh_counts'));
     }
 
     function add(){

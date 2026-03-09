@@ -16,17 +16,23 @@
                         <th>STT</th>
                         <th>Tên</th>
                         <th>Thứ tự</th>
+                        <th>Số lượng hàng hóa</th>
                         <th class="text-center">#</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($danhsach as $key => $ds)
+                    @php
+                        $id_str = (string)$ds['_id'];
+                        $count = isset($lh_counts[$id_str]) ? $lh_counts[$id_str] : 0;
+                    @endphp
                     <tr>
                         <td class="text-center">{{ $key+1 }}</td>
                         <td>{{ $ds['ten'] }}</td>
                         <td class="text-center">{{ $ds['thu_tu'] }}</td>
+                        <td class="text-center">{{ $count }}</td>
                         <td class="text-center">
-                            @if(!App\Http\Controllers\HangHoaController::check_LoaiHang($ds['_id']))
+                            @if($count == 0)
                                 <a href="{{ env('APP_URL') }}admin/loai-hang/delete/{{ $ds['_id'] }}" onClick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
                             @endif
                             <a href="{{ env('APP_URL') }}admin/loai-hang/edit/{{ $ds['_id'] }}"><i class="fas fa-pencil-alt"></i></a>
@@ -39,14 +45,5 @@
         </div>
     </div>
 </div>
-@endsection
 
-@section('js')
-  <script src="{{ env('APP_URL') }}assets/libs/datatables/jquery.dataTables.min.js"></script>
-  <script src="{{ env('APP_URL') }}assets/libs/datatables/dataTables.bootstrap4.min.js"></script>
-  <script type="text/javascript">
-    $(document).ready(function() {
-      $('#responsive-datatable').DataTable({pageLength : 25});
-    });
-  </script>
 @endsection

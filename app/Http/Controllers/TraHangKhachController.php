@@ -444,19 +444,11 @@ class TraHangKhachController extends Controller
                         // This is a batch from this return - deduct from here
                         $batch_qty = floatval($batch['so_luong_con_lai'] ?? 0);
                         
-                        if ($batch_qty <= $remaining) {
-                            // Deduct everything from this batch -> remove it (it's emptied)
-                            // Or if batch_qty < remaining (items sold), batch is emptied and we still have remaining
-                            $remaining -= $batch_qty;
-                            // Batch is removed (not added to new_batches)
-                            $batch_deducted = true;
-                        } else {
-                            // Partial deduction: Batch has more than we need to revert
-                            $batch['so_luong_con_lai'] = $batch_qty - $remaining;
-                            $new_batches[] = $batch;
-                            $remaining = 0;
-                            $batch_deducted = true;
-                        }
+                        // Deduct from this batch, even if it goes negative
+                        $batch['so_luong_con_lai'] = $batch_qty - $remaining;
+                        $new_batches[] = $batch;
+                        $remaining = 0;
+                        $batch_deducted = true;
                     } else {
                         // Keep other batches unchanged
                         $new_batches[] = $batch;

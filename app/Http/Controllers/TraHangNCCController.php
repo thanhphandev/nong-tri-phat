@@ -108,7 +108,7 @@ class TraHangNCCController extends Controller
                 $id_nhaphang_obj = ObjectController::ObjectId($nhaphang['_id']);
                 
                 foreach ($ds_lo_hang as $batch) {
-                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : null;
+                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $nhaphang['ma_nhap_hang'] ? $id_nhaphang_obj : null);
                     if ($batch_id_nhap !== null && (string)$batch_id_nhap == (string)$id_nhaphang_obj) {
                         $ton_kho_lo += floatval($batch['so_luong_con_lai'] ?? 0);
                     }
@@ -242,7 +242,7 @@ class TraHangNCCController extends Controller
                     
                     foreach ($ds_lo_hang as $batch) {
                         // Exact match: compare id_nhap_hang ObjectId only
-                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : null;
+                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $nhaphang['ma_nhap_hang'] ? $id_nhaphang_obj : null);
                         
                         $is_from_this_import = false;
                         if ($batch_id_nhap !== null) {
@@ -250,33 +250,48 @@ class TraHangNCCController extends Controller
                         }
                         
                         if ($is_from_this_import && $remaining > 0) {
-                            // This is the exact batch from the original import - deduct from here
+                            // Found the exact batch - deduct from it even if it goes negative
                             $batch_qty = floatval($batch['so_luong_con_lai'] ?? 0);
+                            $batch['so_luong_con_lai'] = $batch_qty - $remaining;
                             
-                            if ($batch_qty <= $remaining) {
-                                // Consume entire batch - remove it
-                                $remaining -= $batch_qty;
-                                $batch_deducted = true;
-                                // Don't add to new_batches - effectively removes it
-                            } else {
-                                // Partial deduction
-                                $batch['so_luong_con_lai'] = $batch_qty - $remaining;
-                                $new_batches[] = $batch;
-                                $remaining = 0;
-                                $batch_deducted = true;
-                            }
+                            $new_batches[] = $batch;
+                            $remaining = 0;
+                            $batch_deducted = true;
                         } else {
                             // Keep other batches unchanged
                             $new_batches[] = $batch;
                         }
                     }
                     
-                    // If batch not found or remaining > 0, log error but still proceed
-                    if (!$batch_deducted || $remaining > 0) {
-                        // Log warning: batch not found for return
-                        \Log::warning('TraHangNCC: Batch not found for product ' . $hh['ten'] . 
-                            ' from import ' . $nhaphang['ma_nhap_hang'] . 
-                            '. Remaining: ' . $remaining);
+                    // If batch was previously deleted (so_luong_con_lai=0 logic), re-create it as negative
+                    if (!$batch_deducted && $remaining > 0) {
+                        // Find original product info from NhapHang to get dates/price
+                        $orig_price = $hh['don_gia_goc'] ?? $hh['don_gia'];
+                        $ngay_het_han = null;
+                        $ngay_san_xuat = null;
+                        
+                        foreach($nhaphang['hanghoa'] as $nh_item){
+                            if((string)$nh_item['id_hanghoa'] == (string)$hh['id_hanghoa']){
+                                $ngay_het_han = $nh_item['ngay_het_han'] ?? null;
+                                $ngay_san_xuat = $nh_item['ngay_san_xuat'] ?? null;
+                                $orig_price = $nh_item['don_gia'] ?? $orig_price;
+                                break;
+                            }
+                        }
+
+                        $new_batch = [
+                            'id_nhap_hang' => $id_nhaphang_obj,
+                            'ma_nhap_hang' => $nhaphang['ma_nhap_hang'],
+                            'so_luong_nhap' => 0, // This is a "re-created" batch for return
+                            'so_luong_con_lai' => -$remaining,
+                            'ngay_san_xuat' => $ngay_san_xuat,
+                            'ngay_het_han' => $ngay_het_han,
+                            'gia_von' => $orig_price,
+                            'ngay_nhap' => $nhaphang['ngay_nhap'] ?? ObjectController::setDate(),
+                            'ghi_chu' => 'Lô được tạo lại để phục vụ trả hàng NCC (Lô gốc đã bán hết/bị xóa)'
+                        ];
+                        $new_batches[] = $new_batch;
+                        $remaining = 0;
                     }
                     
                     $hang_hoa->ds_lo_hang = $new_batches;
@@ -421,7 +436,7 @@ class TraHangNCCController extends Controller
                 $id_nhaphang_obj = $tra_hang['id_nhaphang'];
                 
                 foreach ($ds_lo_hang as &$batch) {
-                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : null;
+                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $tra_hang['ma_nhap_hang'] ? $id_nhaphang_obj : null);
                     
                     if ($batch_id_nhap !== null && (string)$batch_id_nhap == (string)$id_nhaphang_obj) {
                         // Found the exact batch - add quantity back
