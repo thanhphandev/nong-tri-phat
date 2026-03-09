@@ -13,7 +13,21 @@ class DonViTinhController extends Controller
     //
     function list(){
         $danhsach = DonViTinh::orderBy('ten', 'asc')->get();
-        return view('Admin.DonViTinh.list')->with(compact('danhsach'));
+
+        $raw_counts = HangHoa::raw(function($collection) {
+            return $collection->aggregate([
+                ['$group' => ['_id' => '$id_donvitinh', 'count' => ['$sum' => 1]]]
+            ]);
+        });
+        
+        $dvt_counts = [];
+        foreach($raw_counts as $c) {
+            if ($c['_id']) {
+                $dvt_counts[(string)$c['_id']] = $c['count'];
+            }
+        }
+
+        return view('Admin.DonViTinh.list')->with(compact('danhsach', 'dvt_counts'));
     }
 
     function add(Request $request){

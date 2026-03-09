@@ -181,8 +181,19 @@ class NhapHangController extends Controller
         // Build hanghoa preview list
         $arr_hanghoa = [];
         if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $data['id_hanghoa_cart']);
+            $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+            
+            $dvt_ids = [];
+            foreach($hanghoa_dict as $item) {
+                if(!empty($item['id_donvitinh'])) {
+                    $dvt_ids[] = ObjectController::ObjectId($item['id_donvitinh']);
+                }
+            }
+            $dvt_dict = DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+
             foreach($data['id_hanghoa_cart'] as $key => $value){
-                $hh = HangHoa::find($value);
+                $hh = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
                 if (!$hh) continue;
                 $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
@@ -198,7 +209,7 @@ class NhapHangController extends Controller
                 // Map DVT
                 $don_vi_tinh = 'Bao/Chai';
                 if (!empty($hh['id_donvitinh'])) {
-                    $dvt = DonViTinh::find($hh['id_donvitinh']);
+                    $dvt = isset($dvt_dict[(string)$hh['id_donvitinh']]) ? $dvt_dict[(string)$hh['id_donvitinh']] : null;
                     if ($dvt) $don_vi_tinh = $dvt['ten'];
                 }
 
@@ -287,8 +298,13 @@ class NhapHangController extends Controller
         $ngay_nhap = ObjectController::setDate();
 
         if($data['id_hanghoa_cart']){
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $data['id_hanghoa_cart']);
+            $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+            // ---------------------------
+
             foreach($data['id_hanghoa_cart'] as $key => $value){
-                $hh = HangHoa::find($value);
+                $hh = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
+                if (!$hh) continue;
                 $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
@@ -328,7 +344,7 @@ class NhapHangController extends Controller
                     'ngay_nhap' => $ngay_nhap,
                 );
                 
-                $hanghoa_update = HangHoa::find($value);
+                $hanghoa_update = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
                 if($hanghoa_update){
                     $current_batches = isset($hanghoa_update['ds_lo_hang']) ? $hanghoa_update['ds_lo_hang'] : [];
                     $current_batches[] = $lo_hang;
@@ -417,11 +433,7 @@ class NhapHangController extends Controller
         );
         LogController::addLog($querLog);
         Session::flash('msg', 'Nhập hàng thành công');
-        if(isset($data['in_hoa_don']) && $data['in_hoa_don'] == "1"){
-            return redirect(env('APP_URL'). 'admin/nhap-hang/in-phieu-nhap-hang/' . $id);
-        } else {
-            return redirect(env('APP_URL'). 'admin/nhap-hang');
-        }
+        return redirect(env('APP_URL'). 'admin/nhap-hang/in-phieu-nhap-hang/' . $id);
     }
 
     function delete(Request $request, $id = ''){

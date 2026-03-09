@@ -57,11 +57,7 @@
 		    <input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="SL" class="so-luong cart-change form-control form-control-sm" min="0.01" step="0.01" data-max-ton="{{ $so_luong_ton }}" style="width:60px; padding: 0.25rem 0.3rem;">
             @if($co_ban_le)
                 @php
-                    $ten_dvt_chinh = 'Bao/Chai';
-                    if(!empty($hh['id_donvitinh'])){
-                        $dvt = \App\Models\DonViTinh::find($hh['id_donvitinh']);
-                        if($dvt) $ten_dvt_chinh = $dvt['ten'];
-                    }
+                    $ten_dvt_chinh = isset($hh['ten_dvt_chinh']) ? $hh['ten_dvt_chinh'] : 'Bao/Chai';
                 @endphp
                 <select name="don_vi_tinh_cart[]" class="don-vi-ban cart-change form-control form-control-sm" style="width:65px; padding:0 2px;" data-ty-le="{{ $hh['ty_le_quy_doi'] ?? 1 }}" data-ten-main="{{ $ten_dvt_chinh }}" data-ten-retail="{{ $hh['don_vi_le'] }}">
                     <option value="main">{{ $ten_dvt_chinh }}</option>

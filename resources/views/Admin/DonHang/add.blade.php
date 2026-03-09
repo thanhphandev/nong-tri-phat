@@ -81,10 +81,8 @@
                                 @if($khachhang)
                                     @foreach($khachhang as $kh)
                                     @php
-                                        $id_khachhang = App\Http\Controllers\ObjectController::ObjectId($kh['_id']);
-                                        $congno_sum = \App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-                                        $thanhtoan_sum = \App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-                                        $nocu = $congno_sum - $thanhtoan_sum;
+                                        $id_str = (string)$kh['_id'];
+                                        $nocu = isset($kh_nocu[$id_str]) ? $kh_nocu[$id_str] : 0;
                                     @endphp
                                         <option value="{{ $kh['_id'] }}" @if($kh['_id'] == $id_khachhang) selected @endif>{{ $kh['dien_thoai'] }} - {{ $kh['ho_ten'] }} [{{ $loai_khach_hang[$kh['loai_khach_hang']] }}] @if($nocu > 0)- [Nợ: {{ number_format($nocu,0,",",".") }}] @endif</option>
                                     @endforeach

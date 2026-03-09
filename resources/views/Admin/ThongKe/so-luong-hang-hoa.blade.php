@@ -55,8 +55,8 @@
                             <tbody>
                                 @foreach($loaihang as $klh => $vlh)
                                 @php
-                                    $id_loaihang = App\Http\Controllers\ObjectController::ObjectId($vlh['_id']);
-                                    $c_loaihang = App\Models\HangHoa::where('id_loaihang', '=', $id_loaihang)->count();
+                                    $id_loaihang_str = (string)$vlh['_id'];
+                                    $c_loaihang = isset($loaihang_counts[$id_loaihang_str]) ? $loaihang_counts[$id_loaihang_str] : 0;
                                 @endphp
                                 <tr>
                                     <td>{{ $klh+1 }}</td>
@@ -82,16 +82,17 @@
                             <tbody>
                                 @foreach($hanghoa as $khh => $vhh)
                                 @php
-                                    if($vhh['id_loaihang']) {
-                                        $lh = App\Models\LoaiHang::find($vhh['id_loaihang']);
+                                    $id_lh_str = isset($vhh['id_loaihang']) ? (string)$vhh['id_loaihang'] : '';
+                                    if($id_lh_str && isset($loaihang_map[$id_lh_str])) {
+                                        $lh_ten = $loaihang_map[$id_lh_str];
                                     } else {
-                                        $lh = '';
+                                        $lh_ten = '';
                                     }
                                 @endphp
                                     <tr>
                                         <td>{{ $khh+1 }}</td>
                                         <td>{{ $vhh['ten'] }}</td>
-                                        <td>{{ $lh ? $lh['ten'] : '' }}</td>
+                                        <td>{{ $lh_ten }}</td>
                                         <td class="text-right">{{ $vhh['so_luong_ton'] }}</td>
                                     </tr>
                                 @endforeach

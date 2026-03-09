@@ -131,6 +131,10 @@ class TraHangKhachController extends Controller
                 ->where('trang_thai', 1) // Only approved returns
                 ->get();
             
+            $hh_ids = array_column($data['hanghoa'], 'id_hanghoa');
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+            $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+
             foreach ($data['hanghoa'] as $key => $hh) {
                 if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
                     $so_luong_tra = floatval($hh['so_luong_tra']);
@@ -209,7 +213,7 @@ class TraHangKhachController extends Controller
                     ];
 
                     // Update inventory - Return to stock as NEW BATCH
-                    $hang_hoa = HangHoa::find($hh['id_hanghoa']);
+                    $hang_hoa = isset($hanghoa_dict[(string)$hh['id_hanghoa']]) ? $hanghoa_dict[(string)$hh['id_hanghoa']] : null;
                     if ($hang_hoa) {
                         // Tính số lượng thực nhập kho (Quy đổi nếu lúc bán dùng đơn vị lẻ)
                         $hoan_kho = $so_luong_tra;
@@ -411,8 +415,13 @@ class TraHangKhachController extends Controller
         }
 
         // Revert inventory - Remove items from stock by finding EXACT return batch
+        $hh_ids = array_column($tra_hang['hanghoa'], 'id_hanghoa');
+        $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+        $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+        // -----------------------
+        
         foreach ($tra_hang['hanghoa'] as $item) {
-            $hang_hoa = HangHoa::find($item['id_hanghoa']);
+            $hang_hoa = isset($hanghoa_dict[(string)$item['id_hanghoa']]) ? $hanghoa_dict[(string)$item['id_hanghoa']] : null;
             if ($hang_hoa) {
                 // Deduct from total stock
                 $hang_hoa->so_luong_ton -= $item['so_luong_tra'];

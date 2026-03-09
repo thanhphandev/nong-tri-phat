@@ -74,6 +74,10 @@ class TraHangNCCController extends Controller
         }
 
         // 3. Process items
+        $hh_ids = array_column($items, 'id_hanghoa');
+        $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+        $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+        
         foreach ($items as &$item) {
             // Unit Name
             $dvt_id = isset($item['id_donvitinh']) ? (string)$item['id_donvitinh'] : '';
@@ -98,7 +102,7 @@ class TraHangNCCController extends Controller
 
             // Calculate 'ton_kho_lo' (Pending Stock for this Import)
             $ton_kho_lo = 0;
-            $hang_hoa_db = HangHoa::find($item['id_hanghoa']);
+            $hang_hoa_db = isset($hanghoa_dict[(string)$item['id_hanghoa']]) ? $hanghoa_dict[(string)$item['id_hanghoa']] : null;
             if ($hang_hoa_db) {
                 $ds_lo_hang = $hang_hoa_db->ds_lo_hang ?? [];
                 $id_nhaphang_obj = ObjectController::ObjectId($nhaphang['_id']);
@@ -184,6 +188,12 @@ class TraHangNCCController extends Controller
              }
         }
 
+        // -- N+1 Optimization --
+        $hh_ids = array_column($data['hanghoa'], 'id_hanghoa');
+        $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+        $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+        // ----------------------
+        
         foreach ($data['hanghoa'] as $hh) {
             if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
                 $so_luong_tra = floatval($hh['so_luong_tra']);
@@ -217,7 +227,7 @@ class TraHangNCCController extends Controller
                 ];
 
                 // Update inventory - Remove from stock by finding EXACT batch
-                $hang_hoa = HangHoa::find($hh['id_hanghoa']);
+                $hang_hoa = isset($hanghoa_dict[(string)$hh['id_hanghoa']]) ? $hanghoa_dict[(string)$hh['id_hanghoa']] : null;
                 if ($hang_hoa) {
                     $so_luong_tra = floatval($hh['so_luong_tra']);
                     
@@ -392,8 +402,15 @@ class TraHangNCCController extends Controller
 
         // 1. Revert Inventory (Add items back to stock)
         // Find exact batch by id_nhap_hang and restore quantity
+        // -- N+1 Optimization for HangHoa --
+        $hh_ids = array_column($tra_hang['hanghoa'], 'id_hanghoa');
+        $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $hh_ids);
+        $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+        // -- N+1 Optimization for NhapHang --
+        $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
+        
         foreach ($tra_hang['hanghoa'] as $item) {
-            $hang_hoa = HangHoa::find($item['id_hanghoa']);
+            $hang_hoa = isset($hanghoa_dict[(string)$item['id_hanghoa']]) ? $hanghoa_dict[(string)$item['id_hanghoa']] : null;
             if ($hang_hoa) {
                 $hang_hoa->so_luong_ton += $item['so_luong_tra'];
                 
@@ -419,7 +436,6 @@ class TraHangNCCController extends Controller
                 // If batch not found, need to recreate it
                 if (!$restored) {
                     // Get original import info for dates if available
-                    $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
                     $ngay_san_xuat = null;
                     $ngay_het_han = null;
                     $gia_von = $item['don_gia'];

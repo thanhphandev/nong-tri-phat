@@ -26,7 +26,27 @@ class ThongKeController extends Controller
 
         $loaihang = LoaiHang::All();
         $hanghoa = HangHoa::All();
-        return view('Admin.ThongKe.so-luong-hang-hoa')->with(compact('count_loaihang', 'count_hanghoa','loaihang','hanghoa'));
+        
+        $raw_counts = HangHoa::raw(function($collection) {
+            return $collection->aggregate([
+                ['$group' => ['_id' => '$id_loaihang', 'count' => ['$sum' => 1]]]
+            ]);
+        });
+        $loaihang_counts = [];
+        foreach($raw_counts as $c) {
+            if ($c['_id']) {
+                $loaihang_counts[(string)$c['_id']] = $c['count'];
+            }
+        }
+        
+        // 2. Map category names
+        $loaihang_map = [];
+        foreach($loaihang as $lh) {
+            $loaihang_map[(string)$lh['_id']] = $lh['ten'];
+        }
+        // ------------------------
+
+        return view('Admin.ThongKe.so-luong-hang-hoa')->with(compact('count_loaihang', 'count_hanghoa','loaihang','hanghoa', 'loaihang_counts', 'loaihang_map'));
     }
 
     function ton_kho(Request $request){

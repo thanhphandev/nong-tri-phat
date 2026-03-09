@@ -46,19 +46,33 @@ class DMDiaChiController extends Controller
     static function getDiaChi($arr){
       $str_array = array();
       if($arr){
+        // -- N+1 Optimization: Pre-fetch addresses --
+        $ma_list = [];
+        foreach($arr as $key => $value){
+          if($key <= 2 && $value){
+            $ma_list[] = $value;
+          }
+        }
+        
+        $diachi_dict = [];
+        if (!empty($ma_list)) {
+            $diachi_docs = DMDiaChi::whereIn('ma', $ma_list)->get()->toArray();
+            foreach($diachi_docs as $dc) {
+                $diachi_dict[$dc['ma']] = $dc['ten'];
+            }
+        }
+        // -------------------------------------------
+
         foreach($arr as $key => $value){
           if($key <= 2){
             if($value){
-              $dc = DMDiaChi::where('ma',$value,'=')->take(1)->get()->toArray();
-              array_unshift($str_array, $dc[0]['ten']);
-              //array_push($str_array, $dc[0]['ten']);
+              $ten = isset($diachi_dict[$value]) ? $diachi_dict[$value] : $value;
+              array_unshift($str_array, $ten);
             }
           } else {
             if($value){
               array_unshift($str_array, $value);
             }
-            //array_push($str_array, $value);
-            //$str_array[] = $value;
           }
         }
       }

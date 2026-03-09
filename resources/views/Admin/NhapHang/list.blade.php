@@ -5,8 +5,8 @@
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <style>
         .table-sticky-header {
-            max-height: 65vh;
-            overflow: auto;
+            max-height: 80vh;
+            /* overflow: auto; Removed to fix dropdown clipping */
         }
         
         .table-sticky-header table {
@@ -15,22 +15,19 @@
             margin-bottom: 0;
         }
         
-        .table-sticky-header thead th {
-            position: sticky;
-            top: 0;
-            z-index: 15;
-            background-color: #343a40 !important;
-            color: white;
-        }
-        
-        .table-sticky-header thead tr.summary-row th,
-        .table-sticky-header thead tr.summary-row td {
+        .table-sticky-header tbody tr.summary-row td,
+        .table-sticky-header tbody tr.summary-row th {
             position: sticky;
             top: 40px; /* Adjusted by JS */
             z-index: 14;
-            background-color: #f8f9fa !important;
+            background-color: #ffffff !important;
+            color: #212529 !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
+        }
+        .table-sticky-header tbody tr.summary-row td *,
+        .table-sticky-header tbody tr.summary-row th * {
+            color: inherit !important;
         }
     </style>
 @endsection
@@ -104,7 +101,7 @@
                     }
                 @endphp
 
-				<div class="table-responsive table-sticky-header">
+				<div class="table-responsive" style="max-height: 65vh; overflow: visible; padding-bottom: 70px;">
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
 						<tr>
@@ -117,7 +114,8 @@
                             <th class="text-center">Thành tiền</th>
                             <th class="text-center">Ghi chú</th>
 							<th class="text-center">#</th>
-						</tr>
+					</thead>
+					<tbody>
                         <tr class="bg-light text-dark summary-row">
                             <th colspan="5" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
@@ -128,8 +126,6 @@
                             </th>
                             <th colspan="2"></th>
                         </tr>
-					</thead>
-					<tbody>
 						@foreach($danhsach as $ds)
                         @php
                             $so_luong = 0;
@@ -162,7 +158,7 @@
                                     <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         <i class="fa fa-cogs"></i> Tác vụ
                                     </button>
-                                    <div class="dropdown-menu dropdown-menu-right">
+                                    <div class="dropdown-menu dropdown-menu-right" style="z-index: 1050;">
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng NCC</a>

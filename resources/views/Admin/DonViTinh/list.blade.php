@@ -23,8 +23,8 @@
                 <tbody>
                     @foreach($danhsach as $key => $ds)
                     @php
-                        $id_donvitinh = App\Http\Controllers\ObjectController::ObjectId($ds['_id']);
-                        $count = App\Models\HangHoa::where('id_donvitinh','=',$id_donvitinh)->count();
+                        $id_str = (string)$ds['_id'];
+                        $count = isset($dvt_counts[$id_str]) ? $dvt_counts[$id_str] : 0;
                     @endphp
                     <tr>
                         <td class="text-center">{{ $key+1 }}</td>
@@ -32,7 +32,7 @@
                         <td class="text-center">{{ $ds['thu_tu'] }}</td>
                         <td class="text-center">{{ $count }}</td>
                         <td class="text-center">
-                            @if(!App\Http\Controllers\HangHoaController::check_DonViTinh($ds['_id']))
+                            @if($count == 0)
                                 <a href="{{ env('APP_URL') }}admin/don-vi-tinh/delete/{{ $ds['_id'] }}" onClick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger"></i></a>
                             @endif
                                 <a href="{{ env('APP_URL') }}admin/don-vi-tinh/edit/{{ $ds['_id'] }}"><i class="fas fa-pencil-alt"></i></a>

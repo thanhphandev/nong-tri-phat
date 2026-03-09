@@ -165,7 +165,7 @@
                     <div class="action-buttons d-flex flex-wrap" style="gap:6px;">
                         <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary px-2"><i class="fas fa-filter"></i> Lọc</button>
                         <button type="submit" name="action" value="export_excel" class="btn btn-success px-2"><i class="fas fa-file-excel"></i> Excel</button>
-                        <button type="submit" name="action" value="export_pdf" class="btn btn-danger px-2" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
+                        <!-- <button type="submit" name="action" value="export_pdf" class="btn btn-danger px-2" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button> -->
                     </div>
                 </div>
             </div>

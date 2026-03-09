@@ -24,6 +24,7 @@ class DonHangController extends Controller
         $keywords = $request->input('keywords');
         $id_kh = $request->input('id_kh');
         $trang_thai_no = $request->input('trang_thai_no');
+        $gui_kho = $request->input('gui_kho');
         
         $query = DonHang::query();
         
@@ -39,6 +40,10 @@ class DonHangController extends Controller
                     $q->where('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
                       ->orWhere('dien_thoai', 'regexp', '/.*'.$keywords.'/i');
                 });
+            }
+
+            if($gui_kho == '1'){
+                $query->where('hanghoa.gui_kho', 1);
             }
         }
         
@@ -92,7 +97,7 @@ class DonHangController extends Controller
         
         $khachhang = KhachHang::orderBy('ho_ten', 'asc')->get();
         
-    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no', 'limit'));
+    	return view('Admin.DonHang.list')->with(compact('danhsach', 'tinhtrang','keywords', 'khachhang', 'id_kh', 'trang_thai_no', 'limit', 'gui_kho'));
     }
 
     function add(Request $request){
@@ -101,7 +106,39 @@ class DonHangController extends Controller
     	$khachhang = KhachHang::All();
     	// Allow all products to be selected, even with zero or negative stock
     	$hanghoa  = HangHoa::all();
-    	return view('Admin.DonHang.add')->with(compact('khachhang','hanghoa','loai_khach_hang','id_khachhang'));
+
+        $raw_congno = \App\Models\CongNo::raw(function($collection) {
+            return $collection->aggregate([
+                ['$group' => [
+                    '_id' => ['id_khachhang' => '$id_khachhang', 'loai_cong_no' => '$loai_cong_no'],
+                    'tong' => ['$sum' => '$tong_thanh_tien']
+                ]]
+            ]);
+        });
+        
+        $congno_dict = [];
+        foreach($raw_congno as $row) {
+            $id_kh_str = (string)$row['_id']['id_khachhang'];
+            $loai = $row['_id']['loai_cong_no'];
+            if (!isset($congno_dict[$id_kh_str])) {
+                $congno_dict[$id_kh_str] = ['congno' => 0, 'thanhtoan' => 0];
+            }
+            if ($loai == 0) {
+                $congno_dict[$id_kh_str]['congno'] = $row['tong'];
+            } else if ($loai == 1) {
+                $congno_dict[$id_kh_str]['thanhtoan'] = $row['tong'];
+            }
+        }
+        
+        $kh_nocu = [];
+        foreach($khachhang as $kh) {
+            $id_str = (string)$kh['_id'];
+            $cn = isset($congno_dict[$id_str]) ? $congno_dict[$id_str]['congno'] : 0;
+            $tt = isset($congno_dict[$id_str]) ? $congno_dict[$id_str]['thanhtoan'] : 0;
+            $kh_nocu[$id_str] = $cn - $tt;
+        }
+
+    	return view('Admin.DonHang.add')->with(compact('khachhang','hanghoa','loai_khach_hang','id_khachhang', 'kh_nocu'));
     }
 
     private function getHangHoaNccMap($id_hanghoa_cart) {
@@ -187,8 +224,19 @@ class DonHangController extends Controller
         $hanghoa_ncc_map = $this->getHangHoaNccMap($data['id_hanghoa_cart'] ?? []);
         
         if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $data['id_hanghoa_cart']);
+            $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+            
+            $dvt_ids = [];
+            foreach($hanghoa_dict as $item) {
+                if(!empty($item['id_donvitinh'])) {
+                    $dvt_ids[] = ObjectController::ObjectId($item['id_donvitinh']);
+                }
+            }
+            $dvt_dict = DonViTinh::whereIn('_id', $dvt_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+
             foreach($data['id_hanghoa_cart'] as $key => $value){
-                $hh = HangHoa::find($value);
+                $hh = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
                 if (!$hh) continue;
                 $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
@@ -201,7 +249,7 @@ class DonHangController extends Controller
                 $don_vi_tinh = 'Bao/Chai';
                 $don_vi_le_info = '';
                 if (!empty($hh['id_donvitinh'])) {
-                    $dvt = DonViTinh::find($hh['id_donvitinh']);
+                    $dvt = isset($dvt_dict[(string)$hh['id_donvitinh']]) ? $dvt_dict[(string)$hh['id_donvitinh']] : null;
                     if ($dvt) $don_vi_tinh = $dvt['ten'];
                 }
 
@@ -287,8 +335,12 @@ class DonHangController extends Controller
         $hanghoa_ncc_map = $this->getHangHoaNccMap($data['id_hanghoa_cart'] ?? []);
         
         if(isset($data['id_hanghoa_cart']) && $data['id_hanghoa_cart']){
+            $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $data['id_hanghoa_cart']);
+            $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
+
             foreach($data['id_hanghoa_cart'] as $key => $value){
-                $hh = HangHoa::find($value);
+                $hh = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
+                if (!$hh) continue;
                 $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $chiet_khau = ObjectController::convertStr2Number_1($data['chiet_khau_cart'][$key]);
@@ -519,6 +571,13 @@ class DonHangController extends Controller
         $so_luong = $request->input('so_luong');
         $kh = KhachHang::find($id_khachhang);
         $hh = HangHoa::find($id_hanghoa);
+
+        if(!empty($hh['id_donvitinh'])){
+            $dvt = \App\Models\DonViTinh::find($hh['id_donvitinh']);
+            $hh['ten_dvt_chinh'] = $dvt ? $dvt['ten'] : 'Bao/Chai';
+        } else {
+            $hh['ten_dvt_chinh'] = 'Bao/Chai';
+        }
 
         // FEFO Simulation & Calculate Real Cost
         $warning_info = "";
@@ -899,7 +958,7 @@ class DonHangController extends Controller
             $id_user = Session::get('user.id');
             $querLog = array(
                 'id_user' => ObjectController::ObjectId($id_user),
-                'action' => 'da_lay_hang_gui_kho',
+                'action' => 'Đã lấy hàng ký gửi kho cho đơn ' . $dh['ma_don_hang'],
                 'id_collection' => $id,
                 'collection' => 'don_hang',
                 'data' => $dh->toArray()
@@ -929,7 +988,7 @@ class DonHangController extends Controller
                 $id_user = Session::get('user.id');
                 $querLog = array(
                     'id_user' => ObjectController::ObjectId($id_user),
-                    'action' => 'cap_nhat_gui_kho_don_hang',
+                    'action' => 'Cập nhật ký gửi kho cho đơn ' . $dh['ma_don_hang'],
                     'id_collection' => $id,
                     'collection' => 'don_hang',
                     'data' => [

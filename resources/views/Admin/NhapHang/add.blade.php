@@ -146,12 +146,12 @@
                 </div>
 
                 <!-- Invoice Actions -->
-                <div class="form-group mb-3">
+                <!-- <div class="form-group mb-3">
                     <div class="custom-control custom-checkbox custom-control-lg">
                         <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
                         <label class="custom-control-label font-weight-bold text-primary" for="InHoaDonCheck" style="padding-top: 2px;">In phiếu nhập sau khi lưu</label>
                     </div>
-                </div>
+                </div> -->
 
                 <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold"> 
                     <i class="fas fa-eye mr-1"></i> XEM TRƯỚC PHIẾU NHẬP
