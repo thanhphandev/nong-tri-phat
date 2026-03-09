@@ -38,7 +38,7 @@ class NhapHangController extends Controller
         $danhsach = $query->orderBy('ngay_nhap', 'desc')->paginate($per_page);
         
         // Calculate Paid Amount for each item
-        $ids = $danhsach->pluck('_id')->toArray();
+        $ids = $danhsach->getCollection()->pluck('_id')->toArray();
         $ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $ids);
         
         $payments = [];
@@ -145,15 +145,23 @@ class NhapHangController extends Controller
     }
 
     private function mapHangHoaArray($hanghoa_array) {
-        $id_hh = collect($hanghoa_array)->pluck('id_hanghoa')->unique()->map(fn($id) => ObjectController::ObjectId($id));
-        $id_dvt = collect($hanghoa_array)->pluck('id_donvitinh')->unique()->map(fn($id) => ObjectController::ObjectId($id));
+        $id_hh = collect($hanghoa_array)->pluck('id_hanghoa')->unique()->map(function($id) { return ObjectController::ObjectId($id); });
+        $id_dvt = collect($hanghoa_array)->pluck('id_donvitinh')->unique()->map(function($id) { return ObjectController::ObjectId($id); });
 
-        $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(fn($i) => (string)$i->_id);
-        $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(fn($i) => (string)$i->_id);
+        $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(function($i) { return (string)$i->_id; });
+        $units = DonViTinh::whereIn('_id', $id_dvt)->get()->keyBy(function($i) { return (string)$i->_id; });
 
         return collect($hanghoa_array)->map(function($hh) use ($products, $units) {
              $id_dvt = $hh['id_donvitinh'] ?? $products[(string)$hh['id_hanghoa']]['id_donvitinh'] ?? null;
-             $hh['don_vi_tinh'] = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+             $don_vi_chinh = $units[(string)$id_dvt]['ten'] ?? 'Bao/Chai';
+             
+             if(isset($hh['don_vi_nhap']) && $hh['don_vi_nhap'] == 'retail' && !empty($hh['don_vi_le'])) {
+                 $hh['don_vi_tinh'] = $hh['don_vi_le'];
+                 $hh['don_vi_le_info'] = '(1 ' . $don_vi_chinh . ' = ' . ($hh['ty_le_quy_doi'] ?? 1) . ' ' . $hh['don_vi_le'] . ')';
+             } else {
+                 $hh['don_vi_tinh'] = $don_vi_chinh;
+                 $hh['don_vi_le_info'] = '';
+             }
              return $hh;
         });
     }
@@ -206,16 +214,21 @@ class NhapHangController extends Controller
                     $ngay_het_han_preview = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
                 }
 
-                // Map DVT
-                $don_vi_tinh = 'Bao/Chai';
+                // Map DVT and Handle Unit Conversion for Display
+                $don_vi_chinh = 'Bao/Chai';
                 if (!empty($hh['id_donvitinh'])) {
                     $dvt = isset($dvt_dict[(string)$hh['id_donvitinh']]) ? $dvt_dict[(string)$hh['id_donvitinh']] : null;
-                    if ($dvt) $don_vi_tinh = $dvt['ten'];
+                    if ($dvt) $don_vi_chinh = $dvt['ten'];
+                }
+
+                $ten_hien_thi = $don_vi_chinh;
+                if(isset($data['don_vi_tinh_cart'][$key]) && $data['don_vi_tinh_cart'][$key] == 'retail' && !empty($hh['don_vi_le'])) {
+                    $ten_hien_thi = $hh['don_vi_le'];
                 }
 
                 $arr_hanghoa[] = [
                     'ten' => $hh['ten'],
-                    'don_vi_tinh' => $don_vi_tinh,
+                    'don_vi_tinh' => $ten_hien_thi,
                     'so_luong' => $so_luong,
                     'don_gia' => $don_gia,
                     'thanh_tien' => $tt,
@@ -321,6 +334,21 @@ class NhapHangController extends Controller
                 }
 
                 $id_hanghoa = ObjectController::ObjectId($value);
+                
+                // Handle Unit Conversion for Inventory and Display
+                $sl_quy_doi = $so_luong;
+                $gia_von_quy_doi = $don_gia;
+                $don_vi_nhap = 'main';
+
+                if(isset($data['don_vi_tinh_cart'][$key]) && $data['don_vi_tinh_cart'][$key] == 'retail' && !empty($hh['don_vi_le'])) {
+                    $ty_le = $hh['ty_le_quy_doi'] ?? 1;
+                    if($ty_le > 0) {
+                        $sl_quy_doi = $so_luong / $ty_le;
+                        $gia_von_quy_doi = $don_gia * $ty_le;
+                        $don_vi_nhap = 'retail';
+                    }
+                }
+
                 array_push($arr_hanghoa, array(
                     'id_hanghoa' => $id_hanghoa, 
                     'ma' => $hh['ma'], 
@@ -328,19 +356,21 @@ class NhapHangController extends Controller
                     'ten' => $hh['ten'], 
                     'so_luong' => $so_luong, 
                     'don_gia' => $don_gia, 
+                    'don_vi_nhap' => $don_vi_nhap, // Store unit selection
                     'so_thang_het_han' => $so_thang, 
                     'ngay_het_han' => $ngay_het_han, 
                     'ngay_san_xuat' => $ngay_san_xuat,
                     'thanh_tien' => $tt
                 ));
+
                 $lo_hang = array(
                     'id_nhap_hang' => $id,
                     'ma_nhap_hang' => $ma_nhap_hang,
-                    'so_luong_nhap' => $so_luong,
-                    'so_luong_con_lai' => $so_luong,
+                    'so_luong_nhap' => $sl_quy_doi,
+                    'so_luong_con_lai' => $sl_quy_doi,
                     'ngay_san_xuat' => $ngay_san_xuat,
                     'ngay_het_han' => $ngay_het_han,
-                    'gia_von' => $don_gia,
+                    'gia_von' => $gia_von_quy_doi,
                     'ngay_nhap' => $ngay_nhap,
                 );
                 
@@ -449,7 +479,15 @@ class NhapHangController extends Controller
         $so_thang = $request->input('so_thang');
         $ncc = NhaCungCap::find($id_nhacungcap);
         $hh = HangHoa::find($id_hanghoa);
-        return view('Admin.NhapHang.cart')->with(compact('ncc','hh','so_luong', 'ngay_san_xuat', 'so_thang'));
+        
+        // Fetch unit name for conversion logic
+        $ten_dvt_chinh = 'Bao/Chai';
+        if($hh && !empty($hh['id_donvitinh'])) {
+            $dvt = \App\Models\DonViTinh::find($hh['id_donvitinh']);
+            if($dvt) $ten_dvt_chinh = $dvt['ten'];
+        }
+
+        return view('Admin.NhapHang.cart')->with(compact('ncc','hh','so_luong', 'ngay_san_xuat', 'so_thang', 'ten_dvt_chinh'));
     }
 
     static function check_HangHoa($id = '') {

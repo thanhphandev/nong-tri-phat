@@ -43,14 +43,14 @@
                 <table id="HangHoaList" class="table table-bordered table-hover table-sm">
                     <thead class="thead-light">
                         <tr>
-                            <th width="10%">Mã</th>
-                            <th width="25%">Tên Hàng hóa</th>
-                            <th width="7%">SL</th>
-                            <th width="13%">Đơn giá</th>
-                            <th width="8%">Số tháng</th>
-                            <th width="12%">Ngày SX</th>
+                            <th width="8%">Mã</th>
+                            <th width="22%">Tên Hàng hóa</th>
+                            <th width="15%">SL</th>
+                            <th width="12%">Đơn giá</th>
+                            <th width="6%">Số tháng</th>
+                            <th width="10%">Ngày SX</th>
                             <th width="12%">Hạn SD</th>
-                            <th width="10%">Thành tiền</th>
+                            <th width="12%">Thành tiền</th>
                             <th width="3%" class="text-center">#</th>
                         </tr>
                     </thead>
@@ -272,7 +272,7 @@
                     if (repo.loading) return repo.text;
 
                     var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
-                    var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+                    var stockText = repo.so_luong_ton > 0 ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(repo.so_luong_ton) : 'Hết hàng';
 
                     var markup = "<div class='product-result'>" +
                         "<div class='product-title'>" +

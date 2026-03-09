@@ -290,7 +290,7 @@ function initializeProductSearch(path) {
         if (repo.loading) return repo.text;
 
         var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
-        var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+        var stockText = repo.so_luong_ton > 0 ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(repo.so_luong_ton) : 'Hết hàng';
 
         var markup = "<div class='product-result'>" +
             "<div class='product-title'>" +
