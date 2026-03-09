@@ -167,62 +167,61 @@ class TraHangKhachController extends Controller
                         Session::flash('msg', 'Vượt quá số lượng có thể trả cho sản phẩm: ' . $hh['ten'] . ' (Đã trả trước: ' . $total_returned_before . ')');
                         return redirect()->back();
                     }
-                    
-                    // Get cost price from original purchase batch
+                                           // Logic quy đổi đơn vị tính: Đưa về chuẩn tồn kho là ĐVT chính
+                    $ty_le = floatval($original_item['ty_le_quy_doi'] ?? 1);
+                    $don_vi_ban_goc = $original_item['don_vi_ban'] ?? 'main'; // Unit sold in original order
+
+                    // 1. Lấy giá vốn chuẩn của đơn vị chính (Main)
                     if (isset($original_item['gia_von_thuc_te']) && $original_item['so_luong'] > 0) {
-                        // Calculate unit cost from the total real cost of the line item
-                        $gia_von = (float)$original_item['gia_von_thuc_te'] / (float)$original_item['so_luong'];
+                         $gia_von_item_sold = (float)$original_item['gia_von_thuc_te'] / (float)$original_item['so_luong'];
                     } else {
-                        $gia_von = isset($original_item['gia_von']) ? $original_item['gia_von'] : $original_item['don_gia'];
+                         $gia_von_item_sold = isset($original_item['gia_von']) ? $original_item['gia_von'] : $original_item['don_gia'];
                     }
-                    
-                    // Get original selling price and adjusted return price
-                    $don_gia_goc = floatval($hh['don_gia_goc'] ?? $original_item['don_gia']);
-                    $don_gia = floatval($hh['don_gia']); // Adjusted return price (can be modified by user)
-                    
-                    // Calculate totals based on adjusted return price
+
+                    // Nếu đơn vị bán gốc là bán lẻ (Kg) -> gia_von_item_sold đang là giá vốn cho 1 Kg.
+                    // Cần quy đổi gia_von_base về đơn vị chính (Bao) cho chuẩn tồn kho.
+                    $gia_von_base_main = ($don_vi_ban_goc === 'retail') ? ($gia_von_item_sold * $ty_le) : $gia_von_item_sold;
+
+                    // 2. Tính số lượng quy đổi về đơn vị chính (Main) để nhập kho
+                    // Nếu đang trả theo đơn vị Kg (retail) -> Chia tỷ lệ. Nếu Bao (main) -> Giữ nguyên.
+                    $hoan_kho = ($don_vi_ban_goc === 'retail') ? ($so_luong_tra / $ty_le) : $so_luong_tra;
+
+                    $don_gia = floatval($hh['don_gia']); // Giá trả (per unit returned)
                     $thanh_tien = $so_luong_tra * $don_gia;
-                    $gia_von_total = $so_luong_tra * $gia_von;
                     
-                    // Calculate discount/adjustment amount if any
+                    // Tính chênh lệch và tỷ lệ hoàn dựa trên giá bán gốc của đơn vị đó
+                    $don_gia_goc = floatval($original_item['don_gia']);
                     $chenh_lech = ($don_gia_goc - $don_gia) * $so_luong_tra;
                     $ty_le_hoan = $don_gia_goc > 0 ? round(($don_gia / $don_gia_goc) * 100, 1) : 100;
                     
+                    // Tổng giá vốn (dựa trên sl quy đổi * giá vốn đơn vị chính)
+                    $gia_von_total = $hoan_kho * $gia_von_base_main;
+                    
                     $tong_tien_tra += $thanh_tien;
                     $tong_gia_von += $gia_von_total;
-                    $hoan_kho = $so_luong_tra;
-                    if(isset($original_item['so_luong_tru_kho']) && $original_item['so_luong'] > 0){
-                        $hoan_kho = $so_luong_tra * ($original_item['so_luong_tru_kho'] / $original_item['so_luong']);
-                    }
 
                     $arr_hanghoa[] = [
                         'id_hanghoa' => ObjectController::ObjectId($hh['id_hanghoa']),
                         'ma_hang_hoa' => $hh['ma_hang_hoa'] ?? '',
                         'ten' => $hh['ten'],
-                        'don_vi_tinh' => $hh['don_vi_tinh'] ?? '',
+                        'don_vi_tinh' => $hh['ten_dvt'] ?? '',
                         'so_luong_tra' => $so_luong_tra,
                         'so_luong_tru_kho_tra' => $hoan_kho,
-                        'don_gia_goc' => $don_gia_goc, // Original selling price
-                        'don_gia' => $don_gia, // Adjusted return price
-                        'ty_le_hoan' => $ty_le_hoan, // Return percentage (e.g. 80%)
-                        'chenh_lech' => $chenh_lech, // Price adjustment amount
-                        'gia_von' => $gia_von, // Cost price
+                        'don_gia_goc' => $don_gia_goc,
+                        'don_gia' => $don_gia,
+                        'ty_le_hoan' => $ty_le_hoan,
+                        'chenh_lech' => $chenh_lech,
+                        'gia_von' => $gia_von_item_sold, // Lưu giá vốn theo đơn vị trả
                         'thanh_tien' => $thanh_tien,
                         'ly_do_tra' => $hh['ly_do_tra'] ?? '',
                         'tinh_trang' => $hh['tinh_trang'] ?? 'Khác',
                     ];
 
-                    // Update inventory - Return to stock as NEW BATCH
+                    // Update inventory - Return to stock as NEW BATCH (Always use normalized values)
                     $hang_hoa = isset($hanghoa_dict[(string)$hh['id_hanghoa']]) ? $hanghoa_dict[(string)$hh['id_hanghoa']] : null;
                     if ($hang_hoa) {
-                        // Tính số lượng thực nhập kho (Quy đổi nếu lúc bán dùng đơn vị lẻ)
-                        $hoan_kho = $so_luong_tra;
-                        if(isset($original_item['so_luong_tru_kho']) && $original_item['so_luong'] > 0){
-                            $hoan_kho = $so_luong_tra * ($original_item['so_luong_tru_kho'] / $original_item['so_luong']);
-                        }
                         $hang_hoa->so_luong_ton += $hoan_kho;
                         
-                        // Parse dates or infer
                         $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
                         try {
                             $nsx_date = Carbon::createFromFormat('d/m/Y', $nsx_input)->startOfDay();
@@ -233,14 +232,13 @@ class TraHangKhachController extends Controller
                         $so_thang = isset($hh['so_thang']) && is_numeric($hh['so_thang']) ? intval($hh['so_thang']) : 12;
                         $hsd_date = (clone $nsx_date)->addMonths($so_thang);
                         
-                        // Create distinct batch for this return
                         $new_batch = [
                             'ma_nhap_hang' => $ma_tra_hang,
                             'so_luong_nhap' => $hoan_kho,
                             'so_luong_con_lai' => $hoan_kho,
                             'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->timestamp * 1000),
                             'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->timestamp * 1000),
-                            'gia_von' => $gia_von,
+                            'gia_von' => $gia_von_base_main, // CHUẨN TỒN KHO: Sử dụng giá vốn đơn vị chính
                             'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(Carbon::now()->timestamp * 1000),
                             'ghi_chu' => 'Hoàn trả từ đơn: ' . $donhang['ma_don_hang'],
                         ];
@@ -295,9 +293,13 @@ class TraHangKhachController extends Controller
                 $updated_items = $donhang_update['hanghoa'];
                 foreach($updated_items as &$item){
                     foreach($arr_hanghoa as $return_item){
-                        if($item['id_hanghoa'] == $return_item['id_hanghoa']){
+                        if((string)$item['id_hanghoa'] == (string)$return_item['id_hanghoa']){
                             $current_return = isset($item['so_luong_tra']) ? floatval($item['so_luong_tra']) : 0;
-                            $item['so_luong_tra'] = $current_return + floatval($return_item['so_luong_tra']);
+                            
+                            // Quy đổi số lượng trả về đơn vị bán gốc của đơn hàng để cộng dồn chính xác
+                            $qty_returned_original_unit = floatval($return_item['so_luong_tra']);
+                            
+                            $item['so_luong_tra'] = $current_return + $qty_returned_original_unit;
                         }
                     }
                 }

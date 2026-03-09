@@ -161,8 +161,9 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <!-- {{ count($expiring_soon_batches) }} -->
                         <a href="#expiring-soon" data-toggle="tab" aria-expanded="false" class="nav-link">
-                            <i class="fas fa-hourglass-half mr-1 text-info"></i> <span class="d-none d-sm-inline-block">Sắp hết hạn ({{ count($expiring_soon_batches) }})</span>
+                            <i class="fas fa-hourglass-half mr-1 text-info"></i> <span class="d-none d-sm-inline-block">Sắp hết hạn</span>
                         </a>
                     </li>
                 </ul>
