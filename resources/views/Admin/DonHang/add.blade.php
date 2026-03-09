@@ -5,7 +5,7 @@
     <link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<form action="{{ env('APP_URL') }}admin/don-hang/create" method="post" id="dinhkemform">
+<form action="{{ env('APP_URL') }}admin/don-hang/preview" method="post" id="dinhkemform">
 {{ csrf_field() }}
 <div class="row">
     <!-- Left Column: Products and Cart -->
@@ -81,10 +81,8 @@
                                 @if($khachhang)
                                     @foreach($khachhang as $kh)
                                     @php
-                                        $id_khachhang = App\Http\Controllers\ObjectController::ObjectId($kh['_id']);
-                                        $congno_sum = \App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 0)->sum('tong_thanh_tien');
-                                        $thanhtoan_sum = \App\Models\CongNo::where('id_khachhang', '=', $id_khachhang)->where('loai_cong_no', '=', 1)->sum('tong_thanh_tien');
-                                        $nocu = $congno_sum - $thanhtoan_sum;
+                                        $id_str = (string)$kh['_id'];
+                                        $nocu = isset($kh_nocu[$id_str]) ? $kh_nocu[$id_str] : 0;
                                     @endphp
                                         <option value="{{ $kh['_id'] }}" @if($kh['_id'] == $id_khachhang) selected @endif>{{ $kh['dien_thoai'] }} - {{ $kh['ho_ten'] }} [{{ $loai_khach_hang[$kh['loai_khach_hang']] }}] @if($nocu > 0)- [Nợ: {{ number_format($nocu,0,",",".") }}] @endif</option>
                                     @endforeach
@@ -145,17 +143,9 @@
                     <textarea name="ghi_chu" id="ghi_chu" class="form-control" rows="2" placeholder="Ghi chú đơn hàng..."></textarea>
                 </div>
 
-                <!-- Invoice Checkbox -->
-                <div class="form-group mb-3">
-                    <div class="custom-control custom-checkbox custom-control-lg">
-                        <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
-                        <label class="custom-control-label font-weight-bold text-primary" for="InHoaDonCheck" style="padding-top: 2px;">In hóa đơn sau khi lưu</label>
-                    </div>
-                </div>
-
                 <!-- Submit Button -->
-                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold" onclick="return confirm('Chắc chắn tạo Đơn hàng?');">
-                    <i class="fas fa-check-circle mr-1"></i> HOÀN TẤT ĐƠN HÀNG
+                <button type="submit" id="updateCart" class="btn btn-primary btn-block btn-lg waves-effect waves-light font-weight-bold">
+                    <i class="fas fa-eye mr-1"></i> XEM TRƯỚC HÓA ĐƠN
                 </button>
         </div>
     </div>
@@ -280,10 +270,11 @@
 
                     var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
                     var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+                    var programItem = repo.hang_chuong_trinh ? " <span class='badge badge-warning' style='font-size:10px;'><i class='fas fa-gift'></i> Hàng C.Trình</span>" : "";
 
                     var markup = "<div class='product-result'>" +
                         "<div class='product-title'>" +
-                        "<span>" + repo.ten + "</span>" +
+                        "<span>" + repo.ten + programItem + "</span>" +
                         "<span class='product-ma'>" + repo.ma + "</span>" +
                         "</div>" +
                         "<div class='product-info'>" +

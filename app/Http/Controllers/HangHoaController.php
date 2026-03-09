@@ -33,8 +33,8 @@ class HangHoaController extends Controller
         }
         if($keywords){
             $danhsach = $danhsach->where(function($query) use ($keywords) {
-                $query->where('ma', 'regexp', '/.*'.$keywords.'/i')
-                      ->orWhere('ten', 'regexp', '/.*'.$keywords.'/i');
+                $query->where('ma', 'like', '%'.$keywords.'%')
+                      ->orWhere('ten', 'like', '%'.$keywords.'%');
             });
         }
         $danhsach = $danhsach->orderBy('updated_at', 'desc')->paginate(30);
@@ -278,8 +278,8 @@ class HangHoaController extends Controller
             // Case C: Contain Match (slowest but necessary)
             $query->where(function($q) use ($searchQuery) {
                 // Prioritize 'ma' (Code) and 'ten' (Name)
-                $q->where('ma', 'regexp', '/^'.preg_quote($searchQuery).'/i')
-                  ->orWhere('ten', 'regexp', '/'.preg_quote($searchQuery).'/i');
+                $q->where('ma', 'like', $searchQuery.'%')
+                  ->orWhere('ten', 'like', '%'.$searchQuery.'%');
             });
             
             $results = $query->limit(20)->get();

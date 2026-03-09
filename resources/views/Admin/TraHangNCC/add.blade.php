@@ -62,8 +62,8 @@
                                     $so_luong_nhap = $hh['so_luong'] ?? 0;
                                     $da_tra = $hh['da_tra'] ?? 0;
                                     $ton_kho_lo = $hh['ton_kho_lo'] ?? 0;
-                                    // Max returnable is limited by what's actually in stock for this batch
-                                    $con_lai = $ton_kho_lo; 
+                                    // Max returnable is limited by original purchase quantity - already returned
+                                    $con_lai = $so_luong_nhap - $da_tra; 
                                     $don_gia_goc = $hh['don_gia'] ?? 0;
                                 @endphp
                                 <tr class="product-row">
@@ -122,6 +122,9 @@
                                             value="0"
                                             {{ $con_lai <= 0 ? 'disabled' : '' }}
                                             disabled>
+                                        @if($ton_kho_lo <= 0 && $con_lai > 0)
+                                            <span class="badge badge-warning">Lô đã hết (Sẽ trừ âm)</span>
+                                        @endif
                                     </td>
                                     <td class="text-right">
                                         <strong class="thanh-tien text-success" data-index="{{ $key }}">0</strong>
@@ -248,7 +251,7 @@
                 
                 if (val > max) {
                     $(this).val(max);
-                    alert('Số lượng trả không được lớn hơn số lượng đã nhập!');
+                    alert('Số lượng trả không được vượt quá số lượng còn lại trên phiếu nhập (' + max + ')!');
                 }
                 
                 var row = $(this).closest('tr');

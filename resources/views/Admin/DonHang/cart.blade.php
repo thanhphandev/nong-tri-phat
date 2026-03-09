@@ -17,6 +17,9 @@
 		@if($co_ban_le)
 			<span class="badge badge-success ml-1" title="Có thể xả lẻ">{{ $hh['don_vi_le'] }} (1={{ $hh['ty_le_quy_doi'] ?? 1 }})</span>
 		@endif
+		@if(isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh'])
+			<span class="badge badge-warning ml-1" title="Hàng chương trình"><i class="fas fa-gift"></i> Hàng C.Trình</span>
+		@endif
 		@if($thieu_hang)
 			<div class="alert alert-danger p-1 m-1" style="font-size: 11px;">
 				<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn {{ number_format($so_luong_ton,2,",",".") }}, sẽ trừ âm {{ number_format($so_luong - $so_luong_ton,2,",",".") }}
@@ -41,17 +44,20 @@
 			</span>
 			@endif
 		</div>
+		<div class="mt-1">
+		    <label style="cursor: pointer; font-size: 12px;" class="mb-0 text-primary font-weight-bold">
+		        <input type="hidden" name="gui_kho_cart[]" value="0" class="gui-kho-hidden">
+		        <input type="checkbox" value="1" class="gui-kho-checkbox mr-1" onchange="$(this).prev('.gui-kho-hidden').val(this.checked ? 1 : 0);">
+		        <i class="fas fa-warehouse"></i> Gửi kho (chưa lấy)
+		    </label>
+		</div>
 	</td>
 	<td class="text-center" align="center" style="width:140px;max-width:140px;">
         <div class="input-group input-group-sm">
 		    <input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="SL" class="so-luong cart-change form-control form-control-sm" min="0.01" step="0.01" data-max-ton="{{ $so_luong_ton }}" style="width:60px; padding: 0.25rem 0.3rem;">
             @if($co_ban_le)
                 @php
-                    $ten_dvt_chinh = 'Bao/Chai';
-                    if(!empty($hh['id_donvitinh'])){
-                        $dvt = \App\Models\DonViTinh::find($hh['id_donvitinh']);
-                        if($dvt) $ten_dvt_chinh = $dvt['ten'];
-                    }
+                    $ten_dvt_chinh = isset($hh['ten_dvt_chinh']) ? $hh['ten_dvt_chinh'] : 'Bao/Chai';
                 @endphp
                 <select name="don_vi_tinh_cart[]" class="don-vi-ban cart-change form-control form-control-sm" style="width:65px; padding:0 2px;" data-ty-le="{{ $hh['ty_le_quy_doi'] ?? 1 }}" data-ten-main="{{ $ten_dvt_chinh }}" data-ten-retail="{{ $hh['don_vi_le'] }}">
                     <option value="main">{{ $ten_dvt_chinh }}</option>

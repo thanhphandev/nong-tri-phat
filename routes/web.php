@@ -79,6 +79,7 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
 
     Route::get('don-hang', 'DonHangController@list')->middleware('role:Admin,Manager');
     Route::get('don-hang/add', 'DonHangController@add')->middleware('role:Admin,Manager');
+    Route::post('don-hang/preview', 'DonHangController@preview')->middleware('role:Admin,Manager');
     Route::post('don-hang/create', 'DonHangController@create')->middleware('role:Admin,Manager');
     Route::get('don-hang/edit/{id}', 'DonHangController@edit')->middleware('role:Admin,Manager');
     Route::post('don-hang/update', 'DonHangController@update')->middleware('role:Admin,Manager');
@@ -86,13 +87,16 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('don-hang/get-add-cart', 'DonHangController@add_cart')->middleware('role:Admin,Manager');
     Route::get('don-hang/check-batch-usage', 'DonHangController@check_batch_usage')->middleware('role:Admin,Manager');
     Route::get('don-hang/hang-hoa/{id}', 'DonHangController@hang_hoa')->middleware('role:Admin,Manager');
+    Route::get('don-hang/da-lay-hang/{id}', 'DonHangController@da_lay_hang')->middleware('role:Admin,Manager');
     Route::post('don-hang/tinh-trang', 'DonHangController@tinh_trang')->middleware('role:Admin,Manager');
+    Route::post('don-hang/update-gui-kho', 'DonHangController@update_gui_kho')->middleware('role:Admin,Manager');
     Route::post('don-hang/tra-no', 'DonHangController@tra_no')->middleware('role:Admin,Manager');
     Route::get('don-hang/in-phieu-giao-hang/{id}', 'DonHangController@in_phieu_giao_hang')->middleware('role:Admin,Manager');
     Route::get('don-hang/{ma}', 'DonHangController@list')->middleware('role:Admin,Manager');
 
     Route::get('nhap-hang', 'NhapHangController@list')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/add', 'NhapHangController@add')->middleware('role:Admin,Manager');
+    Route::post('nhap-hang/preview', 'NhapHangController@preview')->middleware('role:Admin,Manager');
     Route::post('nhap-hang/create', 'NhapHangController@create')->middleware('role:Admin,Manager');
     Route::get('nhap-hang/edit/{id}', 'NhapHangController@edit')->middleware('role:Admin,Manager');
     Route::post('nhap-hang/update', 'NhapHangController@update')->middleware('role:Admin,Manager');
@@ -105,10 +109,12 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('cong-no', 'CongNoController@list')->middleware('role:Admin,Manager');
     Route::post('cong-no/thanh-toan', 'CongNoController@thanh_toan')->middleware('role:Admin,Manager');
     Route::get('cong-no/export-pdf', 'CongNoController@exportPdf')->middleware('role:Admin,Manager');
+    Route::get('cong-no/export-excel', 'CongNoController@exportExcel')->middleware('role:Admin,Manager');
 
     Route::get('cong-no-ncc', 'CongNoNCCController@list')->middleware('role:Admin,Manager');
     Route::post('cong-no-ncc/thanh-toan', 'CongNoNCCController@thanh_toan')->middleware('role:Admin,Manager');
     Route::get('cong-no-ncc/export-pdf', 'CongNoNCCController@exportPdfNCC')->middleware('role:Admin,Manager');
+    Route::get('cong-no-ncc/export-excel', 'CongNoNCCController@exportExcelNCC')->middleware('role:Admin,Manager');
 
     // Route::get('thong-ke/so-luong-hang-hoa', 'ThongKeController@so_luong_hang_hoa')->middleware('role:Admin,Manager');
     Route::get('thong-ke/export-ton-kho', 'ThongKeController@export_ton_kho')->middleware('role:Admin,Manager');

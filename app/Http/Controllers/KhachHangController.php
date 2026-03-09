@@ -18,10 +18,19 @@ class KhachHangController extends Controller
 {
     use CodeGeneratorTrait;
     //
-    function list(){
-    	$danhsach = KhachHang::paginate(30);
+    function list(Request $request){
+        $keywords = $request->input('keywords');
+        $query = KhachHang::query();
+        if($keywords){
+            $query->where(function($q) use ($keywords) {
+                $q->where('ho_ten', 'like', '%'.$keywords.'%')
+                  ->orWhere('dien_thoai', 'like', '%'.$keywords.'%')
+                  ->orWhere('ma_khach_hang', 'like', '%'.$keywords.'%');
+            });
+        }
+    	$danhsach = $query->paginate(30);
         $loai_khach_hang = Config::get('app.loai_khach_hang');
-    	return view('Admin.KhachHang.list')->with(compact('danhsach','loai_khach_hang'));
+    	return view('Admin.KhachHang.list')->with(compact('danhsach','loai_khach_hang', 'keywords'));
     }
 
     function add() {

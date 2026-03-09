@@ -24,74 +24,165 @@
         
         .table-sticky-header thead tr.summary-row td {
             position: sticky;
-            top: 40px; /* Sẽ cập nhật bằng JS để chuẩn xác 100% */
+            top: 40px;
             z-index: 14;
             background-color: #e9ecef !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
         }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .filter-panel .filter-header {
+            background: linear-gradient(90deg, #343a40, #495057);
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .filter-panel .filter-header h5 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .filter-panel .filter-header .header-actions a {
+            color: #fff;
+            text-decoration: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 6px;
+            transition: background 0.2s;
+        }
+        .filter-panel .filter-header .header-actions a:hover { background: rgba(255,255,255,0.15); }
+        .filter-panel .filter-header .header-actions a.btn-back { background: rgba(0,123,255,0.3); }
+        .filter-panel .filter-header .header-actions a.btn-refresh { background: rgba(40,167,69,0.3); }
+        .filter-panel .filter-body {
+            padding: 15px 20px;
+        }
+        .filter-panel .filter-body .input-group-text {
+            background: #fff;
+            border-right: 0;
+            color: #6c757d;
+        }
+        .filter-panel .filter-body .form-control {
+            border-left: 0;
+        }
+        .filter-panel .filter-body .form-control:focus {
+            box-shadow: none;
+            border-color: #80bdff;
+        }
+        .filter-panel .filter-body .select2-container--default .select2-selection--single {
+            height: 38px;
+            border-color: #ced4da;
+        }
+        .filter-panel .filter-body .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 36px;
+        }
+        .filter-panel .filter-body .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+        .date-presets .btn {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .date-presets .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .action-buttons .btn {
+            padding: 7px 16px;
+            font-weight: 600;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        .action-buttons .btn i { margin-right: 4px; }
     </style>
 @endsection
 @section('body')
-<div class="card-box">
-    <div class="row">
-        <div class="col-12">
-            <h3 class="m-t-0">
-                <a href="{{ env('APP_URL') }}admin" class="btn btn-primary btn-sm"><i class="fa fa-reply-all"></i> Trở về</a>
-                <a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang" class="btn btn-success btn-sm"><i class="fa fa-sync-alt"></i> Làm mới</a>
-                Thống kê Bán hàng
-            </h3>
+<div class="filter-panel mb-3">
+    <div class="filter-header">
+        <h5><i class="fas fa-chart-line mr-2"></i> Thống kê Bán hàng</h5>
+        <div class="header-actions">
+            <a href="{{ env('APP_URL') }}admin" class="btn-back"><i class="fa fa-reply-all"></i> Trở về</a>
+            <a href="{{ env('APP_URL') }}admin/thong-ke/ban-hang" class="btn-refresh"><i class="fa fa-sync-alt"></i> Làm mới</a>
         </div>
     </div>
-    <form action="{{ env('APP_URL') }}admin/thong-ke/ban-hang" method="GET" id="FilterForm">
-        <div class="row form-group">
-            <label class="control-label col-md-1 text-right p-t-10">Từ ngày</label>
-            <div class="col-12 col-md-2">
-                <input type="text" name="tu_ngay" id="tu_ngay" value="{{ $tu_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off" />
+    <div class="filter-body">
+        <form action="{{ env('APP_URL') }}admin/thong-ke/ban-hang" method="GET" id="FilterForm">
+            <div class="row align-items-end">
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="far fa-calendar-alt mr-1"></i>Từ ngày</label>
+                    <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text"><i class="far fa-calendar"></i></span></div>
+                        <input type="text" name="tu_ngay" id="tu_ngay" value="{{ $tu_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off" />
+                    </div>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="far fa-calendar-alt mr-1"></i>Đến ngày</label>
+                    <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text"><i class="far fa-calendar"></i></span></div>
+                        <input type="text" name="den_ngay" id="den_ngay" value="{{ $den_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="fas fa-user mr-1"></i>Khách hàng</label>
+                    <select name="id_khachhang" id="id_khachhang" class="form-control select2" style="width:100%;">
+                        <option value="">-- Tất cả --</option>
+                        @foreach($khachhang_list as $kh)
+                            <option value="{{ $kh['_id'] }}" {{ ($id_khachhang ?? '') == (string)$kh['_id'] ? 'selected' : '' }}>{{ $kh['ho_ten'] }} - {{ $kh['dien_thoai'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1"><i class="fas fa-tag mr-1"></i>Trạng thái</label>
+                    <select name="tinh_trang" id="tinh_trang" class="form-control">
+                        <option value="">Tất cả</option>
+                        @foreach($tinhtrang as $kt => $vt)
+                            <option value="{{ $kt }}" {{ ($tinh_trang ?? '') === (string)$kt ? 'selected' : '' }}>{{ $vt }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-1 mb-2">
+                    <label class="small font-weight-bold text-muted mb-1" title="Số dòng hiển thị"><i class="fas fa-list-ol"></i> Dòng</label>
+                    <select name="limit" id="limit" class="form-control px-1" onchange="$('#FilterForm').submit();">
+                        <option value="15" {{ (isset($limit) && $limit == '15') ? 'selected' : '' }}>15</option>
+                        <option value="20" {{ (isset($limit) && $limit == '20') ? 'selected' : '' }}>20</option>
+                        <option value="30" {{ (isset($limit) && $limit == '30') ? 'selected' : '' }}>30</option>
+                        <option value="50" {{ (!isset($limit) || $limit == '50') ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ (isset($limit) && $limit == '100') ? 'selected' : '' }}>100</option>
+                        <option value="all" {{ (isset($limit) && $limit == 'all') ? 'selected' : '' }}>All</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="action-buttons d-flex flex-wrap" style="gap:6px;">
+                        <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary px-2"><i class="fas fa-filter"></i> Lọc</button>
+                        <button type="submit" name="action" value="export_excel" class="btn btn-success px-2"><i class="fas fa-file-excel"></i> Excel</button>
+                        <!-- <button type="submit" name="action" value="export_pdf" class="btn btn-danger px-2" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button> -->
+                    </div>
+                </div>
             </div>
-            <label class="control-label col-md-1 text-right p-t-10">Đến ngày</label>
-            <div class="col-12 col-md-2">
-                <input type="text" name="den_ngay" id="den_ngay" value="{{ $den_ngay ?? '' }}" placeholder="dd/mm/yyyy" class="datepicker form-control" required autocomplete="off">
+            <div class="date-presets text-center mt-2 pt-2" style="border-top: 1px dashed #ced4da;">
+                <span class="small text-muted mr-2"><i class="fas fa-clock mr-1"></i>Nhanh:</span>
+                <button type="button" class="btn btn-outline-secondary date-filter" 
+                        data-start="{{ date('d/m/Y', strtotime('-1 day')) }}" 
+                        data-end="{{ date('d/m/Y') }}">
+                    Hôm nay
+                </button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('d/m/Y', strtotime('monday this week')) }}" data-end="{{ date('d/m/Y', strtotime('sunday this week')) }}">Tuần này</button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('01/m/Y') }}" data-end="{{ date('t/m/Y') }}">Tháng này</button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('01/m/Y', strtotime('last month')) }}" data-end="{{ date('t/m/Y', strtotime('last month')) }}">Tháng trước</button>
+                <button type="button" class="btn btn-outline-secondary date-filter" data-start="{{ date('01/01/Y') }}" data-end="{{ date('31/12/Y') }}">Năm nay</button>
             </div>
-            <label class="control-label col-md-1 text-right p-t-10">Khách hàng</label>
-            <div class="col-12 col-md-2">
-                <select name="id_khachhang" id="id_khachhang" class="form-control select2" style="width:100%;">
-                    <option value="">-- Tất cả --</option>
-                    @foreach($khachhang_list as $kh)
-                        <option value="{{ $kh['_id'] }}" {{ ($id_khachhang ?? '') == (string)$kh['_id'] ? 'selected' : '' }}>{{ $kh['ho_ten'] }} - {{ $kh['dien_thoai'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-        <div class="row form-group">
-            <label class="control-label col-md-1 text-right p-t-10">Trạng thái</label>
-            <div class="col-12 col-md-2">
-                <select name="tinh_trang" id="tinh_trang" class="form-control">
-                    <option value="">Tất cả</option>
-                    @foreach($tinhtrang as $kt => $vt)
-                        <option value="{{ $kt }}" {{ ($tinh_trang ?? '') === (string)$kt ? 'selected' : '' }}>{{ $vt }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-12 col-md-3">
-                <button type="submit" name="action" value="filter" id="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Lọc</button>
-                <button type="submit" name="action" value="export_excel" class="btn btn-success"><i class="fas fa-file-excel"></i> Excel</button>
-                <button type="submit" name="action" value="export_pdf" class="btn btn-danger" formtarget="_blank"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-        </div>
-        <div class="row mb-3">
-             <div class="col-12 text-center">
-                 <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y') }}" data-end="{{ date('d/m/Y') }}">Hôm nay</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('yesterday')) }}" data-end="{{ date('d/m/Y', strtotime('yesterday')) }}">Hôm qua</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('d/m/Y', strtotime('monday this week')) }}" data-end="{{ date('d/m/Y', strtotime('sunday this week')) }}">Tuần này</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y') }}" data-end="{{ date('t/m/Y') }}">Tháng này</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/m/Y', strtotime('last month')) }}" data-end="{{ date('t/m/Y', strtotime('last month')) }}">Tháng trước</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary date-filter" data-start="{{ date('01/01/Y') }}" data-end="{{ date('31/12/Y') }}">Năm nay</button>
-                 </div>
-             </div>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 
 @if($tu_ngay && $den_ngay)
@@ -214,6 +305,16 @@
                 </div>
             </div>
         </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card-box">
+                    <h5 class="text-muted mb-3"><i class="fas fa-trophy mr-1 text-warning"></i> TOP 10 Sản phẩm Doanh thu cao nhất</h5>
+                    <div style="position:relative; height:400px;">
+                        <canvas id="chartTopProducts"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <hr>
@@ -250,8 +351,7 @@
                                 <th class="text-right" style="white-space: nowrap">Thanh toán</th>
                                 <th class="text-right" style="white-space: nowrap">Nợ</th>
                                 <th class="text-right" style="white-space: nowrap">Giá vốn</th>
-                                <th class="text-right" style="white-space: nowrap">LN Ước tính</th>
-                                <th class="text-right" style="white-space: nowrap">LN Thực tế</th>
+                                <th class="text-right" style="white-space: nowrap">Lợi nhuận</th>
                                 <th class="text-center">Trạng thái</th>
                                 <th>Ghi chú</th>
                             </tr>
@@ -263,15 +363,38 @@
                                 <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
                                 <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
-                                <td class="text-right text-info"><b>{{ number_format($tong_doanh_thu_ban - $tong_gia_von_ban,0,",",".") }}</b></td>
-                                <td class="text-right text-dark"><b>{{ number_format($tong_da_thanh_toan - $tong_gia_von_ban,0,",",".") }}</b></td>
+                                @php
+                                    $tong_loi_nhuan_uoc_tinh_table = 0;
+                                    $tong_loi_nhuan_thuc_te_table = 0;
+                                    foreach($danhsach as $ds) {
+                                        $dht = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : ($ds['tong_thanh_tien'] ?? 0);
+                                        $dgv = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
+                                        if (!isset($ds['filtered_tong_gia_von'])) {
+                                            $dgv = 0;
+                                            if (isset($ds['hanghoa']) && is_array($ds['hanghoa'])) {
+                                                foreach($ds['hanghoa'] as $hh) {
+                                                     $dgv += isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $hh['so_luong'] : 0);
+                                                }
+                                            }
+                                        }
+                                        
+                                        $ln_don = $dht - $dgv;
+                                        $tong_loi_nhuan_uoc_tinh_table += $ln_don;
+                                        
+                                        $dt_cn = isset($ds['filtered_con_no']) ? $ds['filtered_con_no'] : max(0, $dht - (isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0));
+                                        if ($dt_cn <= 0) {
+                                            $tong_loi_nhuan_thuc_te_table += $ln_don;
+                                        }
+                                    }
+                                @endphp
+                                <td class="text-right text-success"><b>{{ number_format($tong_loi_nhuan_uoc_tinh_table,0,",",".") }}</b></td>
                                 <td colspan="2"></td>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($danhsach as $key => $ds)
                                 @php
-                                    // Use filtered values if available, else fallback to standard logic for backward compatibility
+                                    // Use filtered values if available, else fallback to standard logic
                                     $so_luong = isset($ds['filtered_so_luong']) ? $ds['filtered_so_luong'] : 0;
                                     $gia_von_don = isset($ds['filtered_tong_gia_von']) ? $ds['filtered_tong_gia_von'] : 0;
                                     $doanh_thu_don = isset($ds['filtered_tong_thanh_tien']) ? $ds['filtered_tong_thanh_tien'] : 0;
@@ -285,25 +408,30 @@
                                         $doanh_thu_don = $ds['tong_thanh_tien'];
                                     }
 
-                                    $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
-                                    
                                     // Calculate payment and debt
                                     if (isset($ds['filtered_da_thanh_toan'])) {
                                         $da_thanh_toan = $ds['filtered_da_thanh_toan'];
                                         $con_no = $ds['filtered_con_no'];
                                     } else {
                                         $da_thanh_toan = isset($don_payments_map[(string)$ds['_id']]) ? $don_payments_map[(string)$ds['_id']] : 0;
-                                        $con_no = $ds['tong_thanh_tien'] - $da_thanh_toan;
+                                        $con_no = max(0, $doanh_thu_don - $da_thanh_toan);
                                     }
                                     
-                                    $loi_nhuan_thuc_te_don = $da_thanh_toan - $gia_von_don;
+                                    // Lợi nhuận
+                                    if (isset($ds['filtered_loi_nhuan'])) {
+                                        $loi_nhuan_don = $ds['filtered_loi_nhuan'];
+                                        $loi_nhuan_thuc_te_don = $ds['filtered_loi_nhuan_thuc_te'];
+                                    } else {
+                                        $loi_nhuan_don = $doanh_thu_don - $gia_von_don;
+                                        $loi_nhuan_thuc_te_don = ($con_no > 0) ? 0 : $loi_nhuan_don;
+                                    }
                                     
                                     if($ds['tinh_trang'] == 0) $tt_badge = 'badge-info';
                                     elseif($ds['tinh_trang'] == 1) $tt_badge = 'badge-success';
                                     else $tt_badge = 'badge-danger';
                                 @endphp
                                 <tr>
-                                    <td class="text-center">{{ $key + 1 }}</td>
+                                    <td class="text-center">{{ method_exists($danhsach, 'firstItem') ? $danhsach->firstItem() + $key : $key + 1 }}</td>
                                     <td class="text-center"><b><a href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $ds['_id'] }}" target="_blank">{{ $ds['ma_don_hang'] }}</a></b></td>
                                     <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_ban'],"d/m/Y H:i") }}</td>
                                     <td>{{ $ds['ho_ten'] }}</td>
@@ -314,14 +442,16 @@
                                     <td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
                                     <td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
                                     <td class="text-right text-warning">{{ number_format($gia_von_don,0,",",".") }}</td>
-                                    <td class="text-right {{ $loi_nhuan_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
-                                    <td class="text-right {{ $loi_nhuan_thuc_te_don >= 0 ? 'text-success' : 'text-danger' }}"><b>{{ number_format($loi_nhuan_thuc_te_don,0,",",".") }}</b></td>
+                                    <td class="text-right text-success"><b>{{ number_format($loi_nhuan_don,0,",",".") }}</b></td>
                                     <td class="text-center"><span class="badge {{ $tt_badge }}">{{ $tinhtrang[$ds['tinh_trang']] ?? 'N/A' }}</span></td>
                                     <td>{{ $ds['ghi_chu'] ?? '' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+                <div class="mt-3">
+                    {{ method_exists($danhsach, 'links') ? $danhsach->appends(request()->query())->links('pagination::bootstrap-4') : '' }}
                 </div>
             @else
                 <div class="alert alert-warning mt-3">Không có đơn bán hàng trong khoảng thời gian này.</div>
@@ -340,7 +470,7 @@
                                 <th>Ngày trả</th>
                                 <th>Đơn gốc</th>
                                 <th>Khách hàng</th>
-                                <th>SL Trả</th>
+                                <th>SL</th>
                                 <th>Tiền trả lại</th>
                                 <th class="text-info">Tiền Hàng CT trả</th>
                                 <th>Tổng giá vốn</th>
@@ -371,7 +501,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td class="text-center">{{ $key + 1 }}</td>
+                                    <td class="text-center">{{ method_exists($ds_tra_hang, 'firstItem') ? $ds_tra_hang->firstItem() + $key : $key + 1 }}</td>
                                     <td class="text-center"><b>{{ $th['ma_tra_hang'] }}</b></td>
                                     <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i") }}</td>
                                     <td class="text-center">{{ $th['ma_don_hang'] ?? '-' }}</td>
@@ -397,6 +527,9 @@
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+                <div class="mt-3">
+                    {{ method_exists($ds_tra_hang, 'links') ? $ds_tra_hang->appends(request()->query())->links('pagination::bootstrap-4') : '' }}
                 </div>
             @else
                 <div class="alert alert-info mt-3">Không có đơn trả hàng nào trong khoảng thời gian này.</div>
@@ -586,6 +719,88 @@
                                         var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
                                         var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
                                         return ctx.label + ': ' + ctx.parsed.toLocaleString('vi-VN') + ' đ (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Chart 4: Top 10 Products (Mixed Chart: Bar for Revenue, Line for Quantity)
+                var topProductsNames = {!! json_encode(array_column($top_10_products, 'ten')) !!};
+                var topProductsRevenue = {!! json_encode(array_column($top_10_products, 'doanh_thu')) !!};
+                var topProductsQty = {!! json_encode(array_column($top_10_products, 'so_luong')) !!};
+
+                new Chart(document.getElementById('chartTopProducts'), {
+                    type: 'bar',
+                    data: {
+                        labels: topProductsNames,
+                        datasets: [
+                            {
+                                type: 'line',
+                                label: 'Số lượng bán',
+                                data: topProductsQty,
+                                borderColor: 'rgba(40,167,69,1)',
+                                backgroundColor: 'rgba(40,167,69,0.2)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.3,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Doanh thu (VNĐ)',
+                                data: topProductsRevenue,
+                                backgroundColor: 'rgba(0,123,255,0.85)',
+                                borderRadius: 4,
+                                barPercentage: 0.6,
+                                yAxisID: 'y'
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'x', // standard vertical bars (labels on x)
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            x: {
+                                ticks: { font: { size: 11 }, maxRotation: 45, minRotation: 45 }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Doanh thu (VNĐ)', font: {weight: 'bold'} },
+                                ticks: {
+                                    callback: function(v) {
+                                        if(v >= 1000000) return (v/1000000).toFixed(1) + 'tr';
+                                        if(v >= 1000) return (v/1000).toFixed(0) + 'k';
+                                        return v;
+                                    }
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: { display: true, text: 'Số lượng bán', font: {weight: 'bold'} },
+                                grid: { drawOnChartArea: false }, // only draw grid lines for one axis
+                            }
+                        },
+                        plugins: {
+                            legend: { display: true, position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        if (ctx.dataset.label === 'Doanh thu (VNĐ)') {
+                                            return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                        } else {
+                                            return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('vi-VN');
+                                        }
                                     }
                                 }
                             }

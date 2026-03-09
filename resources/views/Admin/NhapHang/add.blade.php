@@ -6,7 +6,7 @@
     <link href="{{ env('APP_URL') }}assets/libs/bootstrap-datepicker/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
-<form action="{{ env('APP_URL') }}admin/nhap-hang/create" method="post" id="dinhkemform">
+<form action="{{ env('APP_URL') }}admin/nhap-hang/preview" method="post" id="dinhkemform">
 {{ csrf_field() }}
 <div class="row">
     <!-- Cột trái: Tìm kiếm sản phẩm & Giỏ hàng nhập -->
@@ -43,14 +43,14 @@
                 <table id="HangHoaList" class="table table-bordered table-hover table-sm">
                     <thead class="thead-light">
                         <tr>
-                            <th width="10%">Mã</th>
-                            <th width="25%">Tên Hàng hóa</th>
-                            <th width="7%">SL</th>
-                            <th width="13%">Đơn giá</th>
-                            <th width="8%">Số tháng</th>
-                            <th width="12%">Ngày SX</th>
+                            <th width="8%">Mã</th>
+                            <th width="22%">Tên Hàng hóa</th>
+                            <th width="15%">SL</th>
+                            <th width="12%">Đơn giá</th>
+                            <th width="6%">Số tháng</th>
+                            <th width="10%">Ngày SX</th>
                             <th width="12%">Hạn SD</th>
-                            <th width="10%">Thành tiền</th>
+                            <th width="12%">Thành tiền</th>
                             <th width="3%" class="text-center">#</th>
                         </tr>
                     </thead>
@@ -146,15 +146,15 @@
                 </div>
 
                 <!-- Invoice Actions -->
-                <div class="form-group mb-3">
+                <!-- <div class="form-group mb-3">
                     <div class="custom-control custom-checkbox custom-control-lg">
                         <input type="checkbox" name="in_hoa_don" value="1" checked class="custom-control-input" id="InHoaDonCheck">
                         <label class="custom-control-label font-weight-bold text-primary" for="InHoaDonCheck" style="padding-top: 2px;">In phiếu nhập sau khi lưu</label>
                     </div>
-                </div>
+                </div> -->
 
-                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold" onclick="return confirm('Chắc chắn Nhập đơn hàng này?');"> 
-                    <i class="fas fa-check-circle mr-1"></i> NHẬP HÀNG
+                <button type="submit" id="updateCart" class="btn btn-success btn-block btn-lg waves-effect waves-light font-weight-bold"> 
+                    <i class="fas fa-eye mr-1"></i> XEM TRƯỚC PHIẾU NHẬP
                 </button>
         </div>
     </div>
@@ -272,7 +272,7 @@
                     if (repo.loading) return repo.text;
 
                     var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
-                    var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+                    var stockText = repo.so_luong_ton > 0 ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(repo.so_luong_ton) : 'Hết hàng';
 
                     var markup = "<div class='product-result'>" +
                         "<div class='product-title'>" +

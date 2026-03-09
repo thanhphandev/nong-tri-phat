@@ -17,29 +17,48 @@
     }
 @endphp
 <tr class="item">
-	<td class="text-center">
+	<td class="text-center align-middle">
 		<input type="hidden" name="id_hanghoa_cart[]" value="{{ $hh['_id'] }}" placeholder="">
 		{{ $hh['ma'] }}
 	</td>
-	<td>{{ $hh['ten'] }}</td>
-	<td class="text-center" align="center" style="width:100px;max-width:100px;">
-		<input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" placeholder="Số lượng" class="so-luong cart-change form-control form-control-sm" min="1" style="width:80px;">
+	<td class="align-middle"><strong>{{ $hh['ten'] }}</strong></td>
+	<td class="text-center align-middle">
+        <div class="input-group input-group-sm mx-auto" style="width: 100px;">
+		    <input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" class="so-luong cart-change form-control form-control-sm text-center font-weight-bold px-1" min="0.01" step="0.01">
+            @php
+                $co_ban_le = !empty($hh['cho_phep_ban_le']) && !empty($hh['don_vi_le']);
+                $ten_khong_dau = isset($ten_dvt_chinh) ? $ten_dvt_chinh : 'Bao/Chai';
+            @endphp
+            @if($co_ban_le)
+                <div class="input-group-append">
+                    <select name="don_vi_tinh_cart[]" class="don-vi-nhap cart-change form-control form-control-sm" style="width: 50px; padding: 0 2px; font-size: 11px;" data-ty-le="{{ $hh['ty_le_quy_doi'] ?? 1 }}" data-ten-main="{{ $ten_khong_dau }}" data-ten-retail="{{ $hh['don_vi_le'] }}">
+                        <option value="main">{{ $ten_khong_dau }}</option>
+                        <option value="retail">{{ $hh['don_vi_le'] }}</option>
+                    </select>
+                </div>
+            @else
+                <input type="hidden" name="don_vi_tinh_cart[]" class="don-vi-nhap" data-ty-le="1" value="main" data-ten-main="{{ $ten_khong_dau }}">
+                <div class="input-group-append">
+                    <span class="input-group-text px-1" style="font-size: 10px; min-width: 40px; justify-content: center;">{{ $ten_khong_dau }}</span>
+                </div>
+            @endif
+        </div>
 	</td>
-	<td class="text-right" style="width:130px;">
-		<input type="text" class="don-gia cart-change number form-control form-control-sm" name="don_gia_cart[]" value="{{ $gia_von }}" placeholder="" style="width:100px;"/>
+	<td class="text-center align-middle">
+		<input type="text" class="don-gia cart-change number form-control form-control-sm text-right" name="don_gia_cart[]" value="{{ $gia_von }}" placeholder="" style="min-width: 80px;"/>
 	</td>
-	<td class="text-center" align="center" style="width:80px;max-width:80px;">
-		<input type="number" name="so_thang_cart[]" value="{{ $so_thang }}" placeholder="" class="so-thang cart-change form-control form-control-sm float-right" style="max-width:70px;">
+	<td class="text-center align-middle">
+		<input type="number" name="so_thang_cart[]" value="{{ $so_thang }}" placeholder="" class="so-thang cart-change form-control form-control-sm text-center mx-auto" style="width: 50px;">
 	</td>
-    <td class="text-center" align="center" style="width:120px;max-width:120px;">
-		<input type="text" name="ngay_san_xuat_cart[]" value="{{ $ngay_san_xuat }}" placeholder="__/__/____" class="ngay-san-xuat datepicker form-control form-control-sm float-right cart-change" style="max-width:110px;">
+    <td class="text-center align-middle">
+		<input type="text" name="ngay_san_xuat_cart[]" value="{{ $ngay_san_xuat }}" placeholder="__/__/____" class="ngay-san-xuat datepicker form-control form-control-sm text-center mx-auto cart-change" style="width: 90px;">
 	</td>
-	<td class="text-center" align="center" style="width:120px;max-width:120px;">
-		<input type="text" name="ngay_het_han_cart[]" value="{{ $ngay_het_han }}" placeholder="__/__/____" class="ngay-het-han datepicker form-control form-control-sm float-right" style="max-width:110px;">
+	<td class="text-center align-middle">
+		<input type="text" name="ngay_het_han_cart[]" value="{{ $ngay_het_han }}" placeholder="__/__/____" class="ngay-het-han datepicker form-control form-control-sm text-center mx-auto" style="width: 90px;">
 	</td>
-	<td class="text-right" style="width:200px;">
-		<input type="hidden" name="thanh_tien_cart[]" value="{{ $thanhtien }}" placeholder="" class="thanh-tien form-control form-control-sm" style="width:100px;">
-		<span class="thanh-tien-show">{{ number_format($thanhtien,0,",",".") }}</span>
+	<td class="text-right align-middle">
+		<input type="hidden" name="thanh_tien_cart[]" value="{{ $thanhtien }}" placeholder="" class="thanh-tien form-control form-control-sm">
+		<span class="thanh-tien-show font-weight-bold text-primary">{{ number_format($thanhtien,0,",",".") }}</span>
 	</td>
-	<td class="text-center"><a href="#" onclick="return false;" class="delete_cart"><i class="fa fa-trash text-danger"></i></a></td>
+	<td class="text-center align-middle"><a href="#" onclick="return false;" class="delete_cart"><i class="fa fa-trash text-danger"></i></a></td>
 </tr>

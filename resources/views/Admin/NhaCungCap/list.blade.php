@@ -11,18 +11,18 @@
                     <div class="col-12 col-md-8">
                         <h3 class="m-t-0"><a href="{{ env('APP_URL') }}admin/nha-cung-cap/add" class="btn btn-info btn-sm"><i class="fa fa-plus"></i> Thêm mới</a> Danh sách Nhà Cung cấp</h3>
                     </div>
-                    {{-- <div class="col-12 col-md-4">
+                    <div class="col-12 col-md-4">
                         <form method="get" action="{{ env('APP_URL') }}admin/nha-cung-cap" id="searchForm">
                             <div class="row form-group">
-                                <div class="col-12 col-md-6">
-                                    <input type="text" name="keywords" id="keywords" value="" placeholder="Tìm khách hàng" class="form-control" />
+                                <div class="col-10 col-md-10">
+                                    <input type="text" name="keywords" id="keywords" value="{{ $keywords ?? '' }}" placeholder="Tên / SĐT / Mã NCC" class="form-control" />
                                 </div>
-                                <div class="col-12 col-md-2">
+                                <div class="col-2 col-md-2">
                                     <button type="submit" name="submit" value="OK" class="btn btn-primary"><i class="fa fa-search"></i> Tìm</button>
                                 </div>
                             </div>
                         </form>
-                    </div> --}}
+                    </div>
                 </div>
                 <hr />
                 @if($danhsach)

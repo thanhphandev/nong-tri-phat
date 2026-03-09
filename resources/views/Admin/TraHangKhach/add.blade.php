@@ -79,15 +79,30 @@
                                         <input type="hidden" name="hanghoa[{{ $key }}][ngay_san_xuat]" value="{{ $hh['ngay_san_xuat'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][so_thang]" value="{{ $hh['so_thang'] ?? 12 }}">
                                     </td>
-                                    <td class="text-center">{{ $hh['donvitinh']['ten'] ?? '-' }}</td>
-                                    <td class="text-right">
-                                        {{ number_format($so_luong_mua, 0) }}
-                                        @if($da_tra > 0)
-                                            <br><small class="text-danger">(Đã trả: {{ $da_tra }})</small>
-                                        @endif
+                                    <td class="text-center">
+                                        @php
+                                            $is_retail = (isset($hh['don_vi_ban']) && $hh['don_vi_ban'] == 'retail');
+                                            $ten_dvt = $is_retail ? ($hh['don_vi_le'] ?? 'Kg/Lẻ') : ($hh['don_vi_tinh'] ?? $hh['donvitinh']['ten'] ?? 'Bao/Chai');
+                                        @endphp
+                                        <span class="text-info font-weight-bold">{{ $ten_dvt }}</span>
+                                        <input type="hidden" name="hanghoa[{{ $key }}][don_vi_tra]" value="{{ $is_retail ? 'retail' : 'main' }}">
+                                        <input type="hidden" name="hanghoa[{{ $key }}][ten_dvt]" value="{{ $ten_dvt }}">
                                     </td>
                                     <td class="text-right">
-                                        <span class="gia-goc">{{ number_format($don_gia_goc, 0, ',', '.') }}</span>
+                                        @php
+                                            $sl_mua_show = $so_luong_mua;
+                                            $da_tra_show = $da_tra;
+                                            $con_lai_show = $con_lai;
+                                        @endphp
+                                        <span class="sl-mua-text" data-index="{{ $key }}" data-val="{{ $so_luong_mua }}">{{ number_format($so_luong_mua, 2, ',', '.') }}</span>
+                                        @if($da_tra > 0)
+                                            <br><small class="text-danger">(Đã trả: <span class="da-tra-text" data-index="{{ $key }}" data-val="{{ $da_tra }}">{{ number_format($da_tra, 2, ',', '.') }}</span>)</small>
+                                        @endif
+                                        {{-- Hidden inputs for calculation --}}
+                                        <input type="hidden" class="ty-le-quy-doi" data-index="{{ $key }}" value="{{ $hh['ty_le_quy_doi'] ?? 1 }}">
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="gia-goc-text" data-index="{{ $key }}" data-val="{{ $don_gia_goc }}">{{ number_format($don_gia_goc, 0, ',', '.') }}</span>
                                     </td>
                                     <td>
                                         <div class="input-group">
@@ -107,7 +122,7 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        <small class="text-muted ty-le-hoan font-weight-bold" style="font-size: 13px;" data-index="{{ $key }}">100%</small>
+                                        <small class="text-muted ty-le-hoan font-weight-bold d-block text-right mt-1" style="font-size: 13px;" data-index="{{ $key }}">100%</small>
                                     </td>
                                     <td class="text-center">
                                         <input type="number" 
@@ -118,9 +133,11 @@
                                             data-max="{{ $con_lai }}"
                                             min="0" 
                                             max="{{ $con_lai }}" 
+                                            step="0.01"
                                             value="0"
                                             {{ $con_lai <= 0 ? 'disabled' : '' }}
                                             disabled>
+                                        <small class="text-muted text-center d-block">Max: <span class="max-tra-text" data-index="{{ $key }}">{{ number_format($con_lai, 2, ',', '.') }}</span></small>
                                     </td>
                                     <td class="text-right">
                                         <strong class="thanh-tien text-success" data-index="{{ $key }}">0</strong>
@@ -266,6 +283,8 @@
                 calculateTotal();
             });
 
+
+
             // Update row calculation (percentage + subtotal)
             function updateRowCalculation(row) {
                 var priceInput = row.find('.don-gia-tra');
@@ -289,8 +308,8 @@
                 }
                 
                 // Calculate subtotal
-                var thanhTien = giaTra * soLuong;
-                row.find('.thanh-tien').text(thanhTien.toLocaleString('vi-VN'));
+                var thanhTien = Math.round(giaTra * soLuong);
+                row.find('.thanh-tien').text(new Intl.NumberFormat('vi-VN').format(thanhTien));
             }
 
             // Calculate total
@@ -298,19 +317,17 @@
                 var total = 0;
                 var hasReturn = false;
                 
-                $('.so-luong-tra').each(function(){
-                    if (!$(this).prop('disabled')) {
-                        var qty = parseFloat($(this).val()) || 0;
-                        var row = $(this).closest('tr');
-                        var price = parseFloat(row.find('.don-gia-tra').val()) || 0;
-                        if (qty > 0) {
-                            total += qty * price;
-                            hasReturn = true;
-                        }
+                $('.product-checkbox:checked').each(function(){
+                    var row = $(this).closest('tr');
+                    var qty = parseFloat(row.find('.so-luong-tra').val()) || 0;
+                    var price = parseFloat(row.find('.don-gia-tra').val()) || 0;
+                    if (qty > 0) {
+                        total += Math.round(qty * price);
+                        hasReturn = true;
                     }
                 });
                 
-                $('#tong-tien-tra').text(total.toLocaleString('vi-VN'));
+                $('#tong-tien-tra').text(new Intl.NumberFormat('vi-VN').format(total));
                 $('#submitBtn').prop('disabled', !hasReturn);
             }
 

@@ -5,21 +5,21 @@
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <style>
         .table-sticky-header {
-            max-height: 65vh;
+            max-height: 80vh;
             overflow-y: auto;
         }
-        .table-sticky-header thead th {
-            position: sticky;
-            top: -1px;
-            z-index: 10;
-        }
-        .table-sticky-header thead tr.summary-row th {
+        .table-sticky-header tbody tr.summary-row td,
+        .table-sticky-header tbody tr.summary-row th {
             position: sticky;
             top: 36px;
             z-index: 9;
-            background-color: #f8f9fa !important;
+            background-color: #ffffff !important;
+            color: #212529 !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
+        }
+        .table-sticky-header tbody tr.summary-row * {
+            color: inherit !important;
         }
     </style>
 @endsection
@@ -38,7 +38,7 @@
                 <div class="col-12 col-md-6">
                     <form method="GET" action="{{ env('APP_URL') }}admin/don-hang" id="SearchForm">
                         <div class="row form-group">
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-2">
                                 <select name="id_kh" id="id_kh" class="form-control select2" style="width:100%;">
                                     <option value="">-- Tất cả KH --</option>
                                     @foreach($khachhang as $kh)
@@ -48,12 +48,18 @@
                             </div>
                             <div class="col-12 col-md-2">
                                 <select name="trang_thai_no" id="trang_thai_no" class="form-control">
-                                    <option value="">Tất cả</option>
+                                    <option value="">Nợ: Tất cả</option>
                                     <option value="con_no" {{ (isset($trang_thai_no) && $trang_thai_no == 'con_no') ? 'selected' : '' }}>🔴 Còn nợ</option>
                                     <option value="da_tt" {{ (isset($trang_thai_no) && $trang_thai_no == 'da_tt') ? 'selected' : '' }}>🟢 Đã TT</option>
                                 </select>
                             </div>
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-2">
+                                <select name="gui_kho" id="gui_kho" class="form-control" onchange="$('#SearchForm').submit();">
+                                    <option value="">Gửi kho: Tất cả</option>
+                                    <option value="1" {{ (isset($gui_kho) && $gui_kho == '1') ? 'selected' : '' }}>📦 Đang gửi kho</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-2">
                                 <input type="text" name="keywords" id="keywords" value="{{ $keywords }}" class="form-control" placeholder="Mã đơn/SĐT" />
                             </div>
                             <div class="col-12 col-md-2">
@@ -106,7 +112,7 @@
                         $sum_loi_nhuan += $t_loi_nhuan;
                     }
                 @endphp
-				<div class="table-responsive table-sticky-header">
+				<div class="table-responsive" style="max-height: 65vh; overflow: visible; padding-bottom: 70px;">
                 <table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
 						<tr>
@@ -121,7 +127,8 @@
 							<th class="text-center">Trạng thái</th>
                             <th class="text-center">Ghi chú</th>
 							<th class="text-center">#</th>
-						</tr>
+					</thead>
+					<tbody>
                         <tr class="bg-light text-dark summary-row">
                             <th colspan="3" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
@@ -131,14 +138,17 @@
                             <th class="text-right text-primary font-weight-bold">{{ number_format($sum_loi_nhuan, 0, ",", ".") }}</th>
                             <th colspan="3"></th>
                         </tr>
-					</thead>
-					<tbody>
 						@foreach($danhsach as $ds)
 							@php
 								$so_luong = 0;
                                 $tong_gia_von = 0;
+                                $has_gui_kho = false;
 								foreach($ds['hanghoa'] as $hh){
 									$so_luong += $hh['so_luong'];
+                                    // Check gui kho
+                                    if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1){
+                                        $has_gui_kho = true;
+                                    }
                                     // Calculate Total Cost
                                     if(isset($hh['gia_von_thuc_te'])){
                                         $tong_gia_von += $hh['gia_von_thuc_te'];
@@ -155,7 +165,12 @@
                                 $loi_nhuan = $ds['tong_thanh_tien'] - $tong_gia_von;
 							@endphp
 							<tr>
-								<td class="text-center"><b>{{ $ds['ma_don_hang'] }}</b></td>
+								<td class="text-center">
+								    <b>{{ $ds['ma_don_hang'] }}</b>
+								    @if($has_gui_kho)
+								        <br><span class="badge badge-warning mt-1" title="Có hàng gửi kho chưa lấy"><i class="fas fa-warehouse"></i> Gửi kho</span>
+								    @endif
+								</td>
 								<td>{{ $ds['ho_ten'] }}</td>
 								<td>{{ $ds['dien_thoai'] }}</td>
 								<td class="text-right">
@@ -196,15 +211,18 @@
                                         <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                             <i class="fa fa-cogs"></i> Tác vụ
                                         </button>
-                                        <div class="dropdown-menu dropdown-menu-right">
+                                        <div class="dropdown-menu dropdown-menu-right" style="z-index: 1050;">
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
                                             @if($con_no > 0)
                                                 <a class="dropdown-item btn-tra-no" href="#" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
                                             @endif
+                                            @if($has_gui_kho)
+                                                <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/da-lay-hang/{{ $ds['_id'] }}" onclick="return confirm('Khách đã lấy toàn bộ hàng gửi kho của đơn này?');"><i class="fas fa-box-open text-info mr-2"></i> Đã lấy hàng</a>
+                                            @endif
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
                                             <div class="dropdown-divider"></div>
-                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa đơn</a>
+{{-- <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa đơn</a> --}}
                                         </div>
                                     </div>
                                 </td>

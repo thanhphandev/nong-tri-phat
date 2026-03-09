@@ -5,21 +5,29 @@
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <style>
         .table-sticky-header {
-            max-height: 65vh;
-            overflow-y: auto;
+            max-height: 80vh;
+            /* overflow: auto; Removed to fix dropdown clipping */
         }
-        .table-sticky-header thead th {
-            position: sticky;
-            top: -1px;
-            z-index: 10;
+        
+        .table-sticky-header table {
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 0;
         }
-        .table-sticky-header thead tr.summary-row th {
+        
+        .table-sticky-header tbody tr.summary-row td,
+        .table-sticky-header tbody tr.summary-row th {
             position: sticky;
-            top: 36px;
-            z-index: 9;
-            background-color: #f8f9fa !important;
+            top: 40px; /* Adjusted by JS */
+            z-index: 14;
+            background-color: #ffffff !important;
+            color: #212529 !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
+        }
+        .table-sticky-header tbody tr.summary-row td *,
+        .table-sticky-header tbody tr.summary-row th * {
+            color: inherit !important;
         }
     </style>
 @endsection
@@ -92,7 +100,8 @@
                         $sum_con_no += $ds['con_no'] ?? 0;
                     }
                 @endphp
-				<div class="table-responsive table-sticky-header">
+
+				<div class="table-responsive" style="max-height: 65vh; overflow: visible; padding-bottom: 70px;">
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
 						<tr>
@@ -105,7 +114,8 @@
                             <th class="text-center">Thành tiền</th>
                             <th class="text-center">Ghi chú</th>
 							<th class="text-center">#</th>
-						</tr>
+					</thead>
+					<tbody>
                         <tr class="bg-light text-dark summary-row">
                             <th colspan="5" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
@@ -116,8 +126,6 @@
                             </th>
                             <th colspan="2"></th>
                         </tr>
-					</thead>
-					<tbody>
 						@foreach($danhsach as $ds)
                         @php
                             $so_luong = 0;
@@ -150,7 +158,7 @@
                                     <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         <i class="fa fa-cogs"></i> Tác vụ
                                     </button>
-                                    <div class="dropdown-menu dropdown-menu-right">
+                                    <div class="dropdown-menu dropdown-menu-right" style="z-index: 1050;">
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng NCC</a>
@@ -158,7 +166,7 @@
                                             <a class="dropdown-item tra-no-btn" href="javascript:void(0)" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_nhap_hang'] }}" data-no="{{ $ds['con_no'] }}"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
                                         @endif
                                         <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a>
+                                        {{-- <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a> --}}
                                     </div>
                                 </div>
                             </td>
@@ -193,31 +201,35 @@
 <div class="modal fade" id="modalTraNo" tabindex="-1" role="dialog" aria-labelledby="modalTraNoLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ env('APP_URL') }}admin/nhap-hang/tra-no" method="POST">
+            <form action="{{ env('APP_URL') }}admin/nhap-hang/tra-no" method="POST" id="TraNoForm">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalTraNoLabel">Trả nợ nhập hàng - <span id="lbl-ma-don"></span></h5>
+                    <h5 class="modal-title" id="modalTraNoLabel">Trả nợ nhà cung cấp - <span id="tra_no_ma"></span></h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="id_nhaphang" id="id_nhaphang">
+                    <input type="hidden" name="id_nhaphang" id="tra_no_id_nhaphang">
+                    <input type="hidden" name="url" value="{{ Request::fullUrl() }}">
+                    
                     <div class="form-group">
                         <label>Số nợ hiện tại</label>
-                        <input type="text" class="form-control" id="txt-con-no" readonly value="" style="font-weight: bold; color: #d9534f;">
+                        <input type="text" class="form-control" id="tra_no_con_no" readonly value="" style="font-weight: bold; color: #d9534f;">
                     </div>
+
                     <div class="form-group">
                         <label>Số tiền trả <span class="text-danger">*</span></label>
-                        <input type="text" name="so_tien" class="form-control money" required placeholder="Nhập số tiền trả" autocomplete="off">
+                        <input type="text" name="so_tien" id="so_tien_tra" class="form-control money" required placeholder="Nhập số tiền trả" autocomplete="off">
                     </div>
+
                     <div class="form-group">
                         <label>Ghi chú</label>
-                        <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Ghi chú thanh toán"></textarea>
+                        <textarea name="ghi_chu" id="ghi_chu_tra_no" class="form-control" rows="3" placeholder="Ghi chú thanh toán"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                     <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Thanh toán</button>
+                     <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Xác nhận thanh toán</button>
                      <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
                 </div>
             </form>
@@ -251,23 +263,22 @@
                 var ma = $(this).data("ma");
                 var no = $(this).data("no");
 
-                $("#id_nhaphang").val(id);
-                $("#lbl-ma-don").text(ma);
+                $("#tra_no_id_nhaphang").val(id);
+                $("#tra_no_ma").text(ma);
                 
                 // Format số nợ để hiển thị trong ô readonly
                 var formattedNo = new Intl.NumberFormat('vi-VN').format(no);
-                $("#txt-con-no").val(formattedNo);
+                $("#tra_no_con_no").val(formattedNo);
 
-                $("input[name='so_tien']").val(formattedNo);
-                
-                $("input[name='so_tien']").attr('data-max', no);
+                $("#so_tien_tra").val(formattedNo);
+                $("#so_tien_tra").attr('data-max', no);
 
-                $("textarea[name='ghi_chu']").val('Trả nợ đơn ' + ma);
+                $("#ghi_chu_tra_no").val('Trả nợ NCC cho đơn ' + ma);
                 $("#modalTraNo").modal("show");
             });
 
-            // Thêm sự kiện tự động bôi đen khi click vào ô tiền (UX giúp sửa số tiền nhanh hơn)
-            $("input[name='so_tien']").on("focus", function() {
+            // Thêm sự kiện tự động bôi đen khi click vào ô tiền
+            $("#so_tien_tra").on("focus", function() {
                 $(this).select();
             });
 
@@ -279,6 +290,33 @@
                     $(this).val(val);
                 }
             });
+
+            // Kiểm tra trước khi submit
+            $("#TraNoForm").submit(function(e){
+                var strSotien = $("#so_tien_tra").val().replace(/\./g, '');
+                var soTien = parseFloat(strSotien);
+                var maxAmount = parseFloat($("#so_tien_tra").attr('data-max'));
+                
+                if(isNaN(soTien) || soTien <= 0){
+                    alert("Vui lòng nhập số tiền hợp lệ!");
+                    return false;
+                }
+                
+                if(soTien > maxAmount){
+                    if(!confirm("Số tiền trả đang lớn hơn số nợ. Bạn vẫn muốn tiếp tục?")) {
+                        return false;
+                    }
+                }
+                
+                return confirm('Xác nhận đã thanh toán ' + $("#so_tien_tra").val() + ' VND cho nhà cung cấp?');
+            });
+
+            function adjustStickySummary() {
+                var headerHeight = $('.table-sticky-header thead th:not([colspan])').outerHeight() || 40;
+                $('.table-sticky-header thead tr.summary-row th, .table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
+            }
+            setTimeout(adjustStickySummary, 100);
+            $(window).resize(adjustStickySummary);
         });
     </script>
 @endsection

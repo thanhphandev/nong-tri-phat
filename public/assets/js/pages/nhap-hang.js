@@ -108,7 +108,7 @@ function initializeProductSearch(path) {
         if (repo.loading) return repo.text;
 
         var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
-        var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+        var stockText = repo.so_luong_ton > 0 ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(repo.so_luong_ton) : 'Hết hàng';
 
         var markup = "<div class='product-result'>" +
             "<div class='product-title'>" +
@@ -117,8 +117,7 @@ function initializeProductSearch(path) {
             "</div>" +
             "<div class='product-info'>" +
             "<span><i class='fa fa-tag'></i> <span class='product-unit'>" + (repo.don_vi_tinh || 'N/A') + "</span></span>" +
-            "<span><i class='fa fa-money-bill-wave'></i> Mặt: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_si)) + "</span></span>" +
-            "<span><i class='fa fa-hand-holding-usd'></i> Nợ: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_le)) + "</span></span>" +
+            "<span><i class='fa fa-money-bill-wave'></i> Giá vốn: <span class='product-price'>" + currencyFormat(parseFloat(repo.gia_von || 0)) + "</span></span>" +
             "<span><i class='fa fa-boxes'></i> Tồn: <span class='product-stock " + stockClass + "'>" + stockText + "</span></span>" +
             "</div>" +
             "</div>";
@@ -162,10 +161,28 @@ function tong_thanh_tien() {
 function change_so_luong() {
     $(".cart-change").off("change").change(function () {
         var parent = $(this).parents(".item");
+        
+        // Handle unit change
+        if ($(this).hasClass('don-vi-nhap')) {
+            var unitSelect = $(this);
+            var isRetail = unitSelect.val() === 'retail';
+            var tyLe = parseFloat(unitSelect.data('ty-le')) || 1;
+            var donGiaInput = parent.find(".don-gia");
+            var currentDonGia = parseFloat(donGiaInput.val()) || 0;
+
+            if (isRetail && tyLe > 0) {
+                // If switched TO retail (smaller unit), divide price by conversion rate
+                donGiaInput.val(currentDonGia / tyLe);
+            } else if (!isRetail && tyLe > 0) {
+                // If switched TO main (larger unit), multiply price by conversion rate
+                donGiaInput.val(currentDonGia * tyLe);
+            }
+        }
+
         var so_luong = parseFloat(parent.find(".so-luong").val());
         var don_gia = parseFloat(parent.find(".don-gia").val());
 
-        if (isNaN(so_luong) || so_luong == 0) {
+        if (isNaN(so_luong) || so_luong <= 0) {
             so_luong = 1; parent.find(".so-luong").val(1)
         }
 
