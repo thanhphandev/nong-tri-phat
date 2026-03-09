@@ -28,9 +28,9 @@ class TraHangKhachController extends Controller
         $per_page = $limit === 'all' ? 999999 : intval($limit);
         
         if ($keywords) {
-            $danhsach = TraHangKhach::where('ma_tra_hang', 'regexp', '/.*'.$keywords.'/i')
-                ->orWhere('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
-                ->orWhere('ho_ten', 'regexp', '/.*'.$keywords.'/i')
+            $danhsach = TraHangKhach::where('ma_tra_hang', 'like', '%'.$keywords.'%')
+                ->orWhere('ma_don_hang', 'like', '%'.$keywords.'%')
+                ->orWhere('ho_ten', 'like', '%'.$keywords.'%')
                 ->orderBy('ngay_tra', 'desc')->paginate($per_page);
         } else {
             $danhsach = TraHangKhach::orderBy('ngay_tra', 'desc')->paginate($per_page);

@@ -709,7 +709,7 @@ class CongNoController extends Controller
         $sheet->getStyle('A3:A4')->getFont()->setBold(true);
 
         // --- Table Headers (row 6) ---
-        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'CK %', 'Tiền hàng', 'Trả hàng', 'Thanh toán', 'Còn nợ', 'Hàng C.Trình'];
+        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'CK %', 'Tiền hàng', 'Thanh toán', 'Trả hàng', 'Còn nợ', 'Hàng C.Trình'];
         $col = 'A';
         foreach($headers as $h) {
             $sheet->setCellValue($col . '6', $h);
@@ -768,8 +768,8 @@ class CongNoController extends Controller
             $sheet->setCellValue('A' . $row, $item->time->toDateTime()->format('d/m/Y H:i'));
             $sheet->setCellValue('B' . $row, $label);
             $sheet->setCellValue('G' . $row, $item->tien_hang > 0 ? $item->tien_hang : '');
-            $sheet->setCellValue('H' . $row, $item->co_tra_hang ? $item->tong_tra_hang : '');
-            $sheet->setCellValue('I' . $row, $item->thanh_toan_thuc_te > 0 ? $item->thanh_toan_thuc_te : '');
+            $sheet->setCellValue('H' . $row, $item->thanh_toan_thuc_te > 0 ? $item->thanh_toan_thuc_te : '');
+            $sheet->setCellValue('I' . $row, $item->co_tra_hang ? $item->tong_tra_hang : '');
             $sheet->setCellValue('J' . $row, $luyKe);
             $sheet->setCellValue('K' . $row, $hangCT_don > 0 ? $hangCT_don : '');
             
@@ -778,7 +778,7 @@ class CongNoController extends Controller
             $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
             $sheet->getStyle('G' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0');
             if($item->co_tra_hang) {
-                $sheet->getStyle('H' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
             }
             $row++;
 
@@ -809,12 +809,13 @@ class CongNoController extends Controller
                     }
 
                     if ($tienTraHang > 0) {
-                        $sheet->setCellValue('H' . $row, $tienTraHang);
-                        $sheet->getStyle('H' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                        $sheet->setCellValue('I' . $row, $tienTraHang); // Tra hang column
+                        $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
                     } elseif ($isTraHangForDetail) {
-                        $sheet->setCellValue('H' . $row, $ct['thanh_tien'] ?? 0);
-                        $sheet->getStyle('H' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                        $sheet->setCellValue('I' . $row, $ct['thanh_tien'] ?? 0); // Tra hang column
+                        $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
                     }
+                    // No explicit 'Thanh toán' for detail rows, it's handled at master row level or implied by 'Tiền hàng'
 
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
                     $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
@@ -835,7 +836,7 @@ class CongNoController extends Controller
         $sheet->mergeCells('A' . $row . ':G' . $row);
         $sheet->setCellValue('A' . $row, 'TỔNG NỢ CUỐI KỲ:');
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
-        $sheet->setCellValue('H' . $row, $tongTraHang > 0 ? $tongTraHang : '');
+        $sheet->setCellValue('I' . $row, $tongTraHang > 0 ? $tongTraHang : '');
         $sheet->setCellValue('J' . $row, $luyKe);
         $sheet->setCellValue('K' . $row, $tongHangCT);
         $totalStyle = $sheet->getStyle('A' . $row . ':K' . $row);

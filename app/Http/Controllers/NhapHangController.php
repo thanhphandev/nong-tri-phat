@@ -28,8 +28,8 @@ class NhapHangController extends Controller
         
         if($keywords){
             $query->where(function($q) use ($keywords) {
-                $q->where('ma_nhap_hang', 'regexp', '/.*'.$keywords.'/i')
-                  ->orWhere('so_chung_tu', 'regexp', '/.*'.$keywords.'/i');
+                $q->where('ma_nhap_hang', 'like', '%'.$keywords.'%')
+                  ->orWhere('so_chung_tu', 'like', '%'.$keywords.'%');
             });
         }
         

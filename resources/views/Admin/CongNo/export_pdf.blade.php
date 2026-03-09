@@ -86,8 +86,8 @@
                 <th style="width: 8%;">Đơn giá</th>
                 <th style="width: 4%;">CK %</th>
                 <th style="width: 10%;">Tiền hàng</th>
-                <th style="width: 10%;">Trả hàng</th>
                 <th style="width: 10%;">Thanh toán</th>
+                <th style="width: 10%;">Trả hàng</th>
                 <th style="width: 11%;">Còn nợ</th>
                 <th style="width: 9%;">Hàng C.T</th>
             </tr>
@@ -143,8 +143,8 @@
                     <td></td>
                     <td></td>
                     <td class="text-right">{{ $item->tien_hang > 0 ? number_format($item->tien_hang, 0, ',', '.') : '-' }}</td>
-                    <td class="text-right" style="{{ $item->co_tra_hang ? 'color: #d71a21;' : '' }}">{{ $item->co_tra_hang ? number_format($item->tong_tra_hang, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ $item->thanh_toan_thuc_te > 0 ? number_format($item->thanh_toan_thuc_te, 0, ',', '.') : '-' }}</td>
+                    <td class="text-right" style="{{ $item->co_tra_hang ? 'color: #d71a21;' : '' }}">{{ $item->co_tra_hang ? number_format($item->tong_tra_hang, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
                     <td class="text-right">{{ $hangCT_don > 0 ? number_format($hangCT_don, 0, ',', '.') : '' }}</td>
                 </tr>
@@ -175,6 +175,7 @@
                                 {{ number_format($ct['thanh_tien'] ?? 0, 0, ',', '.') }} 
                             @endif
                         </td>
+                        <td></td>
                         <td class="text-right" style="{{ ($tienTraHang > 0 || $isTraHangForDetail) ? 'color: #d71a21;' : '' }}">
                             @if($tienTraHang > 0)
                                 {{ number_format($tienTraHang, 0, ',', '.') }}
@@ -182,7 +183,6 @@
                                 {{ number_format($ct['thanh_tien'] ?? 0, 0, ',', '.') }}
                             @endif
                         </td>
-                        <td></td>
                         <td></td>
                         <td class="text-right" style="font-size: 9px;">@if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) {{ number_format($ct['thanh_tien'] ?? 0, 0, ',', '.') }} @endif</td>
                     </tr>
@@ -192,8 +192,8 @@
             
             <tr class="row-total">
                 <td colspan="7" class="text-right">TỔNG NỢ CUỐI KỲ:</td>
-                <td class="text-right" style="color: #d71a21;">{{ $tongTraHang > 0 ? number_format($tongTraHang, 0, ',', '.') : '' }}</td>
                 <td></td>
+                <td class="text-right" style="color: #d71a21;">{{ $tongTraHang > 0 ? number_format($tongTraHang, 0, ',', '.') : '' }}</td>
                 <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
                 <td class="text-right">{{ number_format($tongHangCT, 0, ',', '.') }}</td>
             </tr>

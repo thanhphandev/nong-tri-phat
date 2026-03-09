@@ -37,8 +37,8 @@ class DonHangController extends Controller
             
             if($keywords){
                 $query->where(function($q) use ($keywords) {
-                    $q->where('ma_don_hang', 'regexp', '/.*'.$keywords.'/i')
-                      ->orWhere('dien_thoai', 'regexp', '/.*'.$keywords.'/i');
+                    $q->where('ma_don_hang', 'like', '%'.$keywords.'%')
+                      ->orWhere('dien_thoai', 'like', '%'.$keywords.'%');
                 });
             }
 

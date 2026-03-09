@@ -15,9 +15,18 @@ use Config;
 class NhaCungCapController extends Controller
 {
     
-    function list(){
-        $danhsach = NhaCungCap::paginate(30);
-        return view('Admin.NhaCungCap.list')->with(compact('danhsach'));
+    function list(Request $request){
+        $keywords = $request->input('keywords');
+        $query = NhaCungCap::query();
+        if($keywords){
+            $query->where(function($q) use ($keywords) {
+                $q->where('ten', 'like', '%'.$keywords.'%')
+                  ->orWhere('dien_thoai', 'like', '%'.$keywords.'%')
+                  ->orWhere('ma', 'like', '%'.$keywords.'%');
+            });
+        }
+        $danhsach = $query->paginate(30);
+        return view('Admin.NhaCungCap.list')->with(compact('danhsach', 'keywords'));
     }
 
     function add() {

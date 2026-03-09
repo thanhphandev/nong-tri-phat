@@ -27,9 +27,9 @@ class TraHangNCCController extends Controller
         $per_page = $limit === 'all' ? 999999 : intval($limit);
         
         if ($keywords) {
-            $danhsach = TraHangNCC::where('ma_tra_hang', 'regexp', '/.*'.$keywords.'/i')
-                ->orWhere('ma_nhap_hang', 'regexp', '/.*'.$keywords.'/i')
-                ->orWhere('ten_ncc', 'regexp', '/.*'.$keywords.'/i')
+            $danhsach = TraHangNCC::where('ma_tra_hang', 'like', '%'.$keywords.'%')
+                ->orWhere('ma_nhap_hang', 'like', '%'.$keywords.'%')
+                ->orWhere('ten_ncc', 'like', '%'.$keywords.'%')
                 ->orderBy('ngay_tra', 'desc')->paginate($per_page);
         } else {
             $danhsach = TraHangNCC::orderBy('ngay_tra', 'desc')->paginate($per_page);

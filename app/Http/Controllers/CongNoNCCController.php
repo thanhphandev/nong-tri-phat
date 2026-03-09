@@ -703,13 +703,14 @@ class CongNoNCCController extends Controller
         $sheet->getStyle('A3:A4')->getFont()->setBold(true);
 
         // --- Table Headers (row 6) ---
-        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'Tiền hàng', 'Trả hàng', 'Thanh toán', 'Còn nợ', 'Ghi chú'];
+        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'CK %', 'Tiền hàng', 'Thanh toán', 'Trả hàng', 'Còn nợ', 'Ghi chú'];
         $col = 'A';
         foreach($headers as $h) {
             $sheet->setCellValue($col . '6', $h);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
-        $headerStyle = $sheet->getStyle('A6:J6');
+        $headerStyle = $sheet->getStyle('A6:K6');
         $headerStyle->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF343A40');
         $headerStyle->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
@@ -718,11 +719,11 @@ class CongNoNCCController extends Controller
         // --- Dư nợ đầu kỳ ---
         $row = 7;
         $sheet->setCellValue('B' . $row, 'DƯ NỢ ĐẦU KỲ');
-        $sheet->setCellValue('I' . $row, $noDauKy);
-        $sheet->getStyle('A' . $row . ':J' . $row)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $row . ':J' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0E0');
-        $sheet->getStyle('A' . $row . ':J' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->setCellValue('J' . $row, $noDauKy);
+        $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row . ':K' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0E0');
+        $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
         $luyKe = $noDauKy;
         $tongTraHang = 0;
@@ -746,18 +747,18 @@ class CongNoNCCController extends Controller
 
             $sheet->setCellValue('A' . $row, $item->time->toDateTime()->format('d/m/Y H:i'));
             $sheet->setCellValue('B' . $row, $label);
-            $sheet->setCellValue('F' . $row, $item->tien_hang > 0 ? $item->tien_hang : '');
-            $sheet->setCellValue('G' . $row, $item->co_tra_hang ? $item->tong_tra_hang : '');
+            $sheet->setCellValue('G' . $row, $item->tien_hang > 0 ? $item->tien_hang : '');
             $sheet->setCellValue('H' . $row, $item->thanh_toan_thuc_te > 0 ? $item->thanh_toan_thuc_te : '');
-            $sheet->setCellValue('I' . $row, $luyKe);
-            $sheet->setCellValue('J' . $row, $item->ghi_chu ?? '');
+            $sheet->setCellValue('I' . $row, $item->co_tra_hang ? $item->tong_tra_hang : '');
+            $sheet->setCellValue('J' . $row, $luyKe);
+            $sheet->setCellValue('K' . $row, $item->ghi_chu ?? '');
 
-            $sheet->getStyle('A' . $row . ':J' . $row)->getFont()->setBold(true);
-            $sheet->getStyle('A' . $row . ':J' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
-            $sheet->getStyle('A' . $row . ':J' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-            $sheet->getStyle('F' . $row . ':I' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
+            $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            $sheet->getStyle('G' . $row . ':J' . $row)->getNumberFormat()->setFormatCode('#,##0');
             if($item->co_tra_hang) {
-                $sheet->getStyle('G' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
             }
             $row++;
 
@@ -787,15 +788,15 @@ class CongNoNCCController extends Controller
                     $sheet->setCellValue('E' . $row, $ct['don_gia'] ?? 0);
                     
                     if (!$isTraHangForDetail) {
-                        $sheet->setCellValue('F' . $row, $thanhTienBan);
+                        $sheet->setCellValue('G' . $row, $thanhTienBan);
                     }
 
                     if ($tienTraHang > 0) {
-                        $sheet->setCellValue('G' . $row, $tienTraHang);
-                        $sheet->getStyle('G' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                        $sheet->setCellValue('I' . $row, $tienTraHang);
+                        $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
                     } elseif ($isTraHangForDetail) {
-                        $sheet->setCellValue('G' . $row, $thanhTienBan);
-                        $sheet->getStyle('G' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                        $sheet->setCellValue('I' . $row, $thanhTienBan);
+                        $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
                     }
 
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
@@ -811,23 +812,23 @@ class CongNoNCCController extends Controller
         $sheet->mergeCells('A' . $row . ':F' . $row);
         $sheet->setCellValue('A' . $row, 'TỔNG NỢ CUỐI KỲ:');
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
-        $sheet->setCellValue('G' . $row, $tongTraHang > 0 ? $tongTraHang : '');
-        $sheet->setCellValue('I' . $row, $luyKe);
-        $totalStyle = $sheet->getStyle('A' . $row . ':J' . $row);
+        $sheet->setCellValue('I' . $row, $tongTraHang > 0 ? $tongTraHang : '');
+        $sheet->setCellValue('J' . $row, $luyKe);
+        $totalStyle = $sheet->getStyle('A' . $row . ':K' . $row);
         $totalStyle->getFont()->setBold(true)->setSize(12);
         $totalStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFD0D0D0');
         $totalStyle->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->getStyle('G' . $row . ':I' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('G' . $row . ':J' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
         // --- Column alignments ---
         $sheet->getStyle('A7:A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('C7:C' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('D7:D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('E7:I' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('E7:K' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
         
         // Freeze panes & filter
         $sheet->freezePane('A7');
-        $sheet->setAutoFilter('A6:J6');
+        $sheet->setAutoFilter('A6:K6');
         
         // Column widths
         $sheet->getColumnDimension('A')->setWidth(18);
@@ -835,11 +836,12 @@ class CongNoNCCController extends Controller
         $sheet->getColumnDimension('C')->setWidth(8);
         $sheet->getColumnDimension('D')->setWidth(10);
         $sheet->getColumnDimension('E')->setWidth(15);
-        $sheet->getColumnDimension('F')->setWidth(18);
-        $sheet->getColumnDimension('G')->setWidth(16);
+        $sheet->getColumnDimension('F')->setWidth(10);
+        $sheet->getColumnDimension('G')->setWidth(18);
         $sheet->getColumnDimension('H')->setWidth(18);
         $sheet->getColumnDimension('I')->setWidth(18);
-        $sheet->getColumnDimension('J')->setWidth(20);
+        $sheet->getColumnDimension('J')->setWidth(18);
+        $sheet->getColumnDimension('K')->setWidth(25);
 
         // Output
         $supplierCode = isset($nhaCungCap->ma) ? $nhaCungCap->ma : 'NCC'.substr($id_nhacungcap, -5);
