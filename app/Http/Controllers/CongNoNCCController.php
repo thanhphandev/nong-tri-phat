@@ -416,42 +416,29 @@ class CongNoNCCController extends Controller
             return $item->ngay_gio->toDateTime()->getTimestamp();
         });
 
-        $groupedPhatSinh = [];
-        foreach ($phatSinhTrongKyRaw as $item) {
-            $key = '';
-            if ($item->id_nhaphang) {
-                $key = 'nh_' . (string)$item->id_nhaphang;
-            } else {
-                $key = 'cn_' . (string)$item->_id;
-            }
-            
-            if (!isset($groupedPhatSinh[$key])) {
-                $groupedPhatSinh[$key] = clone $item;
-                $groupedPhatSinh[$key]->tien_hang = 0;
-                $groupedPhatSinh[$key]->thanh_toan = 0;
-            }
-
-            if ($item->loai_cong_no == 0) {
-                $groupedPhatSinh[$key]->tien_hang += $item->tong_thanh_tien;
-            } else {
-                $groupedPhatSinh[$key]->thanh_toan += $item->tong_thanh_tien;
-            }
-        }
-
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
-        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $traHangByNhapHang, $units) {
+        $phatSinhTrongKy = $phatSinhTrongKyRaw->map(function($item) use ($dataNhapHang, $dataTraHang, $traHangByNhapHang, $units) {
             $item->time = $item->ngay_gio;
             $item->timestamp_sort = $item->ngay_gio->toDateTime()->getTimestamp();
             $item->details = [];
             $item->tong_tra_hang = 0;
             $item->co_tra_hang = false;
-    
-            // Nếu là đơn hàng bán (Tăng nợ)
-            if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
+            
+            if ($item->loai_cong_no == 0) {
+                $item->tien_hang = $item->tong_thanh_tien;
+                $item->thanh_toan = 0;
+            } else {
+                $item->tien_hang = 0;
+                $item->thanh_toan = $item->tong_thanh_tien;
+            }
+            $item->thanh_toan_thuc_te = $item->thanh_toan;
+
+            // Nếu là record của Nhập Hàng (Tăng nợ)
+            if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang]) && $item->loai_cong_no == 0) {
                 $details = $dataNhapHang[(string)$item->id_nhaphang]->hanghoa ?? [];
                 
-                $mappedDetails = collect($details)->map(function($ct) use ($units) {
+                $item->details = collect($details)->map(function($ct) use ($units) {
                     if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) {
                         $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le'];
                     } else {
@@ -462,46 +449,8 @@ class CongNoNCCController extends Controller
                     return $ct;
                 })->toArray();
                 
-                if (isset($traHangByNhapHang[(string)$item->id_nhaphang])) {
-                    $item->co_tra_hang = true;
-                    foreach ($traHangByNhapHang[(string)$item->id_nhaphang] as $traHang) {
-                        $traHangDetails = $traHang->hanghoa ?? [];
-                        foreach ($traHangDetails as $thCT) {
-                            $found = false;
-                            foreach ($mappedDetails as &$origCT) {
-                                if ((string)($origCT['id_hanghoa'] ?? '') === (string)($thCT['id_hanghoa'] ?? '')) {
-                                    $origCT['so_luong_tra'] = ($origCT['so_luong_tra'] ?? 0) + ($thCT['so_luong_tra'] ?? 0);
-                                    $origCT['tien_tra_hang'] = ($origCT['tien_tra_hang'] ?? 0) + ($thCT['thanh_tien'] ?? 0);
-                                    $found = true;
-                                    break;
-                                }
-                            }
-                            if (!$found) {
-                                $thCT['is_tra_hang'] = true;
-                                $thCT['so_luong'] = $thCT['so_luong_tra'] ?? 0;
-                                if (isset($thCT['cho_phep_ban_le']) && $thCT['cho_phep_ban_le'] == true && !empty($thCT['don_vi_le'])) {
-                                    $thCT['don_vi_tinh_hien_thi'] = $thCT['don_vi_le'];
-                                } else {
-                                    $id_dvt = $thCT['id_donvitinh'] ?? null;
-                                    $thCT['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($thCT['don_vi_tinh'] ?? ($thCT['don_vi'] ?? ''));
-                                }
-                                // $mappedDetails[] = $thCT;
-                            }
-                            $item->tong_tra_hang += ($thCT['thanh_tien'] ?? 0);
-                        }
-                    }
-                }
-
-                $item->details = $mappedDetails;
                 $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
                 $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
-                
-                if ($item->tong_tra_hang > 0) {
-                    $item->thanh_toan_thuc_te = $item->thanh_toan - $item->tong_tra_hang;
-                    if ($item->thanh_toan_thuc_te < 0) $item->thanh_toan_thuc_te = 0;
-                } else {
-                    $item->thanh_toan_thuc_te = $item->thanh_toan;
-                }
             } 
             // Nếu là phiếu trả hàng (Giảm nợ)
             elseif (isset($item->id_trahangncc) && $item->id_trahangncc && isset($dataTraHang[(string)$item->id_trahangncc])) {
@@ -523,11 +472,14 @@ class CongNoNCCController extends Controller
                 $item->thanh_toan_thuc_te = 0;
                 $item->ma_phieu = $dataTraHang[(string)$item->id_trahangncc]->ma_tra_hang;
             } else {
-                $item->thanh_toan_thuc_te = $item->thanh_toan;
+                if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
+                    $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
+                    $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
+                }
             }
     
             return $item;
-        })->sortBy('timestamp_sort')->values();
+        })->values();
 
         // 3. RENDER RA VIEW
         $pdf = PDF::loadView('Admin.CongNoNCC.export_pdf', [
@@ -591,76 +543,35 @@ class CongNoNCCController extends Controller
 
         $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) { return $item->ngay_gio->toDateTime()->getTimestamp(); });
 
-        $groupedPhatSinh = [];
-        foreach ($phatSinhTrongKyRaw as $item) {
-            $key = $item->id_nhaphang ? 'nh_' . (string)$item->id_nhaphang : 'cn_' . (string)$item->_id;
-            if (!isset($groupedPhatSinh[$key])) {
-                $groupedPhatSinh[$key] = clone $item;
-                $groupedPhatSinh[$key]->tien_hang = 0;
-                $groupedPhatSinh[$key]->thanh_toan = 0;
-            }
-            if ($item->loai_cong_no == 0) { $groupedPhatSinh[$key]->tien_hang += $item->tong_thanh_tien; }
-            else { $groupedPhatSinh[$key]->thanh_toan += $item->tong_thanh_tien; }
-        }
-
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
-        $phatSinhTrongKy = collect(array_values($groupedPhatSinh))->map(function($item) use ($dataNhapHang, $dataTraHang, $traHangByNhapHang, $units) {
+        $phatSinhTrongKy = $phatSinhTrongKyRaw->map(function($item) use ($dataNhapHang, $dataTraHang, $traHangByNhapHang, $units) {
             $item->time = $item->ngay_gio;
             $item->timestamp_sort = $item->ngay_gio->toDateTime()->getTimestamp();
             $item->details = [];
             $item->tong_tra_hang = 0;
             $item->co_tra_hang = false;
 
-            if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
+            if ($item->loai_cong_no == 0) {
+                $item->tien_hang = $item->tong_thanh_tien;
+                $item->thanh_toan = 0;
+            } else {
+                $item->tien_hang = 0;
+                $item->thanh_toan = $item->tong_thanh_tien;
+            }
+            $item->thanh_toan_thuc_te = $item->thanh_toan;
+
+            if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang]) && $item->loai_cong_no == 0) {
                 $details = $dataNhapHang[(string)$item->id_nhaphang]->hanghoa ?? [];
-                $mappedDetails = collect($details)->map(function($ct) use ($units) {
+                $item->details = collect($details)->map(function($ct) use ($units) {
                     if (isset($ct['cho_phep_ban_le']) && $ct['cho_phep_ban_le'] == true && !empty($ct['don_vi_le'])) { $ct['don_vi_tinh_hien_thi'] = $ct['don_vi_le']; }
                     else { $id_dvt = $ct['id_donvitinh'] ?? null; $ct['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($ct['don_vi_tinh'] ?? ($ct['don_vi'] ?? '')); }
                     $ct['is_tra_hang'] = false;
                     return $ct;
                 })->toArray();
                 
-                if (isset($traHangByNhapHang[(string)$item->id_nhaphang])) {
-                    $item->co_tra_hang = true;
-                    foreach ($traHangByNhapHang[(string)$item->id_nhaphang] as $traHang) {
-                        $traHangDetails = $traHang->hanghoa ?? [];
-                        foreach ($traHangDetails as $thCT) {
-                            $found = false;
-                            foreach ($mappedDetails as &$origCT) {
-                                if ((string)($origCT['id_hanghoa'] ?? '') === (string)($thCT['id_hanghoa'] ?? '')) {
-                                    $origCT['so_luong_tra'] = ($origCT['so_luong_tra'] ?? 0) + ($thCT['so_luong_tra'] ?? 0);
-                                    $origCT['tien_tra_hang'] = ($origCT['tien_tra_hang'] ?? 0) + ($thCT['thanh_tien'] ?? 0);
-                                    $found = true;
-                                    break;
-                                }
-                            }
-                            if (!$found) {
-                                $thCT['is_tra_hang'] = true;
-                                $thCT['so_luong'] = $thCT['so_luong_tra'] ?? 0;
-                                if (isset($thCT['cho_phep_ban_le']) && $thCT['cho_phep_ban_le'] == true && !empty($thCT['don_vi_le'])) {
-                                    $thCT['don_vi_tinh_hien_thi'] = $thCT['don_vi_le'];
-                                } else {
-                                    $id_dvt = $thCT['id_donvitinh'] ?? null;
-                                    $thCT['don_vi_tinh_hien_thi'] = ($id_dvt && isset($units[(string)$id_dvt])) ? $units[(string)$id_dvt]->ten : ($thCT['don_vi_tinh'] ?? ($thCT['don_vi'] ?? ''));
-                                }
-                                $mappedDetails[] = $thCT;
-                            }
-                            $item->tong_tra_hang += ($thCT['thanh_tien'] ?? 0);
-                        }
-                    }
-                }
-                
-                $item->details = $mappedDetails;
                 $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
                 $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
-                
-                if ($item->tong_tra_hang > 0) {
-                    $item->thanh_toan_thuc_te = $item->thanh_toan - $item->tong_tra_hang;
-                    if ($item->thanh_toan_thuc_te < 0) $item->thanh_toan_thuc_te = 0;
-                } else {
-                    $item->thanh_toan_thuc_te = $item->thanh_toan;
-                }
             } elseif (isset($item->id_trahangncc) && $item->id_trahangncc && isset($dataTraHang[(string)$item->id_trahangncc])) {
                 $details = $dataTraHang[(string)$item->id_trahangncc]->hanghoa ?? [];
                 $item->details = collect($details)->map(function($ct) use ($units) {
@@ -674,10 +585,13 @@ class CongNoNCCController extends Controller
                 $item->thanh_toan_thuc_te = 0;
                 $item->ma_phieu = $dataTraHang[(string)$item->id_trahangncc]->ma_tra_hang;
             } else {
-                $item->thanh_toan_thuc_te = $item->thanh_toan;
+                if ($item->id_nhaphang && isset($dataNhapHang[(string)$item->id_nhaphang])) {
+                    $item->ma_phieu = $dataNhapHang[(string)$item->id_nhaphang]->ma_nhap_hang;
+                    $item->so_chung_tu = $dataNhapHang[(string)$item->id_nhaphang]->so_chung_tu ?? null;
+                }
             }
             return $item;
-        })->sortBy('timestamp_sort')->values();
+        })->values();
 
         // 3. BUILD EXCEL
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
