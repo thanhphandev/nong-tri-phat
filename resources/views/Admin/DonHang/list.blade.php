@@ -188,7 +188,7 @@
                                 </td>
                                 <td class="text-center">
                                     @php
-									   if($ds['tinh_trang'] == 0){                                            $tt = 'badge-info';
+                                        $tt = ($ds['tinh_trang'] == 0) ? 'badge-info' : 'badge-success'; @endphp @if(false)
                                        } else if($ds['tinh_trang'] == 1) {
                                             $tt = 'badge-success';
                                        } else if($ds['tinh_trang'] == 2 || $ds['tinh_trang'] == 3) {
@@ -196,7 +196,7 @@
                                        } else {
                                             $tt = 'badge-danger';
                                        }
-									@endphp
+                                        @endif
                                     <span class="badge {{ $tt }}">
                                         @if($ds['tinh_trang'] == 0)
                                             <a href="#" data-toggle="modal" name="{{ $ds['_id'] }}" data-target="#modalTinhTrang" class="update_tinhtrang text-white">{{ $tinhtrang[$ds['tinh_trang']] }}</a>

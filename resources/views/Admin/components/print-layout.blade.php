@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'PHIẾU IN')</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -28,7 +27,7 @@
             display: table;
             width: 100%;
             margin-bottom: 3mm;
-            border-bottom: 2px solid @yield('theme_color', '#28a745');
+            border-bottom: 2px solid #333;
             padding-bottom: 2mm;
         }
         .header-left {
@@ -57,25 +56,13 @@
             font-size: 18pt;
             font-weight: bold;
             font-style: italic;
-            color: @yield('title_color', '#000');
+            color: #000;
         }
         .title-sub {
             font-size: 11pt;
             margin-top: 2mm;
         }
-        .title-sub .code { color: #d71a21; font-weight: bold; }
-
-        /* Preview Banner */
-        .preview-banner {
-            text-align: center;
-            background: #fff3cd;
-            border: 2px dashed #ffc107;
-            padding: 3mm;
-            margin-bottom: 4mm;
-            font-size: 11pt;
-            font-weight: bold;
-            color: #856404;
-        }
+        .title-sub .code { color: #000; font-weight: bold; }
 
         /* Info Section */
         .info-section {
@@ -101,9 +88,9 @@
             font-size: 9pt;
         }
         .items-table th {
-            background-color: @yield('theme_color', '#28a745');
-            color: white;
-            border: 1px solid @yield('theme_border', '#1e7e34');
+            background-color: transparent;
+            color: #000;
+            border: 1px solid #333;
             padding: 2mm 1mm;
             font-weight: bold;
             text-align: center;
@@ -112,7 +99,7 @@
             border: 1px solid #ccc;
             padding: 1.5mm 1mm;
         }
-        .items-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
+        /*.items-table tbody tr:nth-child(even) { background-color: #f9f9f9; }*/
         .items-table tr { page-break-inside: avoid; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -137,7 +124,7 @@
         .summary-total td { 
             font-size: 11pt; 
             font-weight: bold; 
-            color: @yield('theme_total', '#d71a21');
+            color: #000;
             border-top: 1px solid #333;
             padding-top: 2mm;
         }
@@ -166,15 +153,15 @@
         }
         .debt-label { color: #555; }
         .debt-value { font-weight: bold; }
-        .debt-value.text-danger { color: #d71a21; }
-        .debt-value.text-warning { color: #e67e22; }
-        .debt-value.text-success { color: #28a745; }
+        .debt-value.text-danger { color: #000; }
+        .debt-value.text-warning { color: #000; }
+        .debt-value.text-success { color: #000; }
 
         /* Amount Words */
         .amount-words {
             font-size: 10pt;
             font-style: italic;
-            color: #d71a21;
+            color: #000;
             margin-bottom: 5mm;
         }
 
@@ -193,7 +180,7 @@
         }
         .signature-title { font-weight: bold; margin-bottom: @yield('signature_mb', '15mm'); }
         .signature-name { font-weight: bold; }
-        .signature-company { font-weight: bold; color: #d71a21; white-space: nowrap; }
+        .signature-company { font-weight: bold; color: #000; white-space: nowrap; }
 
         /* Print Button */
         .print-btn-container {
@@ -252,8 +239,8 @@
                 background: white; 
                 margin: 0;
                 padding: 0;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                -webkit-print-color-adjust: economy;
+                print-color-adjust: economy;
             }
             header, footer { display: none !important; }
             .invoice-wrapper {
@@ -266,15 +253,16 @@
                 display: block !important;
             }
             .print-btn-container { display: none !important; }
-            .preview-banner { display: none !important; }
             .items-table th {
-                background-color: @yield('theme_color', '#28a745') !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                background-color: transparent !important;
+                color: black !important;
+                border: 1px solid black !important;
+                -webkit-print-color-adjust: economy;
+                print-color-adjust: economy;
             }
             .items-table td {
                 color: black !important;
+                border: 1px solid #333 !important;
             }
             .items-table tr {
                 page-break-inside: avoid;
@@ -285,12 +273,6 @@
 <body>
 
 <div class="invoice-wrapper">
-    @if(isset($is_preview) && $is_preview)
-    <div class="preview-banner">
-        ⚠ ĐÂY LÀ BẢN XEM TRƯỚC - CHƯA LƯU VÀO HỆ THỐNG
-    </div>
-    @endif
-
     <!-- Header -->
     <div class="header">
         <div class="header-left">
@@ -299,7 +281,7 @@
         <div class="header-right">
             <div class="company-info">
                 Địa chỉ: Tổ 5, Ấp Mỹ Thạnh, Xã Mỹ Đức, tỉnh An Giang<br>
-                SĐT: <strong style="font-size: 12pt; color: #d71a21;">0916.160.509</strong> - Gmail: luuvinhtri79@gmail.com
+                SĐT: <strong style="font-size: 12pt; color: #000;">0916.160.509</strong> - Gmail: luuvinhtri79@gmail.com
             </div>
         </div>
     </div>

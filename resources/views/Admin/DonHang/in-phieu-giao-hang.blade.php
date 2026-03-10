@@ -1,7 +1,4 @@
 @extends('Admin.components.print-layout')
-@section('title', 'PHIẾU BÁN HÀNG - ' . ($dh['ma_don_hang'] ?? ''))
-@section('title_color', '#000')
-
 @section('content')
     <!-- Title -->
     <div class="title-section">
@@ -52,7 +49,7 @@
                 <td style="font-weight: 500;">
                     {{ $hh['ten'] }}
                     @if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1)
-                        <br><small style="font-size: 8pt; color: #d71a21; font-weight: bold; font-style: italic;">[Hàng khách gửi kho]</small>
+                        <br><small style="font-size: 8pt; color: #000; font-weight: bold; font-style: italic;">[Hàng khách gửi kho]</small>
                     @endif
                     @if(!empty($hh['don_vi_le_info']))
                         <br><small class="text-muted" style="font-size: 8pt;">{{ $hh['don_vi_le_info'] }}</small>
@@ -99,7 +96,7 @@
             <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
                 - ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y H:i") }}):
             </td>
-            <td class="summary-value" style="color: #28a745;">
+            <td class="summary-value" style="color: #000;">
                 - {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
             </td>
         </tr>
@@ -115,7 +112,7 @@
     
     <tr class="summary-total" style="border-top: 2px solid #333; font-size: 1.1em;">
         <td class="summary-label"><strong>TỔNG CÒN LẠI:</strong></td>
-        <td class="summary-value" style="color: #d9534f;">
+        <td class="summary-value" style="color: #000;">
             <strong>{{ number_format($tong_cuoi_cung, 0, ",", ".") }}</strong>
         </td>
     </tr>

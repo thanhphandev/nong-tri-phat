@@ -1,7 +1,4 @@
 @extends('Admin.components.print-layout')
-@section('title', 'PHIẾU NHẬP HÀNG - ' . ($nh['ma_nhap_hang'] ?? ''))
-@section('title_color', '#000')
-
 @section('content')
     <!-- Title -->
     <div class="title-section">
@@ -109,7 +106,7 @@
                     <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
                         - ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y H:i") }}):
                     </td>
-                    <td class="summary-value" style="color: #28a745;">
+                    <td class="summary-value" style="color: #000;">
                         - {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
                     </td>
                 </tr>
@@ -120,7 +117,7 @@
                     <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
                         - Đã chi trả:
                     </td>
-                    <td class="summary-value" style="color: #28a745;">
+                    <td class="summary-value" style="color: #000;">
                         - {{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}
                     </td>
                 </tr>
@@ -136,7 +133,7 @@
             
             <tr class="summary-total" style="border-top: 2px solid #333; font-size: 1.1em;">
                 <td class="summary-label"><strong>TỔNG NỢ TÍCH LŨY:</strong></td>
-                <td class="summary-value" style="color: #d9534f;">
+                <td class="summary-value" style="color: #000;">
                     <strong>{{ number_format($tong_cuoi_cung, 0, ",", ".") }}</strong>
                 </td>
             </tr>

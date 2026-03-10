@@ -706,7 +706,7 @@ class DonHangController extends Controller
         $db->tinh_trang = intval($data['tinh_trang']);
         $db->save();
 
-        $tinhtrang_arr = [0 => 'Đang xử lý', 1 => 'Thành công', 2 => 'Đã hủy - Nhập kho lại', 3 => 'Đã hủy'];
+        $tinhtrang_arr = [0 => 'Đang xử lý', 1 => 'Thành công'];
         $ten_tt_cu = isset($tinhtrang_arr[$tinh_trang_old]) ? $tinhtrang_arr[$tinh_trang_old] : $tinh_trang_old;
         $ten_tt_moi = isset($tinhtrang_arr[$db->tinh_trang]) ? $tinhtrang_arr[$db->tinh_trang] : $db->tinh_trang;
 

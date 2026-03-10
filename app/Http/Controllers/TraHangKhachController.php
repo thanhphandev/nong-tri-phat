@@ -213,6 +213,8 @@ class TraHangKhachController extends Controller
                         'chenh_lech' => $chenh_lech,
                         'gia_von' => $gia_von_item_sold, // Lưu giá vốn theo đơn vị trả
                         'thanh_tien' => $thanh_tien,
+                        'id_nhacungcap' => $original_item['id_nhacungcap'] ?? null,
+                        'ten_ncc' => $original_item['ten_ncc'] ?? 'Không xác định',
                         'ly_do_tra' => $hh['ly_do_tra'] ?? '',
                         'tinh_trang' => $hh['tinh_trang'] ?? 'Khác',
                     ];

@@ -227,7 +227,7 @@ class ThongKeController extends Controller
         
         // Get list of customers for filter dropdown
         $khachhang_list = KhachHang::orderBy('ho_ten', 'asc')->get(['_id', 'ho_ten', 'dien_thoai']);
-        $tinhtrang = [0 => 'Đang xử lý', 1 => 'Thành công', 2 => 'Đã hủy - Nhập kho lại', 3 => 'Đã hủy'];
+        $tinhtrang = [0 => 'Đang xử lý', 1 => 'Thành công'];
         
         // Initialize statistics
         $danhsach = collect();
@@ -957,8 +957,8 @@ class ThongKeController extends Controller
         // Headers - A to O (15 cols)
         $headers = [
             'STT', 'Mã Đơn', 'Ngày Bán', 'Khách Hàng', 'Tên Sản Phẩm', 
-            'ĐVT', 'HCT', 'Nhà Cung Cấp', 'Số Lượng', 'Đơn Giá', 'CK%', 
-            'Thành Tiền', 'Giá Vốn', 'Lợi Nhuận', 'Tình Trạng'
+            'ĐVT', 'HCT', 'Số Lượng', 'Đơn Giá', 'CK%', 
+            'Thành Tiền', 'Giá Vốn', 'Lợi Nhuận', 'Tình Trạng', 'Nhà Cung Cấp'
         ];
         
         $col = 'A';
@@ -1010,32 +1010,32 @@ class ThongKeController extends Controller
                     $is_hct = isset($hh['hang_chuong_trinh']) && $hh['hang_chuong_trinh'];
                     $sheet->setCellValue('G' . $row, $is_hct ? 'Có' : 'Không');
                     
-                    $hh_id = (string)($hh['id_hanghoa'] ?? '');
-                    $ten_ncc = !empty($hh['ten_ncc']) ? $hh['ten_ncc'] : ($hanghoa_ncc_map[$hh_id] ?? 'Không xác định');
-                    $sheet->setCellValue('H' . $row, $ten_ncc);
-                    
                     $sl = $hh['so_luong'] ?? 0;
-                    $sheet->setCellValue('I' . $row, $sl);
+                    $sheet->setCellValue('H' . $row, $sl);
                     
                     $don_gia = $hh['don_gia'] ?? 0;
-                    $sheet->setCellValue('J' . $row, $don_gia);
+                    $sheet->setCellValue('I' . $row, $don_gia);
                     
-                    $sheet->setCellValue('K' . $row, $hh['chiet_khau'] ?? 0);
+                    $sheet->setCellValue('J' . $row, $hh['chiet_khau'] ?? 0);
                     
                     $thanh_tien = $hh['thanh_tien'] ?? 0;
-                    $sheet->setCellValue('L' . $row, $thanh_tien);
+                    $sheet->setCellValue('K' . $row, $thanh_tien);
                     
                     $gv_sp = isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $sl : 0);
-                    $sheet->setCellValue('M' . $row, $gv_sp);
+                    $sheet->setCellValue('L' . $row, $gv_sp);
                     
                     $ln_sp = $thanh_tien - $gv_sp;
-                    $sheet->setCellValue('N' . $row, $ln_sp);
+                    $sheet->setCellValue('M' . $row, $ln_sp);
                     
                     $tt_dh = $ds['tinh_trang'] ?? 0;
-                    $sheet->setCellValue('O' . $row, $tinhtrang_text[$tt_dh] ?? 'Không xác định');
+                    $sheet->setCellValue('N' . $row, $tinhtrang_text[$tt_dh] ?? 'Không xác định');
+
+                    $hh_id = (string)($hh['id_hanghoa'] ?? '');
+                    $ten_ncc = !empty($hh['ten_ncc']) ? $hh['ten_ncc'] : ($hanghoa_ncc_map[$hh_id] ?? 'Không xác định');
+                    $sheet->setCellValue('O' . $row, $ten_ncc);
                     
                     // Format Numbers
-                    $sheet->getStyle('I' . $row . ':N' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('H' . $row . ':M' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     
                     // Alternating row colors
                     if($row % 2 == 0) {
@@ -1117,7 +1117,7 @@ class ThongKeController extends Controller
                     $sheet2->setCellValue('K' . $row2, $gv);
                     
                     $hh_id = (string)($hh['id_hanghoa'] ?? '');
-                    $ten_ncc = $hanghoa_ncc_map[$hh_id] ?? 'Không xác định';
+                    $ten_ncc = !empty($hh['ten_ncc']) ? $hh['ten_ncc'] : ($hanghoa_ncc_map[$hh_id] ?? 'Không xác định');
                     $sheet2->setCellValue('L' . $row2, $ten_ncc);
                     
                     $sheet2->getStyle('H' . $row2 . ':K' . $row2)->getNumberFormat()->setFormatCode('#,##0');
@@ -1174,9 +1174,9 @@ class ThongKeController extends Controller
         $sheet->getStyle('A2')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
 
         $headers = [
-            'STT', 'Mã Phiếu', 'Số Chứng Từ', 'Ngày Nhập', 'Nhà Cung Cấp', 
+            'STT', 'Mã Phiếu', 'Số Chứng Từ', 'Ngày Nhập', 
             'Tên Sản Phẩm', 'ĐVT', 'Số Lượng', 'Đơn Giá', 'Thành Tiền', 
-            'Thanh Toán (Phiếu)', 'Còn Nợ (Phiếu)'
+            'Thanh Toán (Phiếu)', 'Còn Nợ (Phiếu)', 'Nhà Cung Cấp'
         ];
         
         $col = 'A';
@@ -1209,24 +1209,24 @@ class ThongKeController extends Controller
                     $sheet->setCellValue('B' . $row, $ds['ma_nhap_hang'] ?? '');
                     $sheet->setCellValue('C' . $row, $ds['so_chung_tu'] ?? '');
                     $sheet->setCellValue('D' . $row, \App\Http\Controllers\ObjectController::getDate($ds['ngay_nhap'],"d/m/Y H:i"));
-                    $sheet->setCellValue('E' . $row, $ds['ten_ncc'] ?? '');
                     
-                    $sheet->setCellValue('F' . $row, $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A'));
-                    $sheet->setCellValue('G' . $row, $hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? ''));
+                    $sheet->setCellValue('E' . $row, $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A'));
+                    $sheet->setCellValue('F' . $row, $hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? ''));
                     
                     $sl = $hh['so_luong'] ?? 0;
-                    $sheet->setCellValue('H' . $row, $sl);
+                    $sheet->setCellValue('G' . $row, $sl);
                     
                     $don_gia = $hh['don_gia'] ?? 0;
-                    $sheet->setCellValue('I' . $row, $don_gia);
+                    $sheet->setCellValue('H' . $row, $don_gia);
                     
                     $thanh_tien = $hh['thanh_tien'] ?? 0;
-                    $sheet->setCellValue('J' . $row, $thanh_tien);
+                    $sheet->setCellValue('I' . $row, $thanh_tien);
                     
-                    $sheet->setCellValue('K' . $row, $da_thanh_toan);
-                    $sheet->setCellValue('L' . $row, $con_no);
+                    $sheet->setCellValue('J' . $row, $da_thanh_toan);
+                    $sheet->setCellValue('K' . $row, $con_no);
+                    $sheet->setCellValue('L' . $row, $ds['ten_ncc'] ?? '');
                     
-                    $sheet->getStyle('H' . $row . ':L' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('G' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     if($row % 2 == 0) {
                         $sheet->getStyle('A' . $row . ':L' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9F9F9');
                     }
@@ -1254,8 +1254,8 @@ class ThongKeController extends Controller
         $sheet2->getStyle('A2')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
 
         $headers2 = [
-            'STT', 'Mã Phiếu Trả', 'Nhà Cung Cấp', 'Ngày Trả', 
-            'Tên Sản Phẩm', 'ĐVT', 'Số Lượng', 'Đơn Giá', 'Tiền Nhận Lại'
+            'STT', 'Mã Phiếu Trả', 'Ngày Trả', 
+            'Tên Sản Phẩm', 'ĐVT', 'Số Lượng', 'Đơn Giá', 'Tiền Nhận Lại', 'Nhà Cung Cấp'
         ];
         
         $col2 = 'A';
@@ -1281,22 +1281,22 @@ class ThongKeController extends Controller
                 foreach($th['hanghoa'] as $hh) {
                     $sheet2->setCellValue('A' . $row2, $j++);
                     $sheet2->setCellValue('B' . $row2, $th['ma_tra_hang'] ?? '');
-                    $sheet2->setCellValue('C' . $row2, $th['ten_ncc'] ?? '');
-                    $sheet2->setCellValue('D' . $row2, \App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i"));
+                    $sheet2->setCellValue('C' . $row2, \App\Http\Controllers\ObjectController::getDate($th['ngay_tra'],"d/m/Y H:i"));
                     
-                    $sheet2->setCellValue('E' . $row2, $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A'));
-                    $sheet2->setCellValue('F' . $row2, $hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? ''));
+                    $sheet2->setCellValue('D' . $row2, $hh['ten'] ?? ($hh['ten_hanghoa'] ?? 'N/A'));
+                    $sheet2->setCellValue('E' . $row2, $hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? ''));
                     
                     $sl = $hh['so_luong_tra'] ?? 0;
-                    $sheet2->setCellValue('G' . $row2, $sl);
+                    $sheet2->setCellValue('F' . $row2, $sl);
                     
                     $don_gia = $hh['don_gia'] ?? 0;
-                    $sheet2->setCellValue('H' . $row2, $don_gia);
+                    $sheet2->setCellValue('G' . $row2, $don_gia);
                     
                     $tien_nhan = $don_gia * $sl;
-                    $sheet2->setCellValue('I' . $row2, $tien_nhan);
+                    $sheet2->setCellValue('H' . $row2, $tien_nhan);
+                    $sheet2->setCellValue('I' . $row2, $th['ten_ncc'] ?? '');
                     
-                    $sheet2->getStyle('G' . $row2 . ':I' . $row2)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet2->getStyle('F' . $row2 . ':H' . $row2)->getNumberFormat()->setFormatCode('#,##0');
                     if($row2 % 2 == 0) {
                         $sheet2->getStyle('A' . $row2 . ':I' . $row2)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9F9F9');
                     }

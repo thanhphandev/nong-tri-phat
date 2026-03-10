@@ -1,9 +1,4 @@
 @extends('Admin.components.print-layout')
-@section('title', 'PHIẾU TRẢ HÀNG NCC - ' . ($tra_hang['ma_tra_hang'] ?? ''))
-@section('title_color', '#dc3545')
-@section('theme_color', '#dc3545')
-@section('theme_border', '#bd2130')
-@section('theme_total', '#dc3545')
 @section('signature_mb', '8mm')
 
 @section('content')

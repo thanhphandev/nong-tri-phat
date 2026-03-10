@@ -31,6 +31,7 @@ class NongTriPhatSeeder extends Seeder
         CongNo::truncate();
         CongNoNCC::truncate();
         Log::truncate();
+        \Illuminate\Support\Facades\DB::connection('mongodb')->collection('counters')->truncate();
 
         $this->command->info('1. Seeding Don Vi Tinh...');
         $dvts = ['Bao 20 Kg', 'Bao 25kg', 'Bao 50kg', 'Chai', 'Cái', 'Cặp', 'Gói', 'Hủ', 'Viên', 'Xô'];
@@ -52,8 +53,10 @@ class NongTriPhatSeeder extends Seeder
         $ncc_names = ['A Nhiều', 'BÒ VÀNG', 'Bảy Phận', 'HAI', 'Kimagri', 'King Azone', 'Lộc Trời', 'Nam Á', 'P&D', 'Phân Phạm Hoàng', 'Phân Siếu Việt', 'Phân Thuận Mùa', 'Phân Tân Thành', 'Phân Việt Nga', 'Quốc Bảo', 'Sang QCL', 'Thuốc Tân Thành', 'Thế Mẫn', 'Thọ', 'Trung ương 1', 'Tâm Nông Phú', 'Việt Á', 'a Nghĩa', 'Đại Nghĩa'];
         
         $nhacungcaps = [];
+        $ncc_i = 1;
         foreach ($ncc_names as $name) {
             $nhacungcaps[] = NhaCungCap::create([
+                'ma' => 'NCC' . str_pad($ncc_i++, 3, '0', STR_PAD_LEFT),
                 'ten' => $name,
                 'dien_thoai' => '09' . rand(10000000, 99999999),
                 'email' => Str::slug($name) . '@gmail.com',
@@ -65,6 +68,7 @@ class NongTriPhatSeeder extends Seeder
         $khachhangs = [];
         for ($i = 1; $i <= 30; $i++) {
             $khachhangs[] = KhachHang::create([
+                'ma_khach_hang' => 'KH' . str_pad($i, 3, '0', STR_PAD_LEFT),
                 'ho_ten' => 'Khách Hàng ' . $i,
                 'dien_thoai' => '09' . rand(10000000, 99999999),
                 'email' => 'khachhang' . $i . '@gmail.com',

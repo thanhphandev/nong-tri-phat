@@ -1,9 +1,4 @@
 @extends('Admin.components.print-layout')
-@section('title', 'PHIẾU TRẢ HÀNG KHÁCH - ' . ($tra_hang['ma_tra_hang'] ?? ''))
-@section('title_color', '#007bff')
-@section('theme_color', '#007bff')
-@section('theme_border', '#0056b3')
-@section('theme_total', '#007bff')
 
 @section('content')
     <!-- Title -->
