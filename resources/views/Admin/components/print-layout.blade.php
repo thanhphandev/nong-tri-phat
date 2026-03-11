@@ -8,59 +8,61 @@
         
         body {
             font-family: 'Times New Roman', Times, serif;
-            font-size: 12pt;
-            line-height: 1.4;
+            font-size: 11pt;
+            line-height: 1.25;
             background: #f0f0f0;
+            color: #000;
         }
 
         .invoice-wrapper {
             width: 148mm;
             min-height: 210mm;
-            margin: 10mm auto;
-            padding: 8mm;
+            margin: 5mm auto;
+            padding: 5mm;
             background: #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
 
         /* Header */
         .header {
             display: table;
             width: 100%;
-            margin-bottom: 3mm;
-            border-bottom: 2px solid #333;
-            padding-bottom: 2mm;
+            margin-bottom: 2mm;
+            border-bottom: 1.5px solid #000;
+            padding-bottom: 1.5mm;
         }
         .header-left {
             display: table-cell;
-            width: 35mm;
+            width: 30mm;
             vertical-align: middle;
         }
-        .header-left img { width: 35mm; }
+        .header-left img { width: 30mm; }
         .header-right {
             display: table-cell;
             vertical-align: middle;
-            padding-left: 5mm;
+            padding-left: 4mm;
         }
         .company-info {
-            font-size: 10pt;
-            color: #333;
-            margin-top: 0;
+            font-size: 9pt;
+            color: #000;
+            margin: 0;
+            line-height: 1.2;
         }
 
         /* Title */
         .title-section {
             text-align: center;
-            margin: 4mm 0;
+            margin: 2mm 0;
         }
         .title-main {
-            font-size: 18pt;
+            font-size: 16pt;
             font-weight: bold;
-            font-style: italic;
+            text-transform: uppercase;
             color: #000;
         }
         .title-sub {
-            font-size: 11pt;
-            margin-top: 2mm;
+            font-size: 10pt;
+            margin-top: 1mm;
         }
         .title-sub .code { color: #000; font-weight: bold; }
 
@@ -68,38 +70,39 @@
         .info-section {
             display: table;
             width: 100%;
-            margin-bottom: 4mm;
+            margin-bottom: 2mm;
             font-size: 10pt;
         }
         .info-left, .info-right {
             display: table-cell;
             vertical-align: top;
         }
-        .info-left { width: 55%; }
-        .info-right { width: 45%; text-align: right; }
-        .info-row { margin-bottom: 1mm; }
+        .info-left { width: 60%; }
+        .info-right { width: 40%; text-align: right; }
+        .info-row { margin-bottom: 0.5mm; }
         .info-label { font-weight: bold; }
 
         /* Table */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 4mm;
+            margin-bottom: 2mm;
             font-size: 9pt;
         }
         .items-table th {
-            background-color: transparent;
+            background-color: #f2f2f2 !important;
             color: #000;
-            border: 1px solid #333;
-            padding: 2mm 1mm;
+            border: 1px solid #000;
+            padding: 1mm 0.5mm;
             font-weight: bold;
             text-align: center;
+            text-transform: uppercase;
         }
         .items-table td {
-            border: 1px solid #ccc;
-            padding: 1.5mm 1mm;
+            border: 1px solid #000;
+            padding: 0.8mm 1mm;
+            line-height: 1.1;
         }
-        /*.items-table tbody tr:nth-child(even) { background-color: #f9f9f9; }*/
         .items-table tr { page-break-inside: avoid; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -107,80 +110,80 @@
 
         /* Summary */
         .summary-wrapper {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3mm;
+            display: table;
+            width: 100%;
+            margin-top: 3mm;
+            border-top: 1px solid #eee;
+            padding-top: 2mm;
         }
         .summary-table {
-            width: 70%;
+            display: table-cell;
+            width: 55%;
             font-size: 10pt;
             border-collapse: collapse;
+            vertical-align: top;
         }
         .summary-table td {
-            padding: 1.5mm 2mm;
+            padding: 1mm 1mm;
+            border: none;
         }
-        .summary-label { text-align: right; font-weight: bold; padding-right: 3mm; }
-        .summary-value { text-align: right; width: 35mm; }
+        .summary-label { text-align: right; font-weight: normal; padding-right: 3mm; color: #444; }
+        .summary-value { text-align: right; width: 35mm; font-weight: bold; }
         .summary-total td { 
             font-size: 11pt; 
             font-weight: bold; 
             color: #000;
-            border-top: 1px solid #333;
+            border-top: 1.5px solid #000;
             padding-top: 2mm;
         }
+        .summary-total .summary-label { color: #000; font-weight: bold; }
 
         /* Debt Info */
         .debt-info {
-            border: 1px solid #e0e0e0;
-            border-radius: 3mm;
-            padding: 3mm;
-            margin-bottom: 4mm;
-            font-size: 10pt;
-            background: #f8f9fa;
+            border: 1px solid #000;
+            padding: 2mm;
+            margin-bottom: 2mm;
+            font-size: 9pt;
         }
         .debt-info-title {
             font-weight: bold;
-            font-size: 10pt;
-            color: #495057;
-            margin-bottom: 2mm;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 1mm;
+            margin-bottom: 1mm;
+            border-bottom: 1px solid #000;
         }
-        .debt-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 1mm 0;
-        }
-        .debt-label { color: #555; }
-        .debt-value { font-weight: bold; }
-        .debt-value.text-danger { color: #000; }
-        .debt-value.text-warning { color: #000; }
-        .debt-value.text-success { color: #000; }
 
         /* Amount Words */
         .amount-words {
             font-size: 10pt;
             font-style: italic;
             color: #000;
-            margin-bottom: 5mm;
+            margin: 4mm 0 5mm 0;
+            padding-left: 2mm;
+            border-left: 3px solid #ccc;
+            line-height: 1.3;
         }
-
-        /* Signature */
         .signature-section {
             display: table;
             width: 100%;
-            margin-top: @yield('signature_mt', '8mm');
+            margin-top: @yield('signature_mt', '2mm'); /* Thu nhỏ từ 5mm xuống 2mm */
             text-align: center;
-            font-size: 10pt;
         }
         .signature-box {
             display: table-cell;
             width: 50%;
-            padding: 0 5mm;
+            vertical-align: top;
         }
-        .signature-title { font-weight: bold; margin-bottom: @yield('signature_mb', '15mm'); }
-        .signature-name { font-weight: bold; }
-        .signature-company { font-weight: bold; color: #000; white-space: nowrap; }
+        .signature-title { 
+            font-weight: bold; 
+            font-size: 9pt; /* Giảm từ 10.5pt xuống 9pt */
+            text-transform: uppercase;
+            margin-bottom: @yield('signature_mb', '15mm'); /* Thu nhỏ khoảng trống ký tên từ 18mm xuống 10mm */
+        }
+        .signature-name, 
+        .signature-company { 
+            font-weight: bold; 
+            font-size: 9.5pt; /* Giảm nhẹ kích thước tên/công ty */
+            color: #000; 
+        }
 
         /* Print Button */
         .print-btn-container {

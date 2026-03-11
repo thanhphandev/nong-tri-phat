@@ -189,9 +189,9 @@ class DonHangController extends Controller
     private function mapHangHoaArray($hanghoa_array)
     {
         $id_hh = collect($hanghoa_array)->pluck('id_hanghoa')->unique()->map(function ($id) {
-            return \App\Http\Controllers\ObjectController::Id($id); });
+            return \App\Http\Controllers\ObjectController::ObjectId($id); });
         $id_dvt = collect($hanghoa_array)->pluck('id_donvitinh')->unique()->map(function ($id) {
-            return \App\Http\Controllers\ObjectController::Id($id); });
+            return \App\Http\Controllers\ObjectController::ObjectId($id); });
 
         $products = HangHoa::whereIn('_id', $id_hh)->get()->keyBy(function ($i) {
             return (string)$i->_id; });

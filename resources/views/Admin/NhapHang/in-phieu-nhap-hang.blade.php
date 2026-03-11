@@ -76,37 +76,37 @@
     </table>
 
     <!-- Summary -->
-    <div class="summary-wrapper">
-        <div class="bank-info" style="width: 45%; text-align: left; font-size: 10pt;">
+    <div class="summary-wrapper" style="margin-top: 3mm;">
+        <div class="bank-info" style="display: table-cell; width: 40%; text-align: left; vertical-align: top; border-right: 1px dotted #ccc; padding-right: 3mm;">
             @if(env('BANK_STK'))
-            <div style="font-weight: bold; margin-bottom: 2mm;">THÔNG TIN THANH TOÁN</div>
-            <div style="margin-bottom: 2mm;">
+            <div style="font-weight: bold; margin-bottom: 1mm; font-size: 9pt; text-decoration: underline;">THANH TOÁN CHUYỂN KHOẢN</div>
+            <div style="margin-bottom: 1.5mm; display: flex; align-items: flex-start;">
                 @php
                     $cong_no_ncc_val = isset($cong_no_ton_ncc) ? $cong_no_ton_ncc : 0;
                     $tong_cuoi_cung = (float)$cong_no_ncc_val + (float)$tong_no_moi;
                 @endphp
-                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_cuoi_cung) }}&addInfo={{ $nh['ma_nhap_hang'] }}" style="width: 35mm;">
-            </div>
-            <div>
-                STK: <b>{{ env('BANK_STK') }}</b><br>
-                Chủ TK: <b>{{ env('BANK_CHU_TK') }}</b><br>
-                Ngân hàng: <b>{{ env('BANK_NAME') }}</b>
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_cuoi_cung) }}&addInfo={{ $nh['ma_nhap_hang'] }}" style="width: 28mm; border: 1px solid #eee;">
+                <div style="margin-left: 2mm; font-size: 8.5pt; line-height: 1.2;">
+                    STK: <b>{{ env('BANK_STK') }}</b><br>
+                    Tên: <b>{{ env('BANK_CHU_TK') }}</b><br>
+                    NH: <b>{{ env('BANK_NAME') }}</b>
+                </div>
             </div>
             @endif
         </div>
-        <table class="summary-table">
+        <table class="summary-table" style="width: 60%;">
             <tr>
-                <td class="summary-label">Tổng tiền phiếu nhập:</td>
+                <td class="summary-label">TIỀN PHIẾU NHẬP:</td>
                 <td class="summary-value text-bold">{{ number_format($gia_tri_lo_nay, 0, ",", ".") }}</td>
             </tr>
 
             @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
                 @foreach($lich_su_thanh_toan as $ls)
                 <tr>
-                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
-                        - ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y H:i") }}):
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 8.5pt;">
+                        - Đã chi ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
                     </td>
-                    <td class="summary-value" style="color: #000;">
+                    <td class="summary-value" style="color: #000; font-size: 9pt;">
                         - {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
                     </td>
                 </tr>
@@ -114,10 +114,10 @@
             @else
                 @if($da_thanh_toan_lo_nay > 0)
                 <tr>
-                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
-                        - Đã chi trả:
+                    <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 8.5pt;">
+                        - Đã trả:
                     </td>
-                    <td class="summary-value" style="color: #000;">
+                    <td class="summary-value" style="color: #000; font-size: 9pt;">
                         - {{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}
                     </td>
                 </tr>
@@ -125,16 +125,16 @@
             @endif
 
             @if(isset($cong_no_ton_ncc) && $cong_no_ton_ncc != 0)
-            <tr style="border-top: 1px dashed #ccc;">
-                <td class="summary-label">Công nợ cũ tồn đọng:</td>
+            <tr>
+                <td class="summary-label">NỢ CŨ TỒN:</td>
                 <td class="summary-value">{{ $cong_no_ton_ncc > 0 ? '+' : '' }} {{ number_format($cong_no_ton_ncc, 0, ",", ".") }}</td>
             </tr>
             @endif
             
-            <tr class="summary-total" style="border-top: 2px solid #333; font-size: 1.1em;">
-                <td class="summary-label"><strong>TỔNG NỢ TÍCH LŨY:</strong></td>
-                <td class="summary-value" style="color: #000;">
-                    <strong>{{ number_format($tong_cuoi_cung, 0, ",", ".") }}</strong>
+            <tr class="summary-total">
+                <td class="summary-label">TỔNG NỢ TÍCH LŨY:</td>
+                <td class="summary-value">
+                    {{ number_format($tong_cuoi_cung, 0, ",", ".") }}
                 </td>
             </tr>
         </table>
@@ -142,13 +142,23 @@
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tổng nợ bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_cuoi_cung) }}</em>
+        Bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_cuoi_cung) }}.</em>
     </div>
+
+    <!-- Order Notes -->
+    @if(!empty($nh['ghi_chu']))
+    <div style="margin-top: 3mm; font-size: 10pt;">
+        <span style="font-weight: bold;">Ghi chú:</span> 
+        <span>{{ $nh['ghi_chu'] }}</span>
+    </div>
+    @endif
 
     <!-- Signature Section -->
     <div class="signature-section">
         <div class="signature-box">
-            <div class="signature-title">Người giao hàng</div>
+            <div class="signature-title">NGƯỜI GIAO HÀNG</div>
+            <div style="height: 10mm;"></div>
+            <div class="signature-name">................................</div>
         </div>
         <div class="signature-box">
             <div class="signature-title">Người nhận hàng</div>

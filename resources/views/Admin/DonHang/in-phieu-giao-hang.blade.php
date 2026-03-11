@@ -48,8 +48,10 @@
                 <td class="text-center">{{ $key + 1 }}</td>
                 <td style="font-weight: 500;">
                     {{ $hh['ten'] }}
-                    @if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1)
-                        <br><small style="font-size: 8pt; color: #000; font-weight: bold; font-style: italic;">[Hàng khách gửi kho]</small>
+                    @if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1 && isset($hh['sl_gui_kho']) && $hh['sl_gui_kho'] > 0)
+                        <div style="font-size: 8pt; color: #d9534f; font-weight: bold; margin-top: 1mm; border-top: 1px dashed #ccc; padding-top: 0.5mm;">
+                            <i class="fas fa-warehouse"></i> Nhận ngay: {{ number_format($hh['so_luong'] - $hh['sl_gui_kho'], 2, ',', '.') }} | Gửi kho: {{ number_format($hh['sl_gui_kho'], 2, ',', '.') }}
+                        </div>
                     @endif
                     @if(!empty($hh['don_vi_le_info']))
                         <br><small class="text-muted" style="font-size: 8pt;">{{ $hh['don_vi_le_info'] }}</small>
@@ -66,69 +68,72 @@
 
     <!-- Summary -->
     <div class="summary-wrapper">
-        <div class="bank-info" style="width: 45%; text-align: left; font-size: 10pt;">
+        <div class="bank-info" style="display: table-cell; width: 42%; text-align: left; vertical-align: top; border-right: 1px solid #eee; padding-right: 3mm;">
             @if(env('BANK_STK'))
-            <div style="font-weight: bold; margin-bottom: 2mm;">THÔNG TIN THANH TOÁN</div>
-            <div style="margin-bottom: 2mm;">
+            <div style="font-weight: bold; margin-bottom: 2mm; font-size: 9pt; color: #444;">THANH TOÁN CHUYỂN KHOẢN</div>
+            <div style="display: flex; align-items: center;">
                 @php
                     $con_no_val = isset($dh->con_no) ? $dh->con_no : ($dh['con_no'] ?? 0);
                     $cong_no_ton_val = isset($cong_no_ton) ? $cong_no_ton : 0;
                     $tong_cuoi_cung = (float)$cong_no_ton_val + (float)$con_no_val;
                 @endphp
-                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_cuoi_cung) }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 35mm;">
-            </div>
-            <div>
-                STK: <b>{{ env('BANK_STK') }}</b><br>
-                Chủ TK: <b>{{ env('BANK_CHU_TK') }}</b><br>
-                Ngân hàng: <b>{{ env('BANK_NAME') }}</b>
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_cuoi_cung) }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 25mm; border: 1px solid #f0f0f0; padding: 1px;">
+                <div style="margin-left: 3mm; font-size: 9pt; line-height: 1.4;">
+                    STK: <strong style="font-size: 10pt;">{{ env('BANK_STK') }}</strong><br>
+                    Tên: <strong>{{ env('BANK_CHU_TK') }}</strong><br>
+                    NH: <strong>{{ env('BANK_NAME') }}</strong>
+                </div>
             </div>
             @endif
         </div>
-        <table class="summary-table">
-    <tr>
-        <td class="summary-label">Tổng tiền đơn hàng:</td>
-        <td class="summary-value text-bold">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
-    </tr>
+        <table class="summary-table" style="width: 58%; padding-left: 3mm;">
+            <tr>
+                <td class="summary-label">TIỀN HÀNG ĐƠN NÀY:</td>
+                <td class="summary-value">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
+            </tr>
 
-    @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
-        @foreach($lich_su_thanh_toan as $ls)
-        <tr>
-            <td class="summary-label" style="font-weight: normal; font-style: italic; font-size: 9pt; padding-left: 15px;">
-                - ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y H:i") }}):
-            </td>
-            <td class="summary-value" style="color: #000;">
-                - {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}
-            </td>
-        </tr>
-        @endforeach
-    @endif
+            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
+                @foreach($lich_su_thanh_toan as $ls)
+                <tr>
+                    <td class="summary-label">Đã thu ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):</td>
+                    <td class="summary-value">- {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
+                </tr>
+                @endforeach
+            @endif
 
-    @if(isset($cong_no_ton) && $cong_no_ton != 0)
-    <tr style="border-top: 1px dashed #ccc;">
-        <td class="summary-label">Công nợ cũ tồn đọng:</td>
-        <td class="summary-value">+ {{ number_format($cong_no_ton, 0, ",", ".") }}</td>
-    </tr>
-    @endif
-    
-    <tr class="summary-total" style="border-top: 2px solid #333; font-size: 1.1em;">
-        <td class="summary-label"><strong>TỔNG CÒN LẠI:</strong></td>
-        <td class="summary-value" style="color: #000;">
-            <strong>{{ number_format($tong_cuoi_cung, 0, ",", ".") }}</strong>
-        </td>
-    </tr>
-</table>
+            @if(isset($cong_no_ton) && $cong_no_ton != 0)
+            <tr>
+                <td class="summary-label">Nợ cũ:</td>
+                <td class="summary-value">{{ $cong_no_ton > 0 ? '+' : '' }}{{ number_format($cong_no_ton, 0, ",", ".") }}</td>
+            </tr>
+            @endif
+            
+            <tr class="summary-total">
+                <td class="summary-label">TỔNG CÒN LẠI:</td>
+                <td class="summary-value">
+                    {{ number_format($tong_cuoi_cung, 0, ",", ".") }}
+                </td>
+            </tr>
+        </table>
     </div>
 
     <!-- Amount Words -->
     <div class="amount-words">
-        Tiền còn lại bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_cuoi_cung) }}.</em>
+        Bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tong_cuoi_cung) }}.</em>
     </div>
+
+    @if(!empty($dh['ghi_chu']))
+    <div style="margin-top: 3mm; font-size: 10pt;">
+        <span style="font-weight: bold;">Ghi chú:</span> 
+        <span>{{ $dh['ghi_chu'] }}</span>
+    </div>
+    @endif
 
     <!-- Signature Section -->
     <div class="signature-section">
         <div class="signature-box">
-            <div class="signature-title">Người mua hàng</div>
-            <div class="signature-name">{{ $dh['ho_ten'] }}</div>
+            <div class="signature-title">KHÁCH HÀNG</div>
+            <div class="signature-name">................................</div>
         </div>
         <div class="signature-box">
             <div class="signature-title">Người bán hàng</div>

@@ -64,34 +64,34 @@
     </table>
 
     <!-- Summary -->
-    <div class="summary-wrapper">
-        <div class="bank-info" style="width: 45%; text-align: left; font-size: 10pt;">
+    <div class="summary-wrapper" style="margin-top: 3mm;">
+        <div class="bank-info" style="display: table-cell; width: 40%; text-align: left; vertical-align: top; border-right: 1px dotted #ccc; padding-right: 3mm;">
             @if(env('BANK_STK'))
-            <div style="font-weight: bold; margin-bottom: 2mm;">THÔNG TIN THANH TOÁN</div>
-            <div style="margin-bottom: 2mm;">
-                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ $tra_hang['tong_tien_tra'] }}&addInfo={{ $tra_hang['ma_tra_hang'] }}" style="width: 35mm;">
-            </div>
-            <div>
-                STK: <b>{{ env('BANK_STK') }}</b><br>
-                Chủ TK: <b>{{ env('BANK_CHU_TK') }}</b><br>
-                Ngân hàng: <b>{{ env('BANK_NAME') }}</b>
+            <div style="font-weight: bold; margin-bottom: 1mm; font-size: 9pt; text-decoration: underline;">THANH TOÁN CHUYỂN KHOẢN</div>
+            <div style="margin-bottom: 1.5mm; display: flex; align-items: flex-start;">
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ $tra_hang['tong_tien_tra'] }}&addInfo={{ $tra_hang['ma_tra_hang'] }}" style="width: 28mm; border: 1px solid #eee;">
+                <div style="margin-left: 2mm; font-size: 8.5pt; line-height: 1.2;">
+                    STK: <b>{{ env('BANK_STK') }}</b><br>
+                    Tên: <b>{{ env('BANK_CHU_TK') }}</b><br>
+                    NH: <b>{{ env('BANK_NAME') }}</b>
+                </div>
             </div>
             @endif
         </div>
-        <table class="summary-table">
+        <table class="summary-table" style="width: 60%;">
             <tr class="summary-total">
                 <td class="summary-label">TỔNG CỘNG:</td>
                 <td class="summary-value">{{ number_format($tra_hang['tong_tien_tra'], 0, ",", ".") }}</td>
             </tr>
             <tr>
-                <td class="summary-label">Hình thức hoàn:</td>
-                <td class="summary-value">
+                <td class="summary-label">HÌNH THỨC HOÀN:</td>
+                <td class="summary-value" style="font-size: 9pt;">
                    @if($tra_hang['hinh_thuc_hoan'] == 'giam_no')
-                       Trừ công nợ
+                       TRỪ CÔNG NỢ
                    @elseif($tra_hang['hinh_thuc_hoan'] == 'hoan_tien')
-                       Tiền mặt
+                       TIỀN MẶT
                    @else
-                       Đổi hàng
+                       ĐỔI HÀNG
                    @endif
                 </td>
             </tr>
@@ -103,10 +103,20 @@
         Bằng chữ: <em>{{ App\Http\Controllers\ObjectController::numberToWords($tra_hang['tong_tien_tra']) }}.</em>
     </div>
 
+    <!-- Order Notes -->
+    @if(!empty($tra_hang['ghi_chu']))
+    <div style="margin-top: 3mm; font-size: 10pt;">
+        <span style="font-weight: bold;">Ghi chú:</span> 
+        <span>{{ $tra_hang['ghi_chu'] }}</span>
+    </div>
+    @endif
+
     <!-- Signature Section -->
     <div class="signature-section">
         <div class="signature-box">
-            <div class="signature-title">Nhà cung cấp</div>
+            <div class="signature-title">NHÀ CUNG CẤP</div>
+            <div style="height: 10mm;"></div>
+            <div class="signature-name">................................</div>
         </div>
         <div class="signature-box">
             <div class="signature-title">Người lập phiếu</div>
