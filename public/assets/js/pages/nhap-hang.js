@@ -46,7 +46,7 @@ function addCart(path) {
                 $.get(path_get, function (hanghoa) {
                     $("#HangHoaList tbody").prepend(hanghoa); delete_cart();
                     tong_thanh_tien();
-                    $("#id_nhacungcap").prop('disabled', true);
+                    // $("#id_nhacungcap").prop('disabled', true);
                     $("#updateCart").prop("disabled", false);
                     $("#id_nhacungcap_cart").val(id_nhacungcap);
                     change_so_luong(); jQuery(".number").number(true, 0, ',', '.');
@@ -238,5 +238,10 @@ function change_so_luong() {
         }
 
         tong_thanh_tien();
+    });
+
+    // Sync id_nhacungcap with id_nhacungcap_cart
+    $("#id_nhacungcap").change(function(){
+        $("#id_nhacungcap_cart").val($(this).val());
     });
 }

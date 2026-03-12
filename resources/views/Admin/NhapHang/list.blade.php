@@ -5,28 +5,27 @@
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <style>
         .table-sticky-header {
-            max-height: 80vh;
-            /* overflow: auto; Removed to fix dropdown clipping */
+            max-height: 75vh;
+            overflow: auto;
         }
-        
-        .table-sticky-header table {
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-bottom: 0;
-        }
-        
-        .table-sticky-header tbody tr.summary-row td,
-        .table-sticky-header tbody tr.summary-row th {
+        .table-sticky-header thead th {
             position: sticky;
-            top: 40px; /* Adjusted by JS */
-            z-index: 14;
-            background-color: #ffffff !important;
+            top: 0;
+            z-index: 10;
+            background-color: #343a40 !important;
+            color: #fff !important;
+        }
+        .table-sticky-header tbody tr.summary-row th,
+        .table-sticky-header tbody tr.summary-row td {
+            position: sticky;
+            top: 31px; /* Ngay bên dưới header */
+            z-index: 9;
+            background-color: #f8f9fa !important;
             color: #212529 !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
         }
-        .table-sticky-header tbody tr.summary-row td *,
-        .table-sticky-header tbody tr.summary-row th * {
+        .table-sticky-header tbody tr.summary-row * {
             color: inherit !important;
         }
     </style>
@@ -101,10 +100,11 @@
                     }
                 @endphp
 
-				<div class="table-responsive" style="max-height: 65vh; overflow: visible; padding-bottom: 70px;">
+				<div class="table-responsive table-sticky-header" style="padding-bottom: 70px;">
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
 						<tr>
+                            <th class="text-center" width="3%">#</th>
                             <th class="text-center">Mã phiếu</th>
 							<th class="text-center">Số C.Từ</th>
                             <th class="text-center">Ngày CT</th>
@@ -117,7 +117,7 @@
 					</thead>
 					<tbody>
                         <tr class="bg-light text-dark summary-row">
-                            <th colspan="5" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
+                            <th colspan="6" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
                             <th class="text-right">
                                 <span class="text-primary font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</span><br/>
@@ -134,6 +134,7 @@
                             }
                         @endphp
 						 <tr>   
+                            <td class="text-center">{{ $loop->iteration }}</td>
                             <td class="text-center"><a href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><b>{{ $ds['ma_nhap_hang'] }}</b></a></td>
 							<td class="text-center bold">{{ isset($ds['so_chung_tu']) ? $ds['so_chung_tu'] : '-' }}</td>
                             <td class="text-center">{{ isset($ds['ngay_chung_tu']) ? App\Http\Controllers\ObjectController::getDate($ds['ngay_chung_tu'],"d/m/Y H:i") : '-' }}</td>
@@ -311,12 +312,7 @@
                 return confirm('Xác nhận đã thanh toán ' + $("#so_tien_tra").val() + ' VND cho nhà cung cấp?');
             });
 
-            function adjustStickySummary() {
-                var headerHeight = $('.table-sticky-header thead th:not([colspan])').outerHeight() || 40;
-                $('.table-sticky-header thead tr.summary-row th, .table-sticky-header thead tr.summary-row td').css('top', headerHeight + 'px');
-            }
-            setTimeout(adjustStickySummary, 100);
-            $(window).resize(adjustStickySummary);
+
         });
     </script>
 @endsection

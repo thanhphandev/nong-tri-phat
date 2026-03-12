@@ -5,15 +5,22 @@
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <style>
         .table-sticky-header {
-            max-height: 80vh;
-            overflow-y: auto;
+            max-height: 75vh; /* Tăng lại độ cao cho dễ nhìn */
+            overflow: auto;
         }
-        .table-sticky-header tbody tr.summary-row td,
-        .table-sticky-header tbody tr.summary-row th {
+        .table-sticky-header thead th {
             position: sticky;
-            top: 36px;
+            top: 0;
+            z-index: 10;
+            background-color: #343a40 !important;
+            color: #fff !important;
+        }
+        .table-sticky-header tbody tr.summary-row th,
+        .table-sticky-header tbody tr.summary-row td {
+            position: sticky;
+            top: 31px; /* Ngay bên dưới header */
             z-index: 9;
-            background-color: #ffffff !important;
+            background-color: #f8f9fa !important;
             color: #212529 !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
@@ -112,10 +119,11 @@
                         $sum_loi_nhuan += $t_loi_nhuan;
                     }
                 @endphp
-				<div class="table-responsive" style="max-height: 65vh; overflow: visible; padding-bottom: 70px;">
+				<div class="table-responsive table-sticky-header" style="padding-bottom: 70px;">
                 <table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
 						<tr>
+							<th class="text-center" width="3%">#</th>
 							<th class="text-center">Mã Đơn hàng</th>
 							<th class="text-center">Khách hàng</th>
 							<th class="text-center">Điện thoại</th>
@@ -130,7 +138,7 @@
 					</thead>
 					<tbody>
                         <tr class="bg-light text-dark summary-row">
-                            <th colspan="3" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
+                            <th colspan="4" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</th>
                             <th class="text-right text-success font-weight-bold">{{ number_format($sum_da_tt, 0, ",", ".") }}</th>
@@ -165,6 +173,7 @@
                                 $loi_nhuan = $ds['tong_thanh_tien'] - $tong_gia_von;
 							@endphp
 							<tr>
+								<td class="text-center">{{ $loop->iteration }}</td>
 								<td class="text-center">
 								    <b>{{ $ds['ma_don_hang'] }}</b>
 								    @if($has_gui_kho)

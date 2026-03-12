@@ -169,7 +169,7 @@ class NhapHangController extends Controller
     function preview(Request $request) {
         $data = $request->all();
         
-        $id_nhacungcap_cart = isset($data['id_nhacungcap_cart']) && $data['id_nhacungcap_cart'] ? $data['id_nhacungcap_cart'] : (isset($data['id_nhacungcap']) ? $data['id_nhacungcap'] : null);
+        $id_nhacungcap_cart = $data['id_nhacungcap'] ?? $data['id_nhacungcap_cart'] ?? null;
         if (!$id_nhacungcap_cart) {
             return redirect()->back()->withErrors(['Vui lòng chọn nhà cung cấp'])->withInput();
         }
@@ -284,7 +284,7 @@ class NhapHangController extends Controller
         }
         
         // Use id_nhacungcap if id_nhacungcap_cart is empty
-        $id_nhacungcap_cart = isset($data['id_nhacungcap_cart']) && $data['id_nhacungcap_cart'] ? $data['id_nhacungcap_cart'] : (isset($data['id_nhacungcap']) ? $data['id_nhacungcap'] : null);
+        $id_nhacungcap_cart = $data['id_nhacungcap'] ?? $data['id_nhacungcap_cart'] ?? null;
         if ($id_nhacungcap_cart) {
             $data['id_nhacungcap_cart'] = $id_nhacungcap_cart;
         }

@@ -123,6 +123,11 @@ $(document).ready(function () {
             $("#thanh-toan").select();
         }
     });
+    
+    // Sync id_khachhang with id_khachhang_cart
+    $("#id_khachhang").change(function(){
+        $("#id_khachhang_cart").val($(this).val());
+    });
 });
 
 function delete_cart() {

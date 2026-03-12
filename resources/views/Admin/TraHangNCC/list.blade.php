@@ -4,21 +4,28 @@
 	<link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <style>
         .table-sticky-header {
-            max-height: 65vh;
-            overflow-y: auto;
+            max-height: 75vh;
+            overflow: auto;
         }
         .table-sticky-header thead th {
             position: sticky;
-            top: -1px;
+            top: 0;
             z-index: 10;
+            background-color: #343a40 !important;
+            color: #fff !important;
         }
-        .table-sticky-header thead tr.summary-row th {
+        .table-sticky-header tbody tr.summary-row th,
+        .table-sticky-header tbody tr.summary-row td {
             position: sticky;
-            top: 36px;
+            top: 31px; /* Ngay bên dưới header */
             z-index: 9;
             background-color: #f8f9fa !important;
+            color: #212529 !important;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
             border-bottom: 2px solid #dee2e6;
+        }
+        .table-sticky-header tbody tr.summary-row * {
+            color: inherit !important;
         }
     </style>
 @endsection
@@ -67,6 +74,8 @@
 				<table class="table table-border table-bordered table-striped table-hovered table-sm">
 					<thead class="thead-dark">
 						<tr>
+						<tr>
+							<th class="text-center" width="3%">#</th>
 							<th class="text-center">Mã phiếu trả</th>
 							<th class="text-center">Mã nhập gốc</th>
                             <th class="text-center">Ngày trả</th>
@@ -78,7 +87,7 @@
 							<th class="text-center">#</th>
 						</tr>
                         <tr class="bg-light text-dark summary-row">
-                            <th colspan="5" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
+                            <th colspan="6" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-danger font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</th>
                             <th colspan="3"></th>
                         </tr>
@@ -86,6 +95,7 @@
 					<tbody>
 						@foreach($danhsach as $ds)
 						<tr>
+							<td class="text-center">{{ $loop->iteration }}</td>
 							<td><a href="{{ env('APP_URL') }}admin/tra-hang-ncc/view/{{ $ds['_id'] }}"><b class="text-danger">{{ $ds['ma_tra_hang'] }}</b></a></td>
 							<td>{{ $ds['ma_nhap_hang'] }}</td>
                             <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($ds['ngay_tra'], "d/m/Y H:i") }}</td>

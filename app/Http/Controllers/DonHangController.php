@@ -218,7 +218,7 @@ class DonHangController extends Controller
     {
         $data = $request->all();
 
-        $id_khachhang_cart = isset($data['id_khachhang_cart']) && $data['id_khachhang_cart'] ? $data['id_khachhang_cart'] : (isset($data['id_khachhang']) ? $data['id_khachhang'] : null);
+        $id_khachhang_cart = $data['id_khachhang'] ?? $data['id_khachhang_cart'] ?? null;
         if (!$id_khachhang_cart) {
             return redirect()->back()->withErrors(['Vui lòng chọn khách hàng'])->withInput();
         }
@@ -347,7 +347,7 @@ class DonHangController extends Controller
             $data = $request->all();
         }
 
-        $id_khachhang_cart = isset($data['id_khachhang_cart']) && $data['id_khachhang_cart'] ? $data['id_khachhang_cart'] : (isset($data['id_khachhang']) ? $data['id_khachhang'] : null);
+        $id_khachhang_cart = $data['id_khachhang'] ?? $data['id_khachhang_cart'] ?? null;
         if (!$id_khachhang_cart) {
             return redirect()->back()->withErrors(['Vui lòng chọn khách hàng'])->withInput();
         }
