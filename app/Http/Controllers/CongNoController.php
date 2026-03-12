@@ -415,11 +415,73 @@ class CongNoController extends Controller
             $traHangByDonHang[(string)$th->id_donhang][] = $th;
         }
 
-        $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) {
+        // 3. THÊM LỊCH SỬ LẤY HÀNG (LINEAR TIMELINE)
+        $pickupEvents = collect();
+        $allOrdersForPickups = DonHang::where('id_khachhang', $khach_hang_id_mongo)
+                                      ->where('tinh_trang', '!=', 2)
+                                      ->get();
+        
+        // Fetch all units for later use
+        $allUnits = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
+
+        foreach($allOrdersForPickups as $ord) {
+            if(isset($ord->hanghoa) && is_array($ord->hanghoa)) {
+                foreach($ord->hanghoa as $hh) {
+                    if(isset($hh['lich_su_lay_hang']) && is_array($hh['lich_su_lay_hang'])) {
+                        foreach($hh['lich_su_lay_hang'] as $ls) {
+                            $ngay_lay = null;
+                            if(isset($ls['ngay_lay'])) {
+                                if($ls['ngay_lay'] instanceof \MongoDB\BSON\UTCDateTime) {
+                                    $ngay_lay = $ls['ngay_lay'];
+                                } elseif(isset($ls['ngay_lay']['$date']['$numberLong'])) {
+                                    $ngay_lay = new \MongoDB\BSON\UTCDateTime($ls['ngay_lay']['$date']['$numberLong'] * 1);
+                                }
+                            }
+                            
+                            if($ngay_lay) {
+                                if(($start_mongo == null || $ngay_lay >= $start_mongo) && $ngay_lay <= $end_mongo) {
+                                    // Determine Unit Name
+                                    $don_vi_ten = '';
+                                    if (isset($hh['cho_phep_ban_le']) && $hh['cho_phep_ban_le'] == true && !empty($hh['don_vi_le'])) {
+                                        $don_vi_ten = $hh['don_vi_le'];
+                                    } else {
+                                        $id_dvt = $hh['id_donvitinh'] ?? null;
+                                        $don_vi_ten = ($id_dvt && isset($allUnits[(string)$id_dvt])) ? $allUnits[(string)$id_dvt]->ten : ($hh['don_vi_tinh'] ?? ($hh['don_vi'] ?? ''));
+                                    }
+
+                                    // Tạo đối tượng ảo tương tự CongNo để dễ map
+                                    $pEvent = new \stdClass();
+                                    $pEvent->_id = (string)ObjectController::Id();
+                                    $pEvent->ngay_gio = $ngay_lay;
+                                    $pEvent->loai_cong_no = -1; // Flag cho Nhận hàng
+                                    $pEvent->ma_phieu = 'Nhận hàng';
+                                    $pEvent->tong_thanh_tien = 0;
+                                    $pEvent->id_donhang = $ord->_id;
+                                    $pEvent->ghi_chu = '(Lấy hàng) ' . ($ls['ghi_chu'] ?? '');
+                                    $pEvent->pickup_info = [
+                                        'ten' => $hh['ten'],
+                                        'so_luong' => $ls['so_luong'],
+                                        'don_vi' => $don_vi_ten,
+                                        'don_hang_ma' => $ord->ma_don_hang,
+                                        'don_hang_ngay' => ObjectController::getDate($ord->ngay_ban, "d/m/Y")
+                                    ];
+                                    $pickupEvents->push($pEvent);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $phatSinhCollection = collect($phatSinh);
+        $phatSinhCombined = $phatSinhCollection->merge($pickupEvents);
+
+        $phatSinhTrongKyRaw = $phatSinhCombined->sortBy(function($item) {
             return $item->ngay_gio->toDateTime()->getTimestamp();
         });
 
-        $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
+        $units = $allUnits;
 
         $phatSinhTrongKy = $phatSinhTrongKyRaw->map(function($item) use ($dataDonHang, $dataTraHang, $traHangByDonHang, $units) {
             $item->time = $item->ngay_gio;
@@ -427,7 +489,16 @@ class CongNoController extends Controller
             $item->details = [];
             $item->tong_tra_hang = 0;
             $item->co_tra_hang = false;
-            
+            $item->is_pickup = false;
+
+            if (isset($item->loai_cong_no) && $item->loai_cong_no == -1) {
+                $item->is_pickup = true;
+                $item->tien_hang = 0;
+                $item->thanh_toan = 0;
+                $item->thanh_toan_thuc_te = 0;
+                return $item;
+            }
+
             if ($item->loai_cong_no == 0) {
                 $item->tien_hang = $item->tong_thanh_tien;
                 $item->thanh_toan = 0;
@@ -546,7 +617,57 @@ class CongNoController extends Controller
             $traHangByDonHang[(string)$th->id_donhang][] = $th;
         }
 
-        $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) { return $item->ngay_gio->toDateTime()->getTimestamp(); });
+        // 3. THÊM LỊCH SỬ LẤY HÀNG (LINEAR TIMELINE)
+        $pickupEvents = collect();
+        $allOrdersForPickups = DonHang::where('id_khachhang', $khach_hang_id_mongo)
+                                      ->where('tinh_trang', '!=', 2)
+                                      ->get();
+        
+        foreach($allOrdersForPickups as $ord) {
+            if(isset($ord->hanghoa) && is_array($ord->hanghoa)) {
+                foreach($ord->hanghoa as $hh) {
+                    if(isset($hh['lich_su_lay_hang']) && is_array($hh['lich_su_lay_hang'])) {
+                        foreach($hh['lich_su_lay_hang'] as $ls) {
+                            $ngay_lay = null;
+                            if(isset($ls['ngay_lay'])) {
+                                if($ls['ngay_lay'] instanceof \MongoDB\BSON\UTCDateTime) {
+                                    $ngay_lay = $ls['ngay_lay'];
+                                } elseif(isset($ls['ngay_lay']['$date']['$numberLong'])) {
+                                    $ngay_lay = new \MongoDB\BSON\UTCDateTime($ls['ngay_lay']['$date']['$numberLong'] * 1);
+                                }
+                            }
+                            
+                            if($ngay_lay) {
+                                if(($start_mongo == null || $ngay_lay >= $start_mongo) && $ngay_lay <= $end_mongo) {
+                                    $pEvent = new \stdClass();
+                                    $pEvent->_id = (string)ObjectController::Id();
+                                    $pEvent->ngay_gio = $ngay_lay;
+                                    $pEvent->loai_cong_no = -1; // Nhận hàng
+                                    $pEvent->ma_phieu = 'Nhận hàng';
+                                    $pEvent->tong_thanh_tien = 0;
+                                    $pEvent->id_donhang = $ord->_id;
+                                    $pEvent->ghi_chu = '(Lấy hàng) ' . ($ls['ghi_chu'] ?? '');
+                                    $pEvent->pickup_info = [
+                                        'ten' => $hh['ten'],
+                                        'so_luong' => $ls['so_luong'],
+                                        'don_hang_ma' => $ord->ma_don_hang,
+                                        'don_hang_ngay' => ObjectController::getDate($ord->ngay_ban, "d/m/Y")
+                                    ];
+                                    $pickupEvents->push($pEvent);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $phatSinhCollection = collect($phatSinh);
+        $phatSinhCombined = $phatSinhCollection->merge($pickupEvents);
+
+        $phatSinhTrongKyRaw = $phatSinhCombined->sortBy(function($item) {
+            return $item->ngay_gio->toDateTime()->getTimestamp();
+        });
 
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
@@ -556,6 +677,15 @@ class CongNoController extends Controller
             $item->details = [];
             $item->tong_tra_hang = 0;
             $item->co_tra_hang = false;
+            $item->is_pickup = false;
+
+            if (isset($item->loai_cong_no) && $item->loai_cong_no == -1) {
+                $item->is_pickup = true;
+                $item->tien_hang = 0;
+                $item->thanh_toan = 0;
+                $item->thanh_toan_thuc_te = 0;
+                return $item;
+            }
 
             if ($item->loai_cong_no == 0) {
                 $item->tien_hang = $item->tong_thanh_tien;
@@ -669,7 +799,9 @@ class CongNoController extends Controller
 
             // Master row
             $label = '';
-            if($item->id_donhang) {
+            if(isset($item->is_pickup) && $item->is_pickup) {
+                $label = 'NHẬN HÀNG GỬI KHO: ' . ($item->pickup_info['ten'] ?? '') . ' (SL: ' . ($item->pickup_info['so_luong'] ?? 0) . ') - Từ đơn: ' . ($item->pickup_info['don_hang_ma'] ?? '') . ' (' . ($item->pickup_info['don_hang_ngay'] ?? '') . ')';
+            } elseif($item->id_donhang) {
                 $label = 'Phiếu xuất: ' . ($item->ma_phieu ?? '');
                 if(isset($item->so_chung_tu) && $item->so_chung_tu) $label .= ' (SCT: ' . $item->so_chung_tu . ')';
             } elseif($item->co_tra_hang && !$item->id_donhang) {
@@ -707,10 +839,17 @@ class CongNoController extends Controller
                     if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) $tenSP .= ' (Hàng C.Trình)';
                     if($isTraHangForDetail) $tenSP .= ' (Trả)';
                     
+                    // THÊM CHI TIẾT GỬI KHO
+                    if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1 && isset($ct['sl_gui_kho']) && $ct['sl_gui_kho'] > 0) {
+                        $tenSP .= " \n    [Mua: ".$ct['so_luong']." - Nhận: ".($ct['so_luong'] - $ct['sl_gui_kho'])." - Gửi kho: ".$ct['sl_gui_kho']."]";
+                    }
+                    
                     $sl = $isTraHangForDetail ? ($soLuongTra > 0 ? $soLuongTra : ($ct['so_luong'] ?? 0)) : ($ct['so_luong'] ?? 0);
                     if (!$isTraHangForDetail && $soLuongTra > 0) {
                         $sl .= ' (Trả ' . $soLuongTra . ')';
                     }
+
+                    $sheet->getStyle('B' . $row)->getAlignment()->setWrapText(true); // Đảm bảo xuống dòng được
                     
                     $sheet->setCellValue('B' . $row, $tenSP);
                     $sheet->setCellValue('C' . $row, $sl);

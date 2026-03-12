@@ -334,6 +334,7 @@ class TraHangNCCController extends Controller
             $congno = new CongNoNCC();
             $congno->id_nhacungcap = $nhaphang['id_nhacungcap'];
             $congno->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
+            $congno->id_trahangncc = ObjectController::ObjectId($tra_hang->_id); // Link to return record
             $congno->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
             $congno->ten_ncc = $nhaphang['ten_ncc'];
             $congno->dien_thoai = $nhaphang['dien_thoai'] ?? '';
@@ -351,6 +352,7 @@ class TraHangNCCController extends Controller
             $congno1 = new CongNoNCC();
             $congno1->id_nhacungcap = $nhaphang['id_nhacungcap'];
             $congno1->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
+            $congno1->id_trahangncc = ObjectController::ObjectId($tra_hang->_id); // Link to return record
             $congno1->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
             $congno1->ten_ncc = $nhaphang['ten_ncc'];
             $congno1->dien_thoai = $nhaphang['dien_thoai'] ?? '';
@@ -366,6 +368,7 @@ class TraHangNCCController extends Controller
             $congno2 = new CongNoNCC();
             $congno2->id_nhacungcap = $nhaphang['id_nhacungcap'];
             $congno2->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
+            $congno2->id_trahangncc = ObjectController::ObjectId($tra_hang->_id); // Link to return record
             $congno2->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
             $congno2->ten_ncc = $nhaphang['ten_ncc'];
             $congno2->dien_thoai = $nhaphang['dien_thoai'] ?? '';

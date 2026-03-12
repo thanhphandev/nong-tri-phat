@@ -249,6 +249,7 @@ class NhapHangController extends Controller
             'ngay_nhap' => ObjectController::setDate(),
             'hanghoa' => $arr_hanghoa,
             'tong_thanh_tien' => $tong_thanh_tien,
+            'ghi_chu' => $data['ghi_chu'] ?? '',
         ]);
 
         $gia_tri_lo_nay = $tong_thanh_tien;
@@ -543,7 +544,7 @@ class NhapHangController extends Controller
         // 3. Tính công nợ tồn NCC (KHÔNG tính phiếu nhập hiện tại)
         $tong_no_ncc = $this->getCongNoNCC($id_ncc);
         // Trừ đi nợ của phiếu hiện tại để ra công nợ tồn (các phiếu khác)
-        $cong_no_ton_ncc = $tong_no_ncc - ($tong_no_moi > 0 ? $tong_no_moi : 0);
+        $cong_no_ton_ncc = $tong_no_ncc - (float)$tong_no_moi;
 
         return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'cong_no_ton_ncc'));
     }

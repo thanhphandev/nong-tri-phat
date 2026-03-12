@@ -317,6 +317,7 @@ class TraHangKhachController extends Controller
                 $congno = new CongNo();
                 $congno->id_khachhang = $donhang['id_khachhang'];
                 $congno->id_donhang = ObjectController::ObjectId($donhang['_id']);
+                $congno->id_trahangkhach = ObjectController::ObjectId($tra_hang->_id); // Link to return record
                 $congno->ma_don_hang = $donhang['ma_don_hang'];
                 $congno->ho_ten = $donhang['ho_ten'];
                 $congno->dien_thoai = $donhang['dien_thoai'];
@@ -341,6 +342,7 @@ class TraHangKhachController extends Controller
                 $congno1 = new CongNo();
                 $congno1->id_khachhang = $donhang['id_khachhang'];
                 $congno1->id_donhang = ObjectController::ObjectId($donhang['_id']);
+                $congno1->id_trahangkhach = ObjectController::ObjectId($tra_hang->_id); // Link to return record
                 $congno1->ma_don_hang = $donhang['ma_don_hang'];
                 $congno1->ho_ten = $donhang['ho_ten'];
                 $congno1->dien_thoai = $donhang['dien_thoai'];
@@ -358,6 +360,7 @@ class TraHangKhachController extends Controller
                 $congno2 = new CongNo();
                 $congno2->id_khachhang = $donhang['id_khachhang'];
                 $congno2->id_donhang = ObjectController::ObjectId($donhang['_id']);
+                $congno2->id_trahangkhach = ObjectController::ObjectId($tra_hang->_id); // Link to return record
                 $congno2->ma_don_hang = $donhang['ma_don_hang'];
                 $congno2->ho_ten = $donhang['ho_ten'];
                 $congno2->dien_thoai = $donhang['dien_thoai'];

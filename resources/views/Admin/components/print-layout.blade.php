@@ -236,24 +236,28 @@
         @media print {
             @page {
                 size: A5 portrait;
-                margin: 0 !important;
+                margin: 0mm !important;
             }
             body { 
                 background: white; 
-                margin: 0;
-                padding: 0;
+                margin: 0 !important;
+                padding: 0 !important;
                 -webkit-print-color-adjust: economy;
                 print-color-adjust: economy;
             }
             header, footer { display: none !important; }
             .invoice-wrapper {
                 width: 100%;
-                margin: 0;
-                padding: 5mm;
+                margin: 0 !important;
+                padding: 0mm 5mm 5mm 5mm !important; /* Bỏ padding top (0mm) để đẩy nội dung lên sát mép */
                 box-shadow: none;
                 min-height: auto;
                 visibility: visible !important;
                 display: block !important;
+            }
+            .header {
+                margin-top: 0 !important;
+                padding-top: 2mm !important; /* Giữ một chút khoảng cách nhỏ cho đẹp nếu cần, hoặc để 0 */
             }
             .print-btn-container { display: none !important; }
             .items-table th {

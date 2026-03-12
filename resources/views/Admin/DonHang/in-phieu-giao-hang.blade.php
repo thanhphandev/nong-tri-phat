@@ -79,9 +79,9 @@
                 @endphp
                 <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_cuoi_cung) }}&addInfo={{ $dh['ma_don_hang'] }}" style="width: 25mm; border: 1px solid #f0f0f0; padding: 1px;">
                 <div style="margin-left: 3mm; font-size: 9pt; line-height: 1.4;">
-                    STK: <strong style="font-size: 10pt;">{{ env('BANK_STK') }}</strong><br>
-                    Tên: <strong>{{ env('BANK_CHU_TK') }}</strong><br>
-                    NH: <strong>{{ env('BANK_NAME') }}</strong>
+                    <strong style="font-size: 10pt;">{{ env('BANK_STK') }}</strong><br>
+                    <strong>{{ env('BANK_CHU_TK') }}</strong><br>
+                    <strong>{{ env('BANK_NAME') }}</strong>
                 </div>
             </div>
             @endif
@@ -95,7 +95,13 @@
             @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
                 @foreach($lich_su_thanh_toan as $ls)
                 <tr>
-                    <td class="summary-label">Đã thu ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):</td>
+                    <td class="summary-label">
+                        @if(isset($ls['id_trahangkhach']))
+                            Trả hàng ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+                        @else
+                            Đã thu ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+                        @endif
+                    </td>
                     <td class="summary-value">- {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
                 </tr>
                 @endforeach

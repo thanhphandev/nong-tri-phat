@@ -218,7 +218,7 @@
                                                 <a class="dropdown-item btn-tra-no" href="#" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
                                             @endif
                                             @if($has_gui_kho)
-                                                <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/da-lay-hang/{{ $ds['_id'] }}" onclick="return confirm('Khách đã lấy toàn bộ hàng gửi kho của đơn này?');"><i class="fas fa-box-open text-info mr-2"></i> Đã lấy hàng</a>
+                                                <a class="dropdown-item btn-nhan-hang-gui-kho" href="#" data-id="{{ $ds['_id'] }}"><i class="fas fa-box-open text-info mr-2"></i> Nhận hàng gửi kho</a>
                                             @endif
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
                                             <div class="dropdown-divider"></div>
@@ -323,6 +323,47 @@
         </div>
     </div>
 </div>
+
+{{-- Modal Nhận hàng gửi kho --}}
+<div class="modal fade" id="modalNhanHangGuiKho" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title text-white"><i class="fas fa-warehouse mr-1"></i> Nhận hàng gửi kho - <span id="nhan_hang_ma_don"></span></h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-3 bg-light border-bottom">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Ngày đơn hàng:</strong> <span id="nhan_hang_ngay_don"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th class="text-right" style="width: 120px;">Tổng mua</th>
+                                <th class="text-right" style="width: 120px;">Đã lấy</th>
+                                <th class="text-right" style="width: 120px;">Còn gửi</th>
+                                <th class="text-center" style="width: 150px;">SL nhận lần này</th>
+                                <th class="text-center" style="width: 80px;">#</th>
+                            </tr>
+                        </thead>
+                        <tbody id="nhanHangGuiKhoBody">
+                            {{-- Content loaded via AJAX --}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 @section('js')
 	<script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
@@ -392,13 +433,80 @@
                 
                 return confirm('Xác nhận khách hàng đã thanh toán ' + $("#so_tien_tra").val() + ' VND?');
             });
-        	@if(Session::get('msg') && Session::get('msg'))
+
+        	@if(Session::get('msg'))
 	            $.toast({
 	                heading:"Thông báo",
 	                text:"{{ Session::get('msg') }}",
 	                loaderBg:"#3b98b5",icon:"info", hideAfter:3e3,stack:1,position:"top-right"
 	            });
             @endif
+
+            // Handle Pickup Consignment Modal
+            $(".btn-nhan-hang-gui-kho").click(function(e){
+                e.preventDefault();
+                var id = $(this).data('id');
+                var url = "{{ env('APP_URL') }}admin/don-hang/get-consignment-items/" + id;
+                
+                $("#nhanHangGuiKhoBody").html('<tr><td colspan="6" class="text-center p-4"><i class="fas fa-spinner fa-spin fa-2x"></i><br>Đang tải dữ liệu...</td></tr>');
+                $("#modalNhanHangGuiKho").modal("show");
+
+                $.get(url, function(res){
+                    if(res.error){
+                        alert(res.msg);
+                        $("#modalNhanHangGuiKho").modal("hide");
+                        return;
+                    }
+                    
+                    $("#nhan_hang_ma_don").text(res.ma_don_hang);
+                    $("#nhan_hang_ngay_don").text(res.ngay_ban);
+                    
+                    var html = '';
+                    if(res.items.length > 0){
+                        res.items.forEach(function(item){
+                            html += '<tr>' +
+                                '<td>' + (item.ma ? '<small class="text-muted">' + item.ma + '</small><br>' : '') + '<strong>' + item.ten + '</strong></td>' +
+                                '<td class="text-right">' + item.so_luong + '</td>' +
+                                '<td class="text-right text-success">' + item.sl_da_lay + '</td>' +
+                                '<td class="text-right text-warning font-weight-bold">' + item.sl_gui_kho + '</td>' +
+                                '<td>' +
+                                    '<input type="number" class="form-control form-control-sm sl-nhan" step="0.01" min="0.01" max="' + item.sl_gui_kho + '" value="' + item.sl_gui_kho + '">' +
+                                '</td>' +
+                                '<td class="text-center">' +
+                                    '<button type="button" class="btn btn-xs btn-primary btn-confirm-pickup" data-id="' + id + '" data-index="' + item.index + '" data-ngay="' + res.ngay_ban + '">' +
+                                        '<i class="fa fa-check"></i>' +
+                                    '</button>' +
+                                '</td>' +
+                                '</tr>';
+                        });
+                    } else {
+                        html = '<tr><td colspan="6" class="text-center text-muted font-italic p-3">Không có mặt hàng nào đang được gửi kho</td></tr>';
+                    }
+                    $("#nhanHangGuiKhoBody").html(html);
+                });
+            });
+
+            $(document).on('click', '.btn-confirm-pickup', function(){
+                var btn = $(this);
+                var row = btn.closest('tr');
+                var id = btn.data('id');
+                var index = btn.data('index');
+                var ngay_ban = btn.data('ngay');
+                var sl = row.find('.sl-nhan').val();
+                
+                if(!sl || sl <= 0){
+                    alert("Vui lòng nhập số lượng hợp lệ");
+                    return;
+                }
+                
+                if(!confirm("Xác nhận nhận " + sl + " hàng gửi kho?")) return;
+                
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+                
+                var url = "{{ env('APP_URL') }}admin/don-hang/da-lay-hang/" + id + "?index=" + index + "&sl_lay=" + sl + "&ghi_chu=Nhận hàng gửi kho từ đơn ngày " + ngay_ban;
+                
+                window.location.href = url;
+            });
         });
     </script>
 @endsection

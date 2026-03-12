@@ -53,11 +53,44 @@
                                 @if(!empty($hh['hang_chuong_trinh']))
                                     <br><small class="text-info">Hàng chương trình</small>
                                 @endif
-                                <div class="mt-1">
-                                    <label style="cursor: pointer; font-size: 11px;" class="mb-0 text-primary">
-                                        <input type="checkbox" value="1" class="edit-gui-kho-checkbox mr-1" data-id="{{ $dh['_id'] }}" data-index="{{ $k }}" {{ (isset($hh['gui_kho']) && $hh['gui_kho'] == 1) ? 'checked' : '' }}>
-                                        <i class="fas fa-warehouse"></i> Gửi kho
-                                    </label>
+                                <div class="mt-2 consignment-status p-2 border rounded bg-white shadow-sm" style="font-size: 11px;">
+                                    <div class="row no-gutters text-center">
+                                        <div class="col-4 border-right">
+                                            <div class="text-muted mb-0">Tổng mua</div>
+                                            <div class="font-weight-bold text-dark">{{ number_format($hh['so_luong'], 2, ',', '.') }}</div>
+                                        </div>
+                                        <div class="col-4 border-right">
+                                            <div class="text-success mb-0">Đã lấy</div>
+                                            <div class="font-weight-bold">{{ number_format($hh['sl_da_lay'] ?? 0, 2, ',', '.') }}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="text-warning mb-0">Còn gửi</div>
+                                            <div class="font-weight-bold sl-gui-kho-display">{{ number_format($hh['sl_gui_kho'] ?? 0, 2, ',', '.') }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-flex align-items-center mt-2 pt-2 border-top">
+                                        @if(isset($hh['sl_gui_kho']) && $hh['sl_gui_kho'] > 0)
+                                            <button type="button" class="btn btn-xs btn-primary mr-1 btn-lay-hang" 
+                                                data-index="{{ $k }}" 
+                                                data-ten="{{ $hh['ten'] }}" 
+                                                data-con-lai="{{ $hh['sl_gui_kho'] }}">
+                                                <i class="fas fa-truck-loading mr-1"></i> Lấy hàng
+                                            </button>
+                                        @endif
+                                        @if(isset($hh['lich_su_lay_hang']) && count($hh['lich_su_lay_hang']) > 0)
+                                            <button type="button" class="btn btn-xs btn-info btn-view-history mr-auto" 
+                                                data-history='@json($hh['lich_su_lay_hang'])'
+                                                title="Xem lịch sử lấy hàng">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                        @endif
+                                        
+                                        <div class="custom-control custom-switch custom-switch-sm">
+                                            <input type="checkbox" class="custom-control-input edit-gui-kho-checkbox" id="guiKhoSwitch{{ $k }}" data-id="{{ $dh['_id'] }}" data-index="{{ $k }}" data-so-luong="{{ $hh['so_luong'] }}" {{ (isset($hh['gui_kho']) && $hh['gui_kho'] == 1) ? 'checked' : '' }}>
+                                            <label class="custom-control-label text-muted" for="guiKhoSwitch{{ $k }}" style="font-size: 10px;">Gửi kho</label>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                             <td class="text-center">{{ $hh['don_vi_tinh'] }}</td>
@@ -127,13 +160,86 @@
                 </table>
             </div>
             
-            <div class="mt-3 text-right">
-                @if(($dh->con_no ?? 0) > 0)
-                    <button class="btn btn-success mr-2 btn-tra-no" data-id="{{ $dh['_id'] }}" data-ma="{{ $dh['ma_don_hang'] }}" data-khach="{{ $dh['ho_ten'] }}" data-conno="{{ $dh->con_no ?? 0 }}" data-toggle="modal" data-target="#modalTraNo">
-                        <i class="fas fa-money-bill-wave"></i> Thu nợ
-                    </button>
-                @endif
-                <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $dh['_id'] }}" target="_blank" class="btn btn-warning"><i class="fa fa-print"></i> In Phiếu Giao Hàng</a>
+            <div class="mt-3 d-flex justify-content-between align-items-center">
+                <div class="order-notes p-2 bg-light border rounded" style="font-size: 13px; min-width: 300px;">
+                    <i class="fas fa-comment-alt text-primary mr-1"></i> <strong>Ghi chú đơn hàng:</strong>
+                    <span class="text-dark">{{ $dh['ghi_chu'] ?: 'Không có ghi chú' }}</span>
+                </div>
+                <div>
+                    @if(($dh->con_no ?? 0) > 0)
+                        <button class="btn btn-success mr-2 btn-tra-no" data-id="{{ $dh['_id'] }}" data-ma="{{ $dh['ma_don_hang'] }}" data-khach="{{ $dh['ho_ten'] }}" data-conno="{{ $dh->con_no ?? 0 }}" data-toggle="modal" data-target="#modalTraNo">
+                            <i class="fas fa-money-bill-wave"></i> Thu nợ
+                        </button>
+                    @endif
+                    <a href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $dh['_id'] }}" target="_blank" class="btn btn-warning"><i class="fa fa-print"></i> In Phiếu Giao Hàng</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Lấy Hàng --}}
+<div class="modal fade" id="modalLayHang" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ env('APP_URL') }}admin/don-hang/da-lay-hang/{{ $dh['_id'] }}" method="GET">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title text-white"><i class="fas fa-warehouse mr-1"></i> Lấy hàng gửi kho</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="index" id="lay_hang_index">
+                    <div class="form-group">
+                        <label>Sản phẩm:</label>
+                        <input type="text" class="form-control" id="lay_hang_ten" readonly>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-group">
+                                <label>Số lượng còn gửi:</label>
+                                <input type="text" class="form-control" id="lay_hang_con_lai" readonly>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-group">
+                                <label>Số lượng lấy <span class="text-danger">*</span>:</label>
+                                <input type="number" name="sl_lay" id="lay_hang_sl" class="form-control" step="0.01" min="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú:</label>
+                        <textarea name="ghi_chu" class="form-control" rows="2" placeholder="VD: Nhận hàng gửi kho ngày mua đơn hàng..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Xác nhận lấy hàng</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Lịch Sử --}}
+<div class="modal fade" id="modalHistoryGuiKho" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title text-white"><i class="fas fa-history mr-1"></i> Lịch sử lấy hàng</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr class="bg-light">
+                            <th class="text-center">Ngày lấy</th>
+                            <th class="text-right">SL lấy</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyGuiKhoBody"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -250,6 +356,31 @@
             var index = _this.data('index');
             var gui_kho = _this.is(':checked') ? 1 : 0;
             
+            var sl_gui_kho = 0;
+            if (gui_kho == 1) {
+                var max_sl = parseFloat(_this.data('so-luong'));
+                var current_val = _this.closest('.consignment-status').find('.sl-gui-kho-display').text().replace(/\./g, '').replace(',', '.');
+                var prompt_val = prompt("Nhập số lượng gửi kho (Tối đa " + max_sl + "):", current_val);
+                
+                if (prompt_val === null) {
+                    _this.prop('checked', false);
+                    return;
+                }
+                
+                sl_gui_kho = parseFloat(prompt_val);
+                if (isNaN(sl_gui_kho) || sl_gui_kho <= 0) {
+                    alert("Số lượng không hợp lệ!");
+                    _this.prop('checked', false);
+                    return;
+                }
+
+                if (sl_gui_kho > max_sl) {
+                    alert("Số lượng gửi kho (" + sl_gui_kho + ") không được lớn hơn tổng số lượng mua (" + max_sl + ")!");
+                    _this.prop('checked', false);
+                    return;
+                }
+            }
+
             $.ajax({
                 url: '{{ env('APP_URL') }}admin/don-hang/update-gui-kho',
                 type: 'POST',
@@ -257,23 +388,15 @@
                     _token: '{{ csrf_token() }}',
                     id_donhang: id,
                     index: index,
-                    gui_kho: gui_kho
+                    gui_kho: gui_kho,
+                    sl_gui_kho: sl_gui_kho
                 },
                 success: function(res) {
                     if(res.error) {
                         alert(res.msg);
-                        // Revert on error
                         _this.prop('checked', !gui_kho);
                     } else {
-                        // Success toast
-                        $.toast({
-                            heading: "Thành công",
-                            text: "Đã cập nhật trạng thái gửi kho!",
-                            loaderBg: "#3b98b5",
-                            icon: "success",
-                            hideAfter: 2000,
-                            position: "top-right"
-                        });
+                        location.reload(); // Reload to reflect changes easily
                     }
                 },
                 error: function() {
@@ -281,6 +404,73 @@
                     _this.prop('checked', !gui_kho);
                 }
             });
+        });
+
+        $('#modalLayHang form').submit(function(e){
+            var max = parseFloat($('#lay_hang_sl').attr('max'));
+            var val = parseFloat($('#lay_hang_sl').val());
+            if(val > max){
+                alert('Số lượng lấy ('+val+') không được lớn hơn số lượng còn gửi ('+max+')');
+                return false;
+            }
+            return confirm('Xác nhận lấy hàng?');
+        });
+
+        $('.btn-lay-hang').click(function(){
+            var btn = $(this);
+            $('#lay_hang_index').val(btn.data('index'));
+            $('#lay_hang_ten').val(btn.data('ten'));
+            $('#lay_hang_con_lai').val(btn.data('con-lai'));
+            $('#lay_hang_sl').val(btn.data('con-lai')).attr('max', btn.data('con-lai'));
+            
+            var ngay_mua = '{{ \App\Http\Controllers\ObjectController::getDate($dh['ngay_ban'], "d/m/Y") }}';
+            $('#modalLayHang textarea').val('Nhận hàng gửi kho từ đơn ngày ' + ngay_mua);
+            
+            $('#modalLayHang').modal('show');
+        });
+
+        $('.btn-view-history').click(function(){
+            var history = $(this).data('history');
+            var html = '';
+            
+            if (history && Array.isArray(history)) {
+                history.forEach(function(item){
+                    var dateStr = 'N/A';
+                    try {
+                        if (item.ngay_lay) {
+                            var timestamp = 0;
+                            if (typeof item.ngay_lay === 'object') {
+                                if (item.ngay_lay.$date && item.ngay_lay.$date.$numberLong) {
+                                    timestamp = item.ngay_lay.$date.$numberLong * 1;
+                                } else if (item.ngay_lay.timestamp) { // custom fallback
+                                    timestamp = item.ngay_lay.timestamp * 1000;
+                                }
+                            } else {
+                                // Assume it's a string
+                                timestamp = Date.parse(item.ngay_lay);
+                            }
+                            
+                            if (timestamp > 0) {
+                                var date = new Date(timestamp);
+                                dateStr = date.toLocaleDateString('vi-VN') + ' ' + date.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+                            } else {
+                                dateStr = item.ngay_lay; // Use raw if parsing fails
+                            }
+                        }
+                    } catch(e) { console.error(e); }
+
+                    html += '<tr>' +
+                        '<td class="text-center">' + dateStr + '</td>' +
+                        '<td class="text-right font-weight-bold text-primary">' + item.so_luong + '</td>' +
+                        '<td>' + (item.ghi_chu || '<em class="text-muted">Không có ghi chú</em>') + '</td>' +
+                        '</tr>';
+                });
+            } else {
+                html = '<tr><td colspan="3" class="text-center text-muted">Chưa có lịch sử</td></tr>';
+            }
+            
+            $('#historyGuiKhoBody').html(html);
+            $('#modalHistoryGuiKho').modal('show');
         });
     });
 </script>

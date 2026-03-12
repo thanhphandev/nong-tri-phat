@@ -44,12 +44,13 @@
 			</span>
 			@endif
 		</div>
-		<div class="mt-1">
-		    <label style="cursor: pointer; font-size: 12px;" class="mb-0 text-primary font-weight-bold">
+		<div class="mt-1 d-flex align-items-center">
+		    <label style="cursor: pointer; font-size: 12px;" class="mb-0 text-primary font-weight-bold mr-2">
 		        <input type="hidden" name="gui_kho_cart[]" value="0" class="gui-kho-hidden">
-		        <input type="checkbox" value="1" class="gui-kho-checkbox mr-1" onchange="$(this).prev('.gui-kho-hidden').val(this.checked ? 1 : 0);">
-		        <i class="fas fa-warehouse"></i> Gửi kho (chưa lấy)
+		        <input type="checkbox" value="1" class="gui-kho-checkbox mr-1" onchange="var row = $(this).closest('.item'); var total = row.find('.so-luong').val(); var inp = row.find('.sl-gui-kho'); if(this.checked) { row.find('.gui-kho-hidden').val(1); inp.val(total).show(); } else { row.find('.gui-kho-hidden').val(0); inp.val(0).hide(); }">
+		        <i class="fas fa-warehouse"></i> Gửi kho
 		    </label>
+            <input type="number" name="sl_gui_kho_cart[]" value="0" class="form-control form-control-sm sl-gui-kho" style="width: 70px; display: none; height: 22px; font-size: 11px;" step="0.01" min="0" placeholder="SL gửi">
 		</div>
 	</td>
 	<td class="text-center" align="center" style="width:140px;max-width:140px;">

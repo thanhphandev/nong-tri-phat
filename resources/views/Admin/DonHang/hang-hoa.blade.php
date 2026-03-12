@@ -15,7 +15,9 @@
 			<td>
 			    {{ $hh['ten'] }}
 			    @if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1)
-			        <span class="badge badge-warning" style="font-size: 10px;"><i class="fas fa-warehouse"></i> Gửi kho</span>
+			        <span class="badge badge-warning" style="font-size: 10px;">
+                        <i class="fas fa-warehouse"></i> Gửi kho: {{ number_format($hh['sl_gui_kho'] ?? 0, 2, ',', '.') }}
+                    </span>
 			    @endif
 			</td>
 			<td class="text-right">{{ $hh['so_luong'] }}</td>

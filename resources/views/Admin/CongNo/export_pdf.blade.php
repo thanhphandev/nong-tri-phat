@@ -64,13 +64,15 @@
                     $tongHangCT += $hangCT_don;
                 @endphp
 
-                <tr class="row-master">
+                <tr class="row-master @if(isset($item->is_pickup) && $item->is_pickup) pickup-row @endif">
                     <td class="text-center date-cell">
                         {{ $item->time->toDateTime()->format('d/m/Y') }}<br>
                         <span style="font-weight: normal; color: #666;">{{ $item->time->toDateTime()->format('H:i') }}</span>
                     </td>
                     <td class="text-left">
-                        @if($item->id_donhang) 
+                        @if(isset($item->is_pickup) && $item->is_pickup)
+                            <span style="font-weight: bold;">[NHẬN HÀNG] {{ $item->pickup_info['ten'] }}</span>
+                        @elseif($item->id_donhang) 
                             <span style="color: #000;">Phiếu xuất: {{ $item->ma_phieu ?? ($item->ma_don_hang ?? '') }}</span>
                             @if(isset($item->so_chung_tu) && $item->so_chung_tu)
                                 <br><small style="font-weight: normal;">(Số CT: {{ $item->so_chung_tu }})</small>
@@ -81,18 +83,33 @@
                             {{ $item->tien_hang > 0 ? 'Phát sinh nợ' : 'Thu tiền' }}
                         @endif
                     </td>
-                    <td></td>
-                    <td></td>
+                    <td class="text-center">
+                        @if(isset($item->is_pickup) && $item->is_pickup)
+                            <strong>{{ $item->pickup_info['so_luong'] }}</strong>
+                        @endif
+                    </td>
+                    <td class="text-center">
+                        @if(isset($item->is_pickup) && $item->is_pickup)
+                            {{ $item->pickup_info['don_vi'] }}
+                        @endif
+                    </td>
                     <td></td>
                     <td></td>
                     <td class="text-right">{{ $item->tien_hang > 0 ? number_format($item->tien_hang, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ $item->thanh_toan_thuc_te > 0 ? number_format($item->thanh_toan_thuc_te, 0, ',', '.') : '-' }}</td>
                     <td class="text-right" style="{{ $item->co_tra_hang ? 'color: #d71a21;' : '' }}">{{ $item->co_tra_hang ? number_format($item->tong_tra_hang, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ number_format($luyKe, 0, ',', '.') }}</td>
-                    <td class="text-right">{{ $hangCT_don > 0 ? number_format($hangCT_don, 0, ',', '.') : '' }}</td>
-                    <td style="font-size: 8px;">{{ $item->ghi_chu }}</td>
+                    <td class="text-right">{{ (isset($hangCT_don) && $hangCT_don > 0) ? number_format($hangCT_don, 0, ',', '.') : '' }}</td>
+                    <td style="font-size: 8px;">
+                        @if(isset($item->is_pickup) && $item->is_pickup)
+                            Lấy từ đơn: {{ $item->pickup_info['don_hang_ma'] }} ({{ $item->pickup_info['don_hang_ngay'] }}){{ $item->ghi_chu ? ' - ' . str_replace('(Lấy hàng) ', '', $item->ghi_chu) : '' }}
+                        @else
+                            {{ $item->ghi_chu }}
+                        @endif
+                    </td>
                 </tr>
 
+                @if(!isset($item->is_pickup) || !$item->is_pickup)
                 @if(isset($item->details) && is_array($item->details) && count($item->details) > 0)
                     @foreach($item->details as $ct)
                     @php
@@ -104,7 +121,16 @@
                     @endphp
                     <tr class="row-detail">
                         <td></td>
-                        <td class="indent">- {{ $ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'Không rõ tên') }}@if($isTraHangForDetail) <strong style="color: #d71a21;">(Trả)</strong>@endif @if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) <strong>(Hàng C.T)</strong> @endif</td>
+                        <td class="indent">
+                            - {{ $ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'Không rõ tên') }}@if($isTraHangForDetail) <strong style="color: #d71a21;">(Trả)</strong>@endif @if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) <strong>(Hàng C.T)</strong> @endif
+                            
+                            {{-- CHI TIẾT GỬI KHO --}}
+                            @if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1 && isset($ct['sl_gui_kho']) && $ct['sl_gui_kho'] > 0)
+                                <div style="font-size: 8px; color: #d9534f; margin-left: 10px; font-style: italic;">
+                                    (Mua: {{ $ct['so_luong'] }} - Nhận: {{ $ct['so_luong'] - $ct['sl_gui_kho'] }} - Gửi kho: {{ $ct['sl_gui_kho'] }})
+                                </div>
+                            @endif
+                        </td>
                         <td class="text-center">
                             {{ $sl }}
                             @if(!$isTraHangForDetail && $soLuongTra > 0)
@@ -132,6 +158,7 @@
                         <td></td>
                     </tr>
                     @endforeach
+                @endif
                 @endif
             @endforeach
             

@@ -265,6 +265,8 @@ class DonHangController extends Controller
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
                 $gui_kho = isset($data['gui_kho_cart'][$key]) ? intval($data['gui_kho_cart'][$key]) : 0;
+                $sl_gui_kho = isset($data['sl_gui_kho_cart'][$key]) ? floatval($data['sl_gui_kho_cart'][$key]) : 0;
+                if ($gui_kho == 0) $sl_gui_kho = 0;
 
                 // Map DVT
                 $don_vi_tinh = 'Bao/Chai';
@@ -292,6 +294,7 @@ class DonHangController extends Controller
                     'chiet_khau' => $chiet_khau,
                     'thanh_tien' => $thanh_tien,
                     'gui_kho' => $gui_kho,
+                    'sl_gui_kho' => $sl_gui_kho,
                 ];
             }
         }
@@ -306,6 +309,7 @@ class DonHangController extends Controller
             'ngay_ban' => ObjectController::setDate(),
             'hanghoa' => $arr_hanghoa,
             'tong_thanh_tien' => $tong_thanh_tien,
+            'ghi_chu' => $data['ghi_chu'] ?? '',
         ]);
 
         // Nợ đơn này = tong_thanh_tien - thanh_toan
@@ -375,6 +379,8 @@ class DonHangController extends Controller
                 $thanh_tien = doubleval($data['thanh_tien_cart'][$key]);
                 $id_hanghoa = ObjectController::ObjectId($value);
                 $gui_kho = isset($data['gui_kho_cart'][$key]) ? intval($data['gui_kho_cart'][$key]) : 0;
+                $sl_gui_kho = isset($data['sl_gui_kho_cart'][$key]) ? floatval($data['sl_gui_kho_cart'][$key]) : 0;
+                if ($gui_kho == 0) $sl_gui_kho = 0;
 
                 // Đơn vị bán: main (chuẩn) hoặc retail (lẻ)
                 $don_vi_ban = isset($data['don_vi_tinh_cart'][$key]) ? $data['don_vi_tinh_cart'][$key] : 'main';
@@ -539,6 +545,16 @@ class DonHangController extends Controller
                     // Cấu hình Hàng chương trình
                     'hang_chuong_trinh' => isset($hh['hang_chuong_trinh']) ? $hh['hang_chuong_trinh'] : false,
                     'gui_kho' => $gui_kho,
+                    'sl_gui_kho' => $sl_gui_kho,
+                    'sl_da_lay' => ($gui_kho == 1) ? ($so_luong - $sl_gui_kho) : 0,
+                    'lich_su_lay_hang' => ($gui_kho == 1 && ($so_luong - $sl_gui_kho) > 0) ? [
+                        [
+                            'so_luong' => $so_luong - $sl_gui_kho,
+                            'ngay_lay' => ObjectController::setDate(),
+                            'ghi_chu' => 'Lấy tại quầy khi mua',
+                            'id_user' => ObjectController::ObjectId($request->session()->get('user._id'))
+                        ]
+                    ] : [],
                 ));
             }
         }
@@ -836,7 +852,7 @@ class DonHangController extends Controller
         $id_kh = $dh->id_khachhang;
         $tong_no_kh = $this->getCongNoKhachHang($id_kh);
         // Trừ đi nợ của đơn hiện tại để ra công nợ tồn (các đơn khác)
-        $cong_no_ton = $tong_no_kh - ($dh->con_no > 0 ? $dh->con_no : 0);
+        $cong_no_ton = $tong_no_kh - (float)$dh->con_no;
 
         $is_preview = false;
         return view('Admin.DonHang.in-phieu-giao-hang', compact('dh', 'lich_su_thanh_toan', 'is_preview', 'cong_no_ton'));
@@ -1000,7 +1016,7 @@ class DonHangController extends Controller
         return $tong_gia_von;
     }
 
-    public function da_lay_hang($id)
+    public function da_lay_hang(Request $request, $id)
     {
         $dh = DonHang::find($id);
         if (!$dh) {
@@ -1008,13 +1024,42 @@ class DonHangController extends Controller
             return redirect()->back();
         }
 
+        $index = $request->input('index'); // If index provided, only take that item
+        $sl_lay = $request->input('sl_lay'); // Specific quantity to take
+        $ghi_chu_lay = $request->input('ghi_chu', 'Khách lấy hàng gửi kho');
+
         $arr_hanghoa = [];
         $changed = false;
+        
         if (isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
-            foreach ($dh['hanghoa'] as $hh) {
+            foreach ($dh['hanghoa'] as $k => $hh) {
+                if ($index !== null && $index != $k) {
+                    $arr_hanghoa[] = $hh;
+                    continue;
+                }
+
                 if (isset($hh['gui_kho']) && $hh['gui_kho'] == 1) {
-                    $hh['gui_kho'] = 0;
-                    $changed = true;
+                    $so_luong_con_lai = floatval($hh['sl_gui_kho'] ?? 0);
+                    
+                    if ($so_luong_con_lai > 0) {
+                        $take = ($sl_lay !== null) ? min(floatval($sl_lay), $so_luong_con_lai) : $so_luong_con_lai;
+                        
+                        $hh['sl_da_lay'] = floatval($hh['sl_da_lay'] ?? 0) + $take;
+                        $hh['sl_gui_kho'] = $so_luong_con_lai - $take;
+                        
+                        if (!isset($hh['lich_su_lay_hang'])) $hh['lich_su_lay_hang'] = [];
+                        
+                        $hh['lich_su_lay_hang'][] = [
+                            'ngay_lay' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                            'so_luong' => $take,
+                            'ghi_chu' => $ghi_chu_lay
+                        ];
+
+                        if ($hh['sl_gui_kho'] <= 0) {
+                            $hh['gui_kho'] = 0;
+                        }
+                        $changed = true;
+                    }
                 }
                 $arr_hanghoa[] = $hh;
             }
@@ -1024,19 +1069,19 @@ class DonHangController extends Controller
             $dh->hanghoa = $arr_hanghoa;
             $dh->save();
 
-            $id_user = Session::get('user.id');
+            $id_user = Session::get('user._id');
             $querLog = array(
                 'id_user' => ObjectController::ObjectId($id_user),
-                'action' => 'Đã lấy hàng ký gửi kho cho đơn ' . $dh['ma_don_hang'],
+                'action' => 'Cập nhật lấy hàng gửi kho cho đơn ' . $dh['ma_don_hang'],
                 'id_collection' => $id,
                 'collection' => 'don_hang',
                 'data' => $dh->toArray()
             );
             LogController::addLog($querLog);
-            Session::flash('msg', 'Đã đánh dấu khách lấy toàn bộ hàng gửi kho!');
+            Session::flash('msg', 'Cập nhật tình trạng lấy hàng thành công!');
         }
         else {
-            Session::flash('msg', 'Đơn hàng này không có mục nào đang gửi kho chưa lấy!');
+            Session::flash('msg', 'Không có hàng gửi kho để lấy hoặc thông tin không hợp lệ!');
         }
 
         return redirect()->back();
@@ -1053,10 +1098,38 @@ class DonHangController extends Controller
             $arr_hanghoa = $dh->hanghoa;
             if (isset($arr_hanghoa[$index])) {
                 $arr_hanghoa[$index]['gui_kho'] = intval($gui_kho);
+                if ($gui_kho == 1) {
+                    $sl_gui_kho = floatval($request->input('sl_gui_kho', $arr_hanghoa[$index]['so_luong']));
+                    
+                    // Validate: Không được gửi kho nhiều hơn số lượng mua
+                    if ($sl_gui_kho > $arr_hanghoa[$index]['so_luong']) {
+                        return response()->json(['error' => true, 'msg' => 'Số lượng gửi kho không được lớn hơn tổng số lượng mua (' . $arr_hanghoa[$index]['so_luong'] . ')']);
+                    }
+
+                    $arr_hanghoa[$index]['sl_gui_kho'] = $sl_gui_kho;
+                    
+                    // Tự động ghi nhận số lượng đã lấy tại quầy nếu chưa có lịch sử
+                    if (empty($arr_hanghoa[$index]['lich_su_lay_hang']) && ($arr_hanghoa[$index]['so_luong'] > $sl_gui_kho)) {
+                        $arr_hanghoa[$index]['sl_da_lay'] = $arr_hanghoa[$index]['so_luong'] - $sl_gui_kho;
+                        $arr_hanghoa[$index]['lich_su_lay_hang'] = [
+                            [
+                                'so_luong' => $arr_hanghoa[$index]['so_luong'] - $sl_gui_kho,
+                                'ngay_lay' => $dh->ngay_ban ?? ObjectController::setDate(),
+                                'ghi_chu' => 'Lấy tại quầy khi mua (Khởi tạo)',
+                                'id_user' => ObjectController::ObjectId(Session::get('user._id'))
+                            ]
+                        ];
+                    } elseif (!isset($arr_hanghoa[$index]['sl_da_lay'])) {
+                        $arr_hanghoa[$index]['sl_da_lay'] = 0;
+                    }
+                } else {
+                    $arr_hanghoa[$index]['sl_gui_kho'] = 0;
+                }
+                
                 $dh->hanghoa = $arr_hanghoa;
                 $dh->save();
 
-                $id_user = Session::get('user.id');
+                $id_user = Session::get('user._id');
                 $querLog = array(
                     'id_user' => ObjectController::ObjectId($id_user),
                     'action' => 'Cập nhật ký gửi kho cho đơn ' . $dh['ma_don_hang'],
@@ -1064,7 +1137,8 @@ class DonHangController extends Controller
                     'collection' => 'don_hang',
                     'data' => [
                         'index' => $index,
-                        'gui_kho' => $gui_kho
+                        'gui_kho' => $gui_kho,
+                        'sl_gui_kho' => $sl_gui_kho
                     ]
                 );
                 LogController::addLog($querLog);
@@ -1073,5 +1147,28 @@ class DonHangController extends Controller
             }
         }
         return response()->json(['error' => true, 'msg' => 'Có lỗi xảy ra']);
+    }
+
+    public function get_consignment_items($id)
+    {
+        $dh = DonHang::find($id);
+        if (!$dh) return response()->json(['error' => true, 'msg' => 'Không tìm thấy đơn hàng']);
+
+        $items = [];
+        if (isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+            foreach ($dh['hanghoa'] as $k => $hh) {
+                if (isset($hh['gui_kho']) && $hh['gui_kho'] == 1 && floatval($hh['sl_gui_kho'] ?? 0) > 0) {
+                    $items[] = [
+                        'index' => $k,
+                        'ten' => $hh['ten'],
+                        'ma' => $hh['ma'] ?? '',
+                        'sl_gui_kho' => floatval($hh['sl_gui_kho'] ?? 0),
+                        'sl_da_lay' => floatval($hh['sl_da_lay'] ?? 0),
+                        'so_luong' => floatval($hh['so_luong'] ?? 0)
+                    ];
+                }
+            }
+        }
+        return response()->json(['error' => false, 'items' => $items, 'ma_don_hang' => $dh['ma_don_hang'], 'ngay_ban' => ObjectController::getDate($dh['ngay_ban'] ?? '', "d/m/Y")]);
     }
 }
