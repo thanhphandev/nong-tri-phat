@@ -50,10 +50,6 @@ class ThongKeController extends Controller
     }
 
     function ton_kho(Request $request){
-        $tonkho_sum = HangHoa::sum('so_luong_ton');
-        $tonkho = HangHoa::where('so_luong_ton', '>', 0)->get();
-        $hethang = HangHoa::where('so_luong_ton', '=', 0)->get();
-        
         // Load all units & categories for filters
         $units = \App\Models\DonViTinh::pluck('ten', '_id')->toArray();
         $loaihang_list = LoaiHang::orderBy('ten', 'asc')->get();
@@ -64,16 +60,62 @@ class ThongKeController extends Controller
         foreach($loaihang_list as $lh) {
             $loaihang_map[(string)$lh->_id] = $lh->ten;
         }
-        
+
+        // Tính số lượng hàng đang gửi kho (chưa lấy hết) từ các đơn hàng
+        // gui_kho=1 và sl_gui_kho > sl_da_lay => còn hàng gửi kho chưa về
+        $gui_kho_map = []; // [id_hanghoa => sl_con_gui_kho]
+        $don_hang_gui_kho = \App\Models\DonHang::where('hanghoa.gui_kho', 1)
+            ->whereNotIn('tinh_trang', [2, 3])
+            ->get(['hanghoa', 'ma_don_hang', 'ho_ten', 'dien_thoai', 'ngay_ban']);
+        foreach($don_hang_gui_kho as $dh) {
+            if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+                foreach($dh['hanghoa'] as $hh) {
+                    if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1) {
+                        $con_gui = floatval($hh['sl_gui_kho'] ?? 0);
+                        if($con_gui > 0) {
+                            $hh_id = (string)($hh['id_hanghoa'] ?? '');
+                            if($hh_id) {
+                                $gui_kho_map[$hh_id] = ($gui_kho_map[$hh_id] ?? 0) + $con_gui;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Lấy tất cả hàng hóa và tính tồn kho thực tế
+        $all_products = HangHoa::all();
+        $tonkho = [];
+        $hethang = [];
+        $tonkho_sum = 0;
+
+        foreach($all_products as $product) {
+            $sl_kho = floatval($product->so_luong_ton ?? 0);
+            $sl_gui_con = $gui_kho_map[(string)$product->_id] ?? 0;
+            $sl_thuc_te = $sl_kho + $sl_gui_con;
+
+            $item = $product->toArray();
+            $item['so_luong_ton'] = $sl_thuc_te;
+            $item['so_luong_ton_kho'] = $sl_kho;       // SL thực trong kho
+            $item['so_luong_gui_kho'] = $sl_gui_con;   // SL đang gửi kho
+            $item['id'] = (string)$product->_id;
+
+            if($sl_thuc_te > 0) {
+                $tonkho[] = $item;
+                $tonkho_sum += $sl_thuc_te;
+            } else {
+                $hethang[] = $item;
+            }
+        }
+
         // Calculate expired products quantity and collect expired batches
         $expired_quantity = 0;
         $expired_batches = [];
         $expiring_soon_batches = [];
-        $all_products = HangHoa::all();
         $now = time();
         
         foreach($all_products as $product) {
-            if(isset($product->ds_lo_hang) && is_array($product->ds_lo_hang)) {
+            if(isset($product['ds_lo_hang']) && is_array($product['ds_lo_hang'])) {
                 foreach($product->ds_lo_hang as $batch) {
                     $batch_qty = isset($batch['so_luong_con_lai']) ? floatval($batch['so_luong_con_lai']) : 0;
                     if(isset($batch['ngay_het_han']) && $batch['ngay_het_han'] && $batch_qty > 0) {
@@ -994,7 +1036,8 @@ class ThongKeController extends Controller
                 $da_thanh_toan_don = $ds['filtered_da_thanh_toan'] ?? 0;
             }
             $con_no_don = max(0, $tong_tien_don - $da_thanh_toan_don);
-
+            
+            $start_row_of_order = $row;
             if(isset($ds['hanghoa']) && is_array($ds['hanghoa'])) {
                 foreach($ds['hanghoa'] as $hh) {
                     $sheet->setCellValue('A' . $row, $i++);
@@ -1021,9 +1064,14 @@ class ThongKeController extends Controller
                     $thanh_tien = $hh['thanh_tien'] ?? 0;
                     $sheet->setCellValue('K' . $row, $thanh_tien);
 
-                    // NEW: Thanh toán và Còn nợ (theo đơn)
-                    $sheet->setCellValue('L' . $row, $da_thanh_toan_don);
-                    $sheet->setCellValue('M' . $row, $con_no_don);
+                    // NEW: Thanh toán và Còn nợ (theo đơn) - Chỉ hiển thị ở dòng đầu tiên của đơn để tránh cộng dồn sai trong Excel
+                    if ($row == $start_row_of_order) {
+                        $sheet->setCellValue('L' . $row, $da_thanh_toan_don);
+                        $sheet->setCellValue('M' . $row, $con_no_don);
+                    } else {
+                        $sheet->setCellValue('L' . $row, '');
+                        $sheet->setCellValue('M' . $row, '');
+                    }
                     
                     $gv_sp = isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $sl : 0);
                     $sheet->setCellValue('N' . $row, $gv_sp);
@@ -1145,6 +1193,7 @@ class ThongKeController extends Controller
         $writer = new Xlsx($spreadsheet);
         $fileName = 'ThongKeBanHang_ChiTiet_' . date('d-m-Y_H-i') . '.xlsx';
         
+        if (ob_get_length()) ob_end_clean();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="'. $fileName .'"');
         $writer->save('php://output');
@@ -1322,6 +1371,7 @@ class ThongKeController extends Controller
         $writer = new Xlsx($spreadsheet);
         $fileName = 'ThongKeNhapHang_ChiTiet_' . date('d-m-Y_H-i') . '.xlsx';
         
+        if (ob_get_length()) ob_end_clean();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="'. $fileName .'"');
         $writer->save('php://output');
@@ -1334,47 +1384,255 @@ class ThongKeController extends Controller
     }
 
     function export_ton_kho(){
-        $hanghoa = HangHoa::where('so_luong_ton', '>', 0)->get();
-        // Fetch Units and Categories for mapping
+        $all_products = HangHoa::all();
         $units = \App\Models\DonViTinh::pluck('ten', '_id')->toArray();
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        
-        // Headers
-        $headers = ['STT', 'Mã hàng', 'Tên hàng', 'ĐVT', 'Giá vốn', 'Giá sỉ', 'Giá lẻ', 'SL Tồn', 'Ghi chú'];
-        $columnLetter = 'A';
-        foreach($headers as $header){
-            $sheet->setCellValue($columnLetter . '1', $header);
-            $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
-            $sheet->getStyle($columnLetter . '1')->getFont()->setBold(true);
-            $sheet->getStyle($columnLetter . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCCCCCC');
-            $columnLetter++;
+        $loaihang_map = [];
+        foreach(LoaiHang::all() as $lh) {
+            $loaihang_map[(string)$lh->_id] = $lh->ten;
         }
-        
-        // Data
-        $row = 2;
+
+        // Tính hàng đang gửi kho chưa lấy về
+        $gui_kho_map = [];
+        $don_hang_gui_kho = \App\Models\DonHang::where('hanghoa.gui_kho', 1)
+            ->whereNotIn('tinh_trang', [2, 3])
+            ->get(['hanghoa', 'ma_don_hang', 'ho_ten', 'dien_thoai', 'ngay_ban']);
+        // Map chi tiết gửi kho: [id_hanghoa => [{ma_don_hang, ho_ten, sl_con_gui}]]
+        $gui_kho_detail = [];
+        foreach($don_hang_gui_kho as $dh) {
+            if(isset($dh['hanghoa']) && is_array($dh['hanghoa'])) {
+                foreach($dh['hanghoa'] as $hh) {
+                    if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1) {
+                        $con_gui = floatval($hh['sl_gui_kho'] ?? 0);
+                        if($con_gui > 0) {
+                            $hh_id = (string)($hh['id_hanghoa'] ?? '');
+                            if($hh_id) {
+                                $gui_kho_map[$hh_id] = ($gui_kho_map[$hh_id] ?? 0) + $con_gui;
+                                $gui_kho_detail[$hh_id][] = [
+                                    'ma_don_hang' => $dh['ma_don_hang'] ?? '',
+                                    'ngay_ban' => \App\Http\Controllers\ObjectController::getDate($dh['ngay_ban'] ?? '', "d/m/Y H:i"),
+                                    'ho_ten' => $dh['ho_ten'] ?? '',
+                                    'dien_thoai' => $dh['dien_thoai'] ?? '',
+                                    'sl_con_gui' => $con_gui,
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+
+        // ===== SHEET 1: Tồn kho tổng hợp =====
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Tồn Kho Tổng Hợp');
+
+        $sheet->setCellValue('A1', 'BÁO CÁO TỒN KHO THỰC TẾ');
+        $sheet->mergeCells('A1:L1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0056b3'));
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+
+        $sheet->setCellValue('A2', 'Ngày xuất: ' . date('d/m/Y H:i') . '   |   Tồn kho thực tế = SL trong kho + SL đang gửi kho khách chưa lấy');
+        $sheet->mergeCells('A2:L2');
+        $sheet->getStyle('A2')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
+
+        $headers = [
+            'STT', 'Mã hàng', 'Tên hàng hóa', 'Loại hàng', 'ĐVT',
+            'Giá vốn', 'Giá sỉ', 'Giá lẻ',
+            'SL trong kho', 'SL gửi kho (KH)', 'SL tồn thực tế',
+            'Tổng giá trị (Vốn)'
+        ];
+
+        $col = 'A';
+        foreach($headers as $h) {
+            $sheet->setCellValue($col . '4', $h);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+
+        $lastCol = chr(ord('A') + count($headers) - 1);
+        $hStyle = $sheet->getStyle('A4:' . $lastCol . '4');
+        $hStyle->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
+        $hStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF0056b3');
+        $hStyle->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $hStyle->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $hStyle->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getRowDimension(4)->setRowHeight(25);
+
+        $row = 5;
         $i = 1;
-        foreach($hanghoa as $hh){
-            $unit_name = isset($units[(string)$hh->id_donvitinh]) ? $units[(string)$hh->id_donvitinh] : '';
-            
+        $tong_gia_tri = 0;
+        $tong_sl_thuc_te = 0;
+
+        foreach($all_products as $product) {
+            $sl_kho = floatval($product->so_luong_ton ?? 0);
+            $sl_gui_con = $gui_kho_map[(string)$product->_id] ?? 0;
+            $sl_thuc_te = $sl_kho + $sl_gui_con;
+            if($sl_thuc_te <= 0) continue;
+
+            $unit_name = $units[(string)$product->id_donvitinh] ?? '';
+            $loaihang_name = $loaihang_map[(string)($product->id_loaihang ?? '')] ?? '';
+            $gia_von = floatval($product->gia_von ?? 0);
+            $gia_tri = $sl_kho * $gia_von;
+            $tong_gia_tri += $gia_tri;
+            $tong_sl_thuc_te += $sl_thuc_te;
+
             $sheet->setCellValue('A' . $row, $i++);
-            $sheet->setCellValue('B' . $row, $hh->ma);
-            $sheet->setCellValue('C' . $row, $hh->ten);
-            $sheet->setCellValue('D' . $row, $unit_name);
-            $sheet->setCellValue('E' . $row, $hh->gia_von);
-            $sheet->setCellValue('F' . $row, $hh->gia_si);
-            $sheet->setCellValue('G' . $row, $hh->gia_le);
-            $sheet->setCellValue('H' . $row, $hh->so_luong_ton);
-            $sheet->setCellValue('I' . $row, $hh->ghi_chu);
-            
-            // Format numbers
-            $sheet->getStyle('F'.$row.':I'.$row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->setCellValue('B' . $row, $product->ma);
+            $sheet->setCellValue('C' . $row, $product->ten);
+            $sheet->setCellValue('D' . $row, $loaihang_name);
+            $sheet->setCellValue('E' . $row, $unit_name);
+            $sheet->setCellValue('F' . $row, $gia_von);
+            $sheet->setCellValue('G' . $row, floatval($product->gia_si ?? 0));
+            $sheet->setCellValue('H' . $row, floatval($product->gia_le ?? 0));
+            $sheet->setCellValue('I' . $row, $sl_kho);
+            $sheet->setCellValue('J' . $row, $sl_gui_con > 0 ? $sl_gui_con : '');
+            $sheet->setCellValue('K' . $row, $sl_thuc_te);
+            $sheet->setCellValue('L' . $row, $gia_tri);
+
+            $sheet->getStyle('F' . $row . ':H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('I' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
+
+            // Highlight hàng có gửi kho
+            if($sl_gui_con > 0) {
+                $sheet->getStyle('J' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF3CD');
+                $sheet->getStyle('K' . $row)->getFont()->setBold(true);
+            }
+
+            if($row % 2 == 0) {
+                $sheet->getStyle('A' . $row . ':L' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9F9F9');
+            }
+            $sheet->getStyle('A' . $row . ':L' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('FFDDDDDD');
+
             $row++;
         }
 
+        // Dòng tổng cộng
+        $sheet->setCellValue('A' . $row, 'TỔNG CỘNG');
+        $sheet->mergeCells('A' . $row . ':J' . $row);
+        $sheet->setCellValue('K' . $row, $tong_sl_thuc_te);
+        $sheet->setCellValue('L' . $row, $tong_gia_tri);
+        $totalStyle = $sheet->getStyle('A' . $row . ':L' . $row);
+        $totalStyle->getFont()->setBold(true);
+        $totalStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFD4EDDA');
+        $sheet->getStyle('K' . $row . ':L' . $row)->getNumberFormat()->setFormatCode('#,##0');
+
+        $sheet->setAutoFilter('A4:' . $lastCol . ($row - 1));
+        $sheet->freezePane('A5');
+
+        // ===== SHEET 2: Chi tiết gửi kho =====
+        if(!empty($gui_kho_detail)) {
+            $sheet2 = $spreadsheet->createSheet();
+            $sheet2->setTitle('Chi Tiết Gửi Kho');
+
+            $sheet2->setCellValue('A1', 'CHI TIẾT HÀNG ĐANG GỬI KHO KHÁCH HÀNG');
+            $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF856404'));
+            $sheet2->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet2->getRowDimension(1)->setRowHeight(28);
+
+            $h2 = ['STT', 'Mã hàng', 'Tên hàng hóa', 'ĐVT', 'Mã đơn hàng', 'Ngày mua', 'Khách hàng', 'Điện thoại', 'SL còn gửi kho'];
+            $col2 = 'A';
+            foreach($h2 as $h) {
+                $sheet2->setCellValue($col2 . '3', $h);
+                $sheet2->getColumnDimension($col2)->setAutoSize(true);
+                $col2++;
+            }
+            $lastCol2 = chr(ord('A') + count($h2) - 1);
+            $h2Style = $sheet2->getStyle('A3:' . $lastCol2 . '3');
+            $h2Style->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
+            $h2Style->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF856404');
+            $h2Style->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $h2Style->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            $sheet2->getRowDimension(3)->setRowHeight(22);
+            $sheet2->mergeCells('A1:' . $lastCol2 . '1');
+
+            $row2 = 4;
+            $j = 1;
+            foreach($all_products as $product) {
+                $hh_id = (string)$product->_id;
+                if(!isset($gui_kho_detail[$hh_id])) continue;
+                $unit_name = $units[(string)$product->id_donvitinh] ?? '';
+                foreach($gui_kho_detail[$hh_id] as $detail) {
+                    $sheet2->setCellValue('A' . $row2, $j++);
+                    $sheet2->setCellValue('B' . $row2, $product->ma);
+                    $sheet2->setCellValue('C' . $row2, $product->ten);
+                    $sheet2->setCellValue('D' . $row2, $unit_name);
+                    $sheet2->setCellValue('E' . $row2, $detail['ma_don_hang']);
+                    $sheet2->setCellValue('F' . $row2, $detail['ngay_ban']);
+                    $sheet2->setCellValue('G' . $row2, $detail['ho_ten']);
+                    $sheet2->setCellValue('H' . $row2, $detail['dien_thoai']);
+                    $sheet2->setCellValue('I' . $row2, $detail['sl_con_gui']);
+                    $sheet2->getStyle('I' . $row2)->getNumberFormat()->setFormatCode('#,##0.00');
+                    if($row2 % 2 == 0) {
+                        $sheet2->getStyle('A' . $row2 . ':I' . $row2)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF8E1');
+                    }
+                    $sheet2->getStyle('A' . $row2 . ':I' . $row2)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('FFDDDDDD');
+                    $row2++;
+                }
+            }
+            $sheet2->setAutoFilter('A3:I' . ($row2 - 1));
+            $sheet2->freezePane('A4');
+        }
+
+        // ===== SHEET 3: Hết hàng =====
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('Hết Hàng');
+
+        $sheet3->setCellValue('A1', 'DANH SÁCH SẢN PHẨM HẾT HÀNG');
+        $sheet3->mergeCells('A1:G1');
+        $sheet3->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF721c24'));
+        $sheet3->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet3->getRowDimension(1)->setRowHeight(28);
+
+        $h3 = ['STT', 'Mã hàng', 'Tên hàng hóa', 'Loại hàng', 'ĐVT', 'Giá vốn', 'Giá lẻ'];
+        $col3 = 'A';
+        foreach($h3 as $h) {
+            $sheet3->setCellValue($col3 . '3', $h);
+            $sheet3->getColumnDimension($col3)->setAutoSize(true);
+            $col3++;
+        }
+        $h3Style = $sheet3->getStyle('A3:G3');
+        $h3Style->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
+        $h3Style->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFdc3545');
+        $h3Style->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $h3Style->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet3->getRowDimension(3)->setRowHeight(22);
+
+        $row3 = 4;
+        $k = 1;
+        foreach($all_products as $product) {
+            $sl_kho = floatval($product->so_luong_ton ?? 0);
+            $sl_gui_con = $gui_kho_map[(string)$product->_id] ?? 0;
+            if(($sl_kho + $sl_gui_con) > 0) continue;
+
+            $unit_name = $units[(string)$product->id_donvitinh] ?? '';
+            $loaihang_name = $loaihang_map[(string)($product->id_loaihang ?? '')] ?? '';
+
+            $sheet3->setCellValue('A' . $row3, $k++);
+            $sheet3->setCellValue('B' . $row3, $product->ma);
+            $sheet3->setCellValue('C' . $row3, $product->ten);
+            $sheet3->setCellValue('D' . $row3, $loaihang_name);
+            $sheet3->setCellValue('E' . $row3, $unit_name);
+            $sheet3->setCellValue('F' . $row3, floatval($product->gia_von ?? 0));
+            $sheet3->setCellValue('G' . $row3, floatval($product->gia_le ?? 0));
+            $sheet3->getStyle('F' . $row3 . ':G' . $row3)->getNumberFormat()->setFormatCode('#,##0');
+            if($row3 % 2 == 0) {
+                $sheet3->getStyle('A' . $row3 . ':G' . $row3)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF8F8');
+            }
+            $sheet3->getStyle('A' . $row3 . ':G' . $row3)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('FFDDDDDD');
+            $row3++;
+        }
+        $sheet3->setAutoFilter('A3:G' . ($row3 - 1));
+        $sheet3->freezePane('A4');
+
+        $spreadsheet->setActiveSheetIndex(0);
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $fileName = 'TonKho_' . date('d-m-Y_H-i') . '.xlsx';
-        
+        $fileName = 'TonKho_ThucTe_' . date('d-m-Y_H-i') . '.xlsx';
+
+        if (ob_get_length()) ob_end_clean();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="'. $fileName .'"');
         $writer->save('php://output');

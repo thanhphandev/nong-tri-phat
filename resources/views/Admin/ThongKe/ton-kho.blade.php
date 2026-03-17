@@ -20,11 +20,11 @@
     $total_stock_value = 0;
     $total_potential_revenue = 0;
     foreach($tonkho as $item) {
-        $qty = $item['so_luong_ton'];
+        $qty_kho = $item['so_luong_ton_kho'] ?? 0;
         $cost = isset($item['gia_von']) ? $item['gia_von'] : 0;
         $price = isset($item['gia_le']) ? $item['gia_le'] : 0;
-        $total_stock_value += $qty * $cost;
-        $total_potential_revenue += $qty * $price;
+        $total_stock_value += $qty_kho * $cost;
+        $total_potential_revenue += $qty_kho * $price;
     }
     $total_products = count($tonkho);
     $out_of_stock_count = count($hethang);
@@ -51,7 +51,7 @@
                     <div>
                         <h4 class="header-title text-muted mb-2">Tổng số lượng tồn</h4>
                         <h2 class="font-weight-bold text-primary mb-0">{{ number_format($tonkho_sum, 0, ",", ".") }}</h2>
-                        <span class="text-muted font-13">Sản phẩm: {{ number_format($total_products) }} loại</span>
+                        <span class="text-muted font-13">Sản phẩm: {{ number_format($total_products) }} loại (gồm hàng gửi kho KH)</span>
                     </div>
                     <div class="avatar-md bg-soft-primary rounded-circle text-center">
                         <i class="fe-box font-24 avatar-title text-primary"></i>
@@ -180,7 +180,9 @@
                                     <th class="text-center">Loại hàng</th>
                                     <th class="text-center">ĐVT</th>
                                     <th class="text-right">Giá vốn</th>
-                                    <th class="text-right">SL Tồn</th>
+                                    <th class="text-right">SL Kho</th>
+                                    <th class="text-right">SL Gửi kho (KH)</th>
+                                    <th class="text-right">SL Tồn thực tế</th>
                                     <th class="text-right">Tổng giá trị</th>
                                     <th class="text-center">Thao tác</th>
                                 </tr>
@@ -194,9 +196,17 @@
                                     <td class="text-center">{{ $loaihang_map[(string)($vtk['id_loaihang'] ?? '')] ?? '' }}</td>
                                     <td class="text-center">{{ $units[(string)($vtk['id_donvitinh'] ?? '')] ?? '' }}</td>
                                     <td class="text-right">{{ number_format($vtk['gia_von'],0,",",".") }}</td>
-                                    <td class="text-right">{{ number_format($vtk['so_luong_ton'],2,",",".") }}</td>
+                                    <td class="text-right text-muted">{{ number_format($vtk['so_luong_ton_kho'] ?? $vtk['so_luong_ton'],2,",",".") }}</td>
+                                    <td class="text-right">
+                                        @if(($vtk['so_luong_gui_kho'] ?? 0) > 0)
+                                            <span class="badge badge-warning font-12">{{ number_format($vtk['so_luong_gui_kho'],2,",",".") }}</span>
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-right font-weight-bold">{{ number_format($vtk['so_luong_ton'],2,",",".") }}</td>
                                     <td class="text-right font-weight-bold text-success">
-                                        {{ number_format($vtk['so_luong_ton'] * ($vtk['gia_von'] ?? 0), 0, ",", ".") }}
+                                        {{ number_format(($vtk['so_luong_ton_kho'] ?? $vtk['so_luong_ton']) * ($vtk['gia_von'] ?? 0), 0, ",", ".") }}
                                     </td>
                                     <td class="text-center">
                                         <a href="{{ env('APP_URL') }}admin/hang-hoa/xem-ton-kho/{{ $vtk['id'] }}" class="btn btn-sm btn-outline-info xem-ton-kho" data-toggle="modal" data-target="#modalTonKho" title="Xem chi tiết lô hàng">

@@ -142,8 +142,6 @@ def run_migration():
                 gia_le = gia_von + random.randint(20, 30) * 1000 # Lower margin for cash
                 gia_si = gia_von + random.randint(40, 50) * 1000 # Higher margin for credit
             else:
-                 gia_ban_mat = 0
-                 gia_ban_thieu = 0
                  gia_si = 0
                  gia_le = 0
 
@@ -153,8 +151,6 @@ def run_migration():
                 "ten": item["ten"],
                 "id_donvitinh": dvt_id,
                 "gia_von": gia_von,
-                "gia_ban_mat": gia_ban_mat,
-                "gia_ban_thieu": gia_ban_thieu,
                 "gia_si": gia_si,
                 "gia_le": gia_le,
                 "so_luong_ton": 0, # Reset stock

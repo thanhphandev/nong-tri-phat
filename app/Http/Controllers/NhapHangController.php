@@ -378,14 +378,38 @@ class NhapHangController extends Controller
                 $hanghoa_update = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
                 if($hanghoa_update){
                     $current_batches = isset($hanghoa_update['ds_lo_hang']) ? $hanghoa_update['ds_lo_hang'] : [];
+
+                    // Tính tổng phần âm cần bù vào lô mới
+                    $tong_am = 0;
+
+                    if(count($current_batches) > 0) {
+                        // Có ds_lo_hang: gom phần âm từ các lô cũ, reset lô âm về 0
+                        foreach($current_batches as &$b) {
+                            $sl_con = isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
+                            if($sl_con < 0) {
+                                $tong_am += $sl_con;
+                                $b['so_luong_con_lai'] = 0;
+                            }
+                        }
+                        unset($b);
+                    } else {
+                        // Không có ds_lo_hang: phần âm nằm trong so_luong_ton
+                        $sl_ton_hien_tai = floatval($hanghoa_update->so_luong_ton ?? 0);
+                        if($sl_ton_hien_tai < 0) {
+                            $tong_am = $sl_ton_hien_tai; // giá trị âm
+                        }
+                    }
+
+                    // Trừ phần âm vào lô mới nhập
+                    $lo_hang['so_luong_con_lai'] = $sl_quy_doi + $tong_am; // có thể vẫn âm nếu nhập ít hơn phần thiếu
+
                     $current_batches[] = $lo_hang;
-                    
                     $hanghoa_update->ds_lo_hang = $current_batches;
-                    
-                    // Recalculate Total Stock from Batches
+
+                    // Tính lại so_luong_ton từ tổng tất cả lô
                     $total_stock = 0;
-                    foreach($current_batches as $b){
-                         $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
+                    foreach($current_batches as $b) {
+                        $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                     }
                     $hanghoa_update->so_luong_ton = $total_stock;
                     $hanghoa_update->save();
@@ -546,7 +570,9 @@ class NhapHangController extends Controller
         // Trừ đi nợ của phiếu hiện tại để ra công nợ tồn (các phiếu khác)
         $cong_no_ton_ncc = $tong_no_ncc - (float)$tong_no_moi;
 
-        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'cong_no_ton_ncc'));
+        $is_preview = false;
+
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'cong_no_ton_ncc', 'is_preview'));
     }
     function tra_no(Request $request) {
         $data = $request->all();

@@ -1180,7 +1180,7 @@ class DonHangController extends Controller
                         $hh['lich_su_lay_hang'][] = [
                             'ngay_lay' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
                             'so_luong' => $take,
-                            'ghi_chu' => 'Nhận hàng gửi kho hàng loạt'
+                            'ghi_chu' => 'Nhận hàng gửi kho'
                         ];
 
                         if ($hh['sl_gui_kho'] <= 0) {
@@ -1200,7 +1200,7 @@ class DonHangController extends Controller
             $id_user = Session::get('user._id');
             $querLog = array(
                 'id_user' => ObjectController::ObjectId($id_user),
-                'action' => 'Nhận hàng gửi kho hàng loạt cho đơn ' . $dh['ma_don_hang'],
+                'action' => 'Nhận hàng gửi kho cho đơn ' . $dh['ma_don_hang'],
                 'id_collection' => $id,
                 'collection' => 'don_hang',
                 'data' => [

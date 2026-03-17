@@ -779,10 +779,13 @@ class CongNoController extends Controller
         $luyKe = $noDauKy;
         $tongHangCT = 0;
         $tongTraHang = 0;
+        $tongLoiNhuan = 0;
         $row++;
 
         // --- Data rows ---
         foreach($phatSinhTrongKy as $item) {
+            if(isset($item->is_pickup) && $item->is_pickup) continue;
+
             $luyKe += $item->tien_hang - $item->thanh_toan;
 
             $hangCT_don = 0;
@@ -799,9 +802,7 @@ class CongNoController extends Controller
 
             // Master row
             $label = '';
-            if(isset($item->is_pickup) && $item->is_pickup) {
-                $label = 'NHẬN HÀNG GỬI KHO: ' . ($item->pickup_info['ten'] ?? '') . ' (SL: ' . ($item->pickup_info['so_luong'] ?? 0) . ') - Từ đơn: ' . ($item->pickup_info['don_hang_ma'] ?? '') . ' (' . ($item->pickup_info['don_hang_ngay'] ?? '') . ')';
-            } elseif($item->id_donhang) {
+            if($item->id_donhang) {
                 $label = 'Phiếu xuất: ' . ($item->ma_phieu ?? '');
                 if(isset($item->so_chung_tu) && $item->so_chung_tu) $label .= ' (SCT: ' . $item->so_chung_tu . ')';
             } elseif($item->co_tra_hang && !$item->id_donhang) {
@@ -825,11 +826,16 @@ class CongNoController extends Controller
                 foreach($item->details as $_ct) {
                     $sl_ct = $_ct['so_luong'] ?? 0;
                     $gv_ct = isset($_ct['gia_von_thuc_te']) ? $_ct['gia_von_thuc_te'] : (isset($_ct['gia_von']) ? $_ct['gia_von'] * $sl_ct : 0);
-                    $tong_ln_don += (($_ct['thanh_tien'] ?? 0) - $gv_ct);
+                    $ln_sp_tmp = (($_ct['thanh_tien'] ?? 0) - $gv_ct);
+                    if($item->co_tra_hang) $ln_sp_tmp = -1 * $ln_sp_tmp; // Đảo dấu nếu là trả hàng
+                    $tong_ln_don += $ln_sp_tmp;
                 }
             }
-            if($item->co_tra_hang) $tong_ln_don = 0; // Trả hàng tạm tính LN = 0 hoặc có thể tính âm nếu cần
+            $tongLoiNhuan += $tong_ln_don;
             $sheet->setCellValue('L' . $row, $tong_ln_don != 0 ? $tong_ln_don : '');
+            if($tong_ln_don < 0) {
+                $sheet->getStyle('L' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+            }
 
             $sheet->getStyle('A' . $row . ':L' . $row)->getFont()->setBold(true);
             $sheet->getStyle('A' . $row . ':L' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
@@ -851,25 +857,12 @@ class CongNoController extends Controller
                     if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) $tenSP .= ' (Hàng C.Trình)';
                     if($isTraHangForDetail) $tenSP .= ' (Trả)';
                     
-                    // THÊM CHI TIẾT GỬI KHO - Cố định theo thời điểm mua
-                    if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1) {
-                        $nhan_lm = 0;
-                        if(isset($ct['lich_su_lay_hang']) && is_array($ct['lich_su_lay_hang']) && count($ct['lich_su_lay_hang']) > 0) {
-                            $f = $ct['lich_su_lay_hang'][0];
-                            if(empty($f['ngay_lay']) || (isset($f['ghi_chu']) && (strpos($f['ghi_chu'], 'quầy') !== false))) {
-                                $nhan_lm = $f['so_luong'] ?? 0;
-                            }
-                        }
-                        $gk_lm = ($ct['so_luong'] ?? 0) - $nhan_lm;
-                        $tenSP .= " \n    (Mua: ".($ct['so_luong'] ?? 0)." - Nhận: ".$nhan_lm." - Gửi kho: ".$gk_lm.")";
-                    }
-                    
                     $sl = $isTraHangForDetail ? ($soLuongTra > 0 ? $soLuongTra : ($ct['so_luong'] ?? 0)) : ($ct['so_luong'] ?? 0);
                     if (!$isTraHangForDetail && $soLuongTra > 0) {
                         $sl .= ' (Trả ' . $soLuongTra . ')';
                     }
 
-                    $sheet->getStyle('B' . $row)->getAlignment()->setWrapText(true); // Đảm bảo xuống dòng được
+                    $sheet->getStyle('B' . $row)->getAlignment()->setWrapText(true); 
                     
                     $sheet->setCellValue('B' . $row, $tenSP);
                     $sheet->setCellValue('C' . $row, $sl);
@@ -882,23 +875,30 @@ class CongNoController extends Controller
                         
                         $gv_sp = isset($ct['gia_von_thuc_te']) ? $ct['gia_von_thuc_te'] : (isset($ct['gia_von']) ? $ct['gia_von'] * $sl : 0);
                         $sheet->setCellValue('L' . $row, ($ct['thanh_tien'] ?? 0) - $gv_sp);
+                    } else {
+                        // Trả hàng chi tiết
+                        $gv_sp = isset($ct['gia_von_thuc_te']) ? $ct['gia_von_thuc_te'] : (isset($ct['gia_von']) ? $ct['gia_von'] * $sl : 0);
+                        $ln_tra = -1 * (($ct['thanh_tien'] ?? 0) - $gv_sp);
+                        $sheet->setCellValue('L' . $row, $ln_tra);
+                        if($ln_tra < 0) {
+                            $sheet->getStyle('L' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+                        }
                     }
 
                     if ($tienTraHang > 0) {
-                        $sheet->setCellValue('I' . $row, $tienTraHang); // Tra hang column
+                        $sheet->setCellValue('I' . $row, $tienTraHang); 
                         $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
                     } elseif ($isTraHangForDetail) {
-                        $sheet->setCellValue('I' . $row, $ct['thanh_tien'] ?? 0); // Tra hang column
+                        $sheet->setCellValue('I' . $row, $ct['thanh_tien'] ?? 0); 
                         $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
                     }
-                    // No explicit 'Thanh toán' for detail rows, it's handled at master row level or implied by 'Tiền hàng'
 
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
                     $sheet->getStyle('A' . $row . ':L' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
                     $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('E' . $row . ':H' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    // Hàng C.Trình value for detail row
+                    
                     if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) {
                         $sheet->setCellValue('K' . $row, $ct['thanh_tien'] ?? 0);
                         $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
@@ -916,11 +916,15 @@ class CongNoController extends Controller
         $sheet->setCellValue('I' . $row, $tongTraHang > 0 ? $tongTraHang : '');
         $sheet->setCellValue('J' . $row, $luyKe);
         $sheet->setCellValue('K' . $row, $tongHangCT);
+        $sheet->setCellValue('L' . $row, $tongLoiNhuan);
         $totalStyle = $sheet->getStyle('A' . $row . ':L' . $row);
         $totalStyle->getFont()->setBold(true)->setSize(12);
         $totalStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFD0D0D0');
         $totalStyle->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         $sheet->getStyle('H' . $row . ':L' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        if($tongLoiNhuan < 0) {
+            $sheet->getStyle('L' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
+        }
 
         // --- Column alignments ---
         $sheet->getStyle('A7:A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);

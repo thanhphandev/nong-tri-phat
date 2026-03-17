@@ -99,7 +99,7 @@
                         @if(isset($ls['id_trahangkhach']))
                             Trả hàng ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
                         @else
-                            Đã thu ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
+                            {{ $is_preview ? 'Sẽ thanh toán' : 'Đã thanh toán' }} ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
                         @endif
                     </td>
                     <td class="summary-value">- {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
