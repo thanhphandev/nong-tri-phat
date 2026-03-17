@@ -82,13 +82,11 @@
             </td>
         </tr>
     </table>
-</div>
-
     <div class="text-center">
         <h2 class="report-title">@yield('report_title')</h2>
         <p class="report-date">Từ ngày {{ $fromDate ? $fromDate->format('d/m/Y') : 'bắt đầu' }} đến ngày {{ $toDate->format('d/m/Y') }}</p>
     </div>
-
+</div>
     @yield('content')
 
     <div style="margin-top: 15px;">

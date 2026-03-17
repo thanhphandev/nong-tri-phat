@@ -1149,6 +1149,73 @@ class DonHangController extends Controller
         return response()->json(['error' => true, 'msg' => 'Có lỗi xảy ra']);
     }
 
+    public function da_lay_hang_loat(Request $request, $id)
+    {
+        $dh = DonHang::find($id);
+        if (!$dh) return response()->json(['error' => true, 'msg' => 'Không tìm thấy đơn hàng']);
+
+        $pickup_data = $request->input('pickup_data', []);
+        if (empty($pickup_data)) return response()->json(['error' => true, 'msg' => 'Không có dữ liệu nhận hàng']);
+
+        $arr_hanghoa = $dh->hanghoa ?? [];
+        $changed = false;
+        $total_items_picked = 0;
+
+        foreach ($pickup_data as $data) {
+            $index = $data['index'] ?? null;
+            $sl_lay = floatval($data['sl_lay'] ?? 0);
+
+            if ($index !== null && isset($arr_hanghoa[$index]) && $sl_lay > 0) {
+                $hh = &$arr_hanghoa[$index];
+                if (isset($hh['gui_kho']) && $hh['gui_kho'] == 1) {
+                    $so_luong_con_lai = floatval($hh['sl_gui_kho'] ?? 0);
+                    $take = min($sl_lay, $so_luong_con_lai);
+
+                    if ($take > 0) {
+                        $hh['sl_da_lay'] = floatval($hh['sl_da_lay'] ?? 0) + $take;
+                        $hh['sl_gui_kho'] = $so_luong_con_lai - $take;
+
+                        if (!isset($hh['lich_su_lay_hang'])) $hh['lich_su_lay_hang'] = [];
+
+                        $hh['lich_su_lay_hang'][] = [
+                            'ngay_lay' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                            'so_luong' => $take,
+                            'ghi_chu' => 'Nhận hàng gửi kho hàng loạt'
+                        ];
+
+                        if ($hh['sl_gui_kho'] <= 0) {
+                            $hh['gui_kho'] = 0;
+                        }
+                        $changed = true;
+                        $total_items_picked++;
+                    }
+                }
+            }
+        }
+
+        if ($changed) {
+            $dh->hanghoa = $arr_hanghoa;
+            $dh->save();
+
+            $id_user = Session::get('user._id');
+            $querLog = array(
+                'id_user' => ObjectController::ObjectId($id_user),
+                'action' => 'Nhận hàng gửi kho hàng loạt cho đơn ' . $dh['ma_don_hang'],
+                'id_collection' => $id,
+                'collection' => 'don_hang',
+                'data' => [
+                    'pickup_summary' => $pickup_data,
+                    'total_items' => $total_items_picked
+                ]
+            );
+            LogController::addLog($querLog);
+
+            return response()->json(['error' => false, 'msg' => 'Đã cập nhật nhận hàng thành công']);
+        }
+
+        return response()->json(['error' => true, 'msg' => 'Không có thay đổi nào được thực hiện']);
+    }
+
     public function get_consignment_items($id)
     {
         $dh = DonHang::find($id);

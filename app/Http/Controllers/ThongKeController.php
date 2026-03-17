@@ -954,11 +954,11 @@ class ThongKeController extends Controller
             }
         }
 
-        // Headers - A to O (15 cols)
+        // Headers - A to Q (17 cols)
         $headers = [
             'STT', 'Mã Đơn', 'Ngày Bán', 'Khách Hàng', 'Tên Sản Phẩm', 
             'ĐVT', 'HCT', 'Số Lượng', 'Đơn Giá', 'CK%', 
-            'Thành Tiền', 'Giá Vốn', 'Lợi Nhuận', 'Tình Trạng', 'Nhà Cung Cấp'
+            'Thành Tiền', 'Thanh Toán (Đơn)', 'Còn Nợ (Đơn)', 'Giá Vốn', 'Lợi Nhuận', 'Tình Trạng', 'Nhà Cung Cấp'
         ];
         
         $col = 'A';
@@ -1020,30 +1020,34 @@ class ThongKeController extends Controller
                     
                     $thanh_tien = $hh['thanh_tien'] ?? 0;
                     $sheet->setCellValue('K' . $row, $thanh_tien);
+
+                    // NEW: Thanh toán và Còn nợ (theo đơn)
+                    $sheet->setCellValue('L' . $row, $da_thanh_toan_don);
+                    $sheet->setCellValue('M' . $row, $con_no_don);
                     
                     $gv_sp = isset($hh['gia_von_thuc_te']) ? $hh['gia_von_thuc_te'] : (isset($hh['gia_von']) ? $hh['gia_von'] * $sl : 0);
-                    $sheet->setCellValue('L' . $row, $gv_sp);
+                    $sheet->setCellValue('N' . $row, $gv_sp);
                     
                     $ln_sp = $thanh_tien - $gv_sp;
-                    $sheet->setCellValue('M' . $row, $ln_sp);
+                    $sheet->setCellValue('O' . $row, $ln_sp);
                     
                     $tt_dh = $ds['tinh_trang'] ?? 0;
-                    $sheet->setCellValue('N' . $row, $tinhtrang_text[$tt_dh] ?? 'Không xác định');
+                    $sheet->setCellValue('P' . $row, $tinhtrang_text[$tt_dh] ?? 'Không xác định');
 
                     $hh_id = (string)($hh['id_hanghoa'] ?? '');
                     $ten_ncc = !empty($hh['ten_ncc']) ? $hh['ten_ncc'] : ($hanghoa_ncc_map[$hh_id] ?? 'Không xác định');
-                    $sheet->setCellValue('O' . $row, $ten_ncc);
+                    $sheet->setCellValue('Q' . $row, $ten_ncc);
                     
                     // Format Numbers
-                    $sheet->getStyle('H' . $row . ':M' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('H' . $row . ':O' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     
                     // Alternating row colors
                     if($row % 2 == 0) {
-                        $sheet->getStyle('A' . $row . ':O' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9F9F9');
+                        $sheet->getStyle('A' . $row . ':Q' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9F9F9');
                     }
                     
                     // Borders
-                    $sheet->getStyle('A' . $row . ':O' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('FFDDDDDD');
+                    $sheet->getStyle('A' . $row . ':Q' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('FFDDDDDD');
                     
                     $row++;
                 }
@@ -1051,7 +1055,7 @@ class ThongKeController extends Controller
         }
         
         // AutoFilter
-        $sheet->setAutoFilter('A4:O'.($row-1));
+        $sheet->setAutoFilter('A4:Q'.($row-1));
 
         // Tạo Sheet cho Trả Hàng - cũng flattened
         $sheet2 = $spreadsheet->createSheet();

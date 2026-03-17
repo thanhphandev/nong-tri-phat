@@ -358,7 +358,6 @@
                                 <th class="text-right" style="width: 120px;">Đã lấy</th>
                                 <th class="text-right" style="width: 120px;">Còn gửi</th>
                                 <th class="text-center" style="width: 150px;">SL nhận lần này</th>
-                                <th class="text-center" style="width: 80px;">#</th>
                             </tr>
                         </thead>
                         <tbody id="nhanHangGuiKhoBody">
@@ -368,6 +367,8 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <input type="hidden" id="nhan_hang_id_donhang">
+                <button type="button" class="btn btn-primary" id="btnSaveNhanHangLoat"><i class="fa fa-save"></i> Lưu nhận hàng</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
             </div>
         </div>
@@ -469,52 +470,66 @@
                     
                     $("#nhan_hang_ma_don").text(res.ma_don_hang);
                     $("#nhan_hang_ngay_don").text(res.ngay_ban);
+                    $("#nhan_hang_id_donhang").val(id);
                     
                     var html = '';
                     if(res.items.length > 0){
                         res.items.forEach(function(item){
-                            html += '<tr>' +
+                            html += '<tr data-index="' + item.index + '">' +
                                 '<td>' + (item.ma ? '<small class="text-muted">' + item.ma + '</small><br>' : '') + '<strong>' + item.ten + '</strong></td>' +
                                 '<td class="text-right">' + item.so_luong + '</td>' +
                                 '<td class="text-right text-success">' + item.sl_da_lay + '</td>' +
                                 '<td class="text-right text-warning font-weight-bold">' + item.sl_gui_kho + '</td>' +
                                 '<td>' +
-                                    '<input type="number" class="form-control form-control-sm sl-nhan" step="0.01" min="0.01" max="' + item.sl_gui_kho + '" value="' + item.sl_gui_kho + '">' +
-                                '</td>' +
-                                '<td class="text-center">' +
-                                    '<button type="button" class="btn btn-xs btn-primary btn-confirm-pickup" data-id="' + id + '" data-index="' + item.index + '" data-ngay="' + res.ngay_ban + '">' +
-                                        '<i class="fa fa-check"></i>' +
-                                    '</button>' +
+                                    '<input type="number" class="form-control form-control-sm sl-nhan" step="0.01" min="0" max="' + item.sl_gui_kho + '" value="0" onfocus="if(this.value==0) this.value=\'\';" onblur="if(this.value==\'\') this.value=0;">' +
                                 '</td>' +
                                 '</tr>';
                         });
                     } else {
-                        html = '<tr><td colspan="6" class="text-center text-muted font-italic p-3">Không có mặt hàng nào đang được gửi kho</td></tr>';
+                        html = '<tr><td colspan="5" class="text-center text-muted font-italic p-3">Không có mặt hàng nào đang được gửi kho</td></tr>';
                     }
                     $("#nhanHangGuiKhoBody").html(html);
                 });
             });
 
-            $(document).on('click', '.btn-confirm-pickup', function(){
-                var btn = $(this);
-                var row = btn.closest('tr');
-                var id = btn.data('id');
-                var index = btn.data('index');
-                var ngay_ban = btn.data('ngay');
-                var sl = row.find('.sl-nhan').val();
+            $("#btnSaveNhanHangLoat").click(function(){
+                var id = $("#nhan_hang_id_donhang").val();
+                var pickup_data = [];
                 
-                if(!sl || sl <= 0){
-                    alert("Vui lòng nhập số lượng hợp lệ");
+                $("#nhanHangGuiKhoBody tr").each(function(){
+                    var row = $(this);
+                    var index = row.data('index');
+                    var sl = parseFloat(row.find('.sl-nhan').val());
+                    
+                    if(!isNaN(sl) && sl > 0){
+                        pickup_data.push({
+                            index: index,
+                            sl_lay: sl
+                        });
+                    }
+                });
+                
+                if(pickup_data.length == 0){
+                    alert("Vui lòng nhập số lượng nhận cho ít nhất một mặt hàng");
                     return;
                 }
                 
-                if(!confirm("Xác nhận nhận " + sl + " hàng gửi kho?")) return;
+                if(!confirm("Xác nhận nhận hàng cho " + pickup_data.length + " mặt hàng đã chọn?")) return;
                 
-                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+                var btn = $(this);
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang lưu...');
                 
-                var url = "{{ env('APP_URL') }}admin/don-hang/da-lay-hang/" + id + "?index=" + index + "&sl_lay=" + sl + "&ghi_chu=Nhận hàng gửi kho từ đơn ngày " + ngay_ban;
-                
-                window.location.href = url;
+                $.post("{{ env('APP_URL') }}admin/don-hang/da-lay-hang-loat/" + id, {
+                    _token: "{{ csrf_token() }}",
+                    pickup_data: pickup_data
+                }, function(res){
+                    if(res.error){
+                        alert(res.msg);
+                        btn.prop('disabled', false).html('<i class="fa fa-save"></i> Lưu nhận hàng');
+                    } else {
+                        location.reload();
+                    }
+                });
             });
         });
     </script>

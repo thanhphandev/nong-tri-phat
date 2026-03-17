@@ -124,10 +124,21 @@
                         <td class="indent">
                             - {{ $ct['ten'] ?? ($ct['ten_hanghoa'] ?? 'Không rõ tên') }}@if($isTraHangForDetail) <strong style="color: #d71a21;">(Trả)</strong>@endif @if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) <strong>(Hàng C.T)</strong> @endif
                             
-                            {{-- CHI TIẾT GỬI KHO --}}
-                            @if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1 && isset($ct['sl_gui_kho']) && $ct['sl_gui_kho'] > 0)
+                            {{-- CHI TIẾT GỬI KHO - Cố định theo thời điểm mua --}}
+                            @if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1)
+                                @php 
+                                    $nhan_luc_mua = 0;
+                                    if(isset($ct['lich_su_lay_hang']) && is_array($ct['lich_su_lay_hang']) && count($ct['lich_su_lay_hang']) > 0) {
+                                        // Nếu lần đầu không có ngày hoặc ghi chú là lấy tại quầy
+                                        $first = $ct['lich_su_lay_hang'][0];
+                                        if(empty($first['ngay_lay']) || (isset($first['ghi_chu']) && str_contains($first['ghi_chu'], 'quầy'))) {
+                                            $nhan_luc_mua = $first['so_luong'] ?? 0;
+                                        }
+                                    }
+                                    $gui_kho_luc_mua = $ct['so_luong'] - $nhan_luc_mua;
+                                @endphp
                                 <div style="font-size: 8px; color: #d9534f; margin-left: 10px; font-style: italic;">
-                                    (Mua: {{ $ct['so_luong'] }} - Nhận: {{ $ct['so_luong'] - $ct['sl_gui_kho'] }} - Gửi kho: {{ $ct['sl_gui_kho'] }})
+                                    <strong>(Mua: {{ $ct['so_luong'] }} - Nhận: {{ $nhan_luc_mua }} - Gửi kho: {{ $gui_kho_luc_mua }})</strong>
                                 </div>
                             @endif
                         </td>

@@ -753,14 +753,14 @@ class CongNoController extends Controller
         $sheet->getStyle('A3:A4')->getFont()->setBold(true);
 
         // --- Table Headers (row 6) ---
-        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'CK %', 'Tiền hàng', 'Thanh toán', 'Trả hàng', 'Còn nợ', 'Hàng C.Trình'];
+        $headers = ['Ngày/Giờ', 'Diễn giải', 'SL', 'ĐVT', 'Đơn giá', 'CK %', 'Tiền hàng', 'Thanh toán', 'Trả hàng', 'Còn nợ', 'Hàng C.Trình', 'Lợi nhuận'];
         $col = 'A';
         foreach($headers as $h) {
             $sheet->setCellValue($col . '6', $h);
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
-        $headerStyle = $sheet->getStyle('A6:K6');
+        $headerStyle = $sheet->getStyle('A6:L6');
         $headerStyle->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF343A40');
         $headerStyle->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
@@ -771,9 +771,9 @@ class CongNoController extends Controller
         $sheet->setCellValue('A' . $row, '');
         $sheet->setCellValue('B' . $row, 'DƯ NỢ ĐẦU KỲ');
         $sheet->setCellValue('J' . $row, $noDauKy);
-        $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $row . ':K' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0E0');
-        $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle('A' . $row . ':L' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row . ':L' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0E0');
+        $sheet->getStyle('A' . $row . ':L' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
         $luyKe = $noDauKy;
@@ -819,10 +819,22 @@ class CongNoController extends Controller
             $sheet->setCellValue('J' . $row, $luyKe);
             $sheet->setCellValue('K' . $row, $hangCT_don > 0 ? $hangCT_don : '');
             
-            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setBold(true);
-            $sheet->getStyle('A' . $row . ':K' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
-            $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-            $sheet->getStyle('G' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            // Tính tổng lợi nhuận của đơn này để hiển thị ở hàng master
+            $tong_ln_don = 0;
+            if(isset($item->details) && is_array($item->details)) {
+                foreach($item->details as $_ct) {
+                    $sl_ct = $_ct['so_luong'] ?? 0;
+                    $gv_ct = isset($_ct['gia_von_thuc_te']) ? $_ct['gia_von_thuc_te'] : (isset($_ct['gia_von']) ? $_ct['gia_von'] * $sl_ct : 0);
+                    $tong_ln_don += (($_ct['thanh_tien'] ?? 0) - $gv_ct);
+                }
+            }
+            if($item->co_tra_hang) $tong_ln_don = 0; // Trả hàng tạm tính LN = 0 hoặc có thể tính âm nếu cần
+            $sheet->setCellValue('L' . $row, $tong_ln_don != 0 ? $tong_ln_don : '');
+
+            $sheet->getStyle('A' . $row . ':L' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $row . ':L' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F5F5');
+            $sheet->getStyle('A' . $row . ':L' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            $sheet->getStyle('G' . $row . ':L' . $row)->getNumberFormat()->setFormatCode('#,##0');
             if($item->co_tra_hang) {
                 $sheet->getStyle('I' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
             }
@@ -839,9 +851,17 @@ class CongNoController extends Controller
                     if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) $tenSP .= ' (Hàng C.Trình)';
                     if($isTraHangForDetail) $tenSP .= ' (Trả)';
                     
-                    // THÊM CHI TIẾT GỬI KHO
-                    if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1 && isset($ct['sl_gui_kho']) && $ct['sl_gui_kho'] > 0) {
-                        $tenSP .= " \n    [Mua: ".$ct['so_luong']." - Nhận: ".($ct['so_luong'] - $ct['sl_gui_kho'])." - Gửi kho: ".$ct['sl_gui_kho']."]";
+                    // THÊM CHI TIẾT GỬI KHO - Cố định theo thời điểm mua
+                    if(isset($ct['gui_kho']) && $ct['gui_kho'] == 1) {
+                        $nhan_lm = 0;
+                        if(isset($ct['lich_su_lay_hang']) && is_array($ct['lich_su_lay_hang']) && count($ct['lich_su_lay_hang']) > 0) {
+                            $f = $ct['lich_su_lay_hang'][0];
+                            if(empty($f['ngay_lay']) || (isset($f['ghi_chu']) && (strpos($f['ghi_chu'], 'quầy') !== false))) {
+                                $nhan_lm = $f['so_luong'] ?? 0;
+                            }
+                        }
+                        $gk_lm = ($ct['so_luong'] ?? 0) - $nhan_lm;
+                        $tenSP .= " \n    (Mua: ".($ct['so_luong'] ?? 0)." - Nhận: ".$nhan_lm." - Gửi kho: ".$gk_lm.")";
                     }
                     
                     $sl = $isTraHangForDetail ? ($soLuongTra > 0 ? $soLuongTra : ($ct['so_luong'] ?? 0)) : ($ct['so_luong'] ?? 0);
@@ -859,6 +879,9 @@ class CongNoController extends Controller
                     
                     if (!$isTraHangForDetail) {
                         $sheet->setCellValue('G' . $row, $ct['thanh_tien'] ?? 0);
+                        
+                        $gv_sp = isset($ct['gia_von_thuc_te']) ? $ct['gia_von_thuc_te'] : (isset($ct['gia_von']) ? $ct['gia_von'] * $sl : 0);
+                        $sheet->setCellValue('L' . $row, ($ct['thanh_tien'] ?? 0) - $gv_sp);
                     }
 
                     if ($tienTraHang > 0) {
@@ -871,9 +894,10 @@ class CongNoController extends Controller
                     // No explicit 'Thanh toán' for detail rows, it's handled at master row level or implied by 'Tiền hàng'
 
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
-                    $sheet->getStyle('A' . $row . ':K' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                    $sheet->getStyle('A' . $row . ':L' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
                     $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('E' . $row . ':H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     // Hàng C.Trình value for detail row
                     if(isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) {
                         $sheet->setCellValue('K' . $row, $ct['thanh_tien'] ?? 0);
@@ -892,23 +916,23 @@ class CongNoController extends Controller
         $sheet->setCellValue('I' . $row, $tongTraHang > 0 ? $tongTraHang : '');
         $sheet->setCellValue('J' . $row, $luyKe);
         $sheet->setCellValue('K' . $row, $tongHangCT);
-        $totalStyle = $sheet->getStyle('A' . $row . ':K' . $row);
+        $totalStyle = $sheet->getStyle('A' . $row . ':L' . $row);
         $totalStyle->getFont()->setBold(true)->setSize(12);
         $totalStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFD0D0D0');
         $totalStyle->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->getStyle('H' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('H' . $row . ':L' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
         // --- Column alignments ---
         $sheet->getStyle('A7:A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('C7:C' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('D7:D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('E7:K' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('E7:L' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
         $sheet->getStyle('F7:F' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         
         // Freeze panes (freeze header)
         $sheet->freezePane('A7');
         // Auto filter
-        $sheet->setAutoFilter('A6:K6');
+        $sheet->setAutoFilter('A6:L6');
         // Set column widths for better readability
         $sheet->getColumnDimension('A')->setWidth(18);
         $sheet->getColumnDimension('B')->setWidth(40);
@@ -921,6 +945,7 @@ class CongNoController extends Controller
         $sheet->getColumnDimension('I')->setWidth(18);
         $sheet->getColumnDimension('J')->setWidth(18);
         $sheet->getColumnDimension('K')->setWidth(16);
+        $sheet->getColumnDimension('L')->setWidth(16);
 
         // Output
         $customerCode = isset($khachHang->ma_khach_hang) ? $khachHang->ma_khach_hang : 'KH'.substr($khach_hang_id, -5);
