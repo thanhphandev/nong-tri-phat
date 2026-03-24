@@ -77,15 +77,18 @@
 
     <!-- Summary -->
     <div class="summary-wrapper">
+        @php
+            $cong_no_ncc_val = isset($cong_no_ton_ncc) ? $cong_no_ton_ncc : 0;
+            $tong_cuoi_cung = (float)$cong_no_ncc_val + (float)$tong_no_moi;
+
+            // Số tiền QR: Tổng đơn này + nợ cũ (không trừ thanh toán đợt này)
+            $tong_phai_tra_qr = (float)$gia_tri_lo_nay + (float)$cong_no_ncc_val;
+        @endphp
         <div class="bank-info" style="display: table-cell; width: 42%; text-align: left; vertical-align: top; border-right: 1px solid #eee; padding-right: 3mm;">
-            @if(env('BANK_STK'))
+            @if(env('BANK_STK') && $tong_phai_tra_qr > 0)
             <div style="font-weight: bold; margin-bottom: 2mm; font-size: 9pt; color: #444;">THANH TOÁN CHUYỂN KHOẢN</div>
             <div style="display: flex; align-items: center;">
-                @php
-                    $cong_no_ncc_val = isset($cong_no_ton_ncc) ? $cong_no_ton_ncc : 0;
-                    $tong_cuoi_cung = (float)$cong_no_ncc_val + (float)$tong_no_moi;
-                @endphp
-                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_cuoi_cung) }}&addInfo={{ $nh['ma_nhap_hang'] }}" style="width: 25mm; border: 1px solid #f0f0f0; padding: 1px;">
+                <img src="https://img.vietqr.io/image/{{ env('BANK_ID') }}-{{ env('BANK_STK') }}-compact.png?amount={{ max(0, $tong_phai_tra_qr) }}&addInfo={{ $nh['ma_nhap_hang'] }}" style="width: 25mm; border: 1px solid #f0f0f0; padding: 1px;">
                 <div style="margin-left: 3mm; font-size: 9pt; line-height: 1.4;">
                     <strong style="font-size: 10pt;">{{ env('BANK_STK') }}</strong><br>
                     <strong>{{ env('BANK_CHU_TK') }}</strong><br>

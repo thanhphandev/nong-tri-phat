@@ -13,8 +13,13 @@ use App\Models\DonHang;
 use App\Models\CongNo;
 use App\Models\CongNoNCC;
 use App\Models\Log;
+use App\Models\TraHangKhach;
+use App\Models\TraHangNCC;
+// use App\Models\DMDiaChi;
+// use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class NongTriPhatSeeder extends Seeder
 {
@@ -31,7 +36,26 @@ class NongTriPhatSeeder extends Seeder
         CongNo::truncate();
         CongNoNCC::truncate();
         Log::truncate();
-        \Illuminate\Support\Facades\DB::connection('mongodb')->collection('counters')->truncate();
+        TraHangKhach::truncate();
+        TraHangNCC::truncate();
+   //     DMDiaChi::truncate();
+   //     User::truncate();
+        
+        // Clear system tables
+        DB::connection('mongodb')->collection('password_resets')->truncate();
+        DB::connection('mongodb')->collection('failed_jobs')->truncate();
+        DB::connection('mongodb')->collection('personal_access_tokens')->truncate();
+        DB::connection('mongodb')->collection('counters')->truncate();
+
+        // $this->command->info('0. Seeding Admin User...');
+        // User::create([
+           //  'fullname' => 'Nông Trí Phát',
+            // 'username' => 'admin@gmail.com',
+            // 'password' => bcrypt('admin'),
+            // 'roles' => ['Admin'],
+            // 'phone' => '0123456789',
+            // 'active' => 1
+        // ]);
 
         $this->command->info('1. Seeding Don Vi Tinh...');
         $dvts = ['Bao 20 Kg', 'Bao 25kg', 'Bao 50kg', 'Chai', 'Cái', 'Cặp', 'Gói', 'Hủ', 'Viên', 'Xô'];
@@ -60,13 +84,13 @@ class NongTriPhatSeeder extends Seeder
                 'ten' => $name,
                 'dien_thoai' => '09' . rand(10000000, 99999999),
                 'email' => Str::slug($name) . '@gmail.com',
-                'dia_chi' => 'Đường số ' . rand(1, 100) . ', Sóc Trăng',
+                'dia_chi' => 'Đường số ' . rand(1, 100) . ', An Giang',
                 'ghi_chu' => ''
             ]);
         }
 
         $khachhangs = [];
-        for ($i = 1; $i <= 30; $i++) {
+        for ($i = 1; $i <= 20; $i++) {
             $khachhangs[] = KhachHang::create([
                 'ma_khach_hang' => 'KH' . str_pad($i, 3, '0', STR_PAD_LEFT),
                 'ho_ten' => 'Khách Hàng ' . $i,
@@ -97,13 +121,9 @@ class NongTriPhatSeeder extends Seeder
             
             $gia_von = $item['gia_von'];
             if ($gia_von > 0) {
-                $gia_ban_mat = $gia_von + rand(20, 30) * 1000;
-                $gia_ban_thieu = $gia_von + rand(40, 50) * 1000;
-                $gia_si = $gia_von + rand(10, 15) * 1000;
-                $gia_le = $gia_ban_mat;
+                $gia_si = $gia_von + rand(20, 30) * 1000;
+                $gia_le = $gia_von + rand(40, 50) * 1000;
             } else {
-                $gia_ban_mat = 0;
-                $gia_ban_thieu = 0;
                 $gia_si = 0;
                 $gia_le = 0;
             }
@@ -130,8 +150,6 @@ class NongTriPhatSeeder extends Seeder
                 'gia_von' => $gia_von,
                 'gia_si' => $gia_si,
                 'gia_le' => $gia_le,
-                'gia_ban_mat' => $gia_ban_mat,
-                'gia_ban_thieu' => $gia_ban_thieu,
                 'so_luong_ton' => 0,
                 'cho_phep_ban_le' => $cho_phep_ban_le,
                 'don_vi_le' => $don_vi_le,

@@ -824,10 +824,17 @@ class CongNoController extends Controller
             $tong_ln_don = 0;
             if(isset($item->details) && is_array($item->details)) {
                 foreach($item->details as $_ct) {
-                    $sl_ct = $_ct['so_luong'] ?? 0;
-                    $gv_ct = isset($_ct['gia_von_thuc_te']) ? $_ct['gia_von_thuc_te'] : (isset($_ct['gia_von']) ? $_ct['gia_von'] * $sl_ct : 0);
-                    $ln_sp_tmp = (($_ct['thanh_tien'] ?? 0) - $gv_ct);
-                    if($item->co_tra_hang) $ln_sp_tmp = -1 * $ln_sp_tmp; // Đảo dấu nếu là trả hàng
+                    if($item->co_tra_hang) {
+                        $sl_ct = $_ct['so_luong_tra'] ?? ($_ct['so_luong'] ?? 0);
+                        $tt_ct = $_ct['thanh_tien_tra'] ?? ($_ct['thanh_tien'] ?? 0);
+                        $gv_ct = isset($_ct['gia_von_thuc_te']) ? $_ct['gia_von_thuc_te'] : (isset($_ct['gia_von']) ? $_ct['gia_von'] * $sl_ct : 0);
+                        $ln_sp_tmp = -1 * ($tt_ct - $gv_ct);
+                    } else {
+                        $sl_ct = $_ct['so_luong'] ?? 0;
+                        $tt_ct = $_ct['thanh_tien'] ?? 0;
+                        $gv_ct = isset($_ct['gia_von_thuc_te']) ? $_ct['gia_von_thuc_te'] : (isset($_ct['gia_von']) ? $_ct['gia_von'] * $sl_ct : 0);
+                        $ln_sp_tmp = ($tt_ct - $gv_ct);
+                    }
                     $tong_ln_don += $ln_sp_tmp;
                 }
             }
@@ -878,7 +885,8 @@ class CongNoController extends Controller
                     } else {
                         // Trả hàng chi tiết
                         $gv_sp = isset($ct['gia_von_thuc_te']) ? $ct['gia_von_thuc_te'] : (isset($ct['gia_von']) ? $ct['gia_von'] * $sl : 0);
-                        $ln_tra = -1 * (($ct['thanh_tien'] ?? 0) - $gv_sp);
+                        $tt_tra = $ct['thanh_tien_tra'] ?? ($ct['thanh_tien'] ?? 0);
+                        $ln_tra = -1 * ($tt_tra - $gv_sp);
                         $sheet->setCellValue('L' . $row, $ln_tra);
                         if($ln_tra < 0) {
                             $sheet->getStyle('L' . $row)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD71A21'));
