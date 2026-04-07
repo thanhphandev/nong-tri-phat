@@ -244,11 +244,20 @@ class HangHoaController extends Controller
         $hh = HangHoa::find($id);
         $batches = [];
         if($hh && isset($hh['ds_lo_hang'])){
-            $batches = $hh['ds_lo_hang'];
-            // Optional: Sort by Expiry Date or Import Date
-             usort($batches, function($a, $b) {
-                $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? $a['ngay_het_han']->toDateTime()->getTimestamp() : 0;
-                $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? $b['ngay_het_han']->toDateTime()->getTimestamp() : 0;
+            $batches = (array)$hh['ds_lo_hang'];
+            
+            // Sort by Quantity (Active first) then by Expiry Date
+            usort($batches, function($a, $b) {
+                $q1 = isset($a['so_luong_con_lai']) ? floatval($a['so_luong_con_lai']) : 0;
+                $q2 = isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
+                
+                // If one has stock and other doesn't, stock > 0 wins
+                if ($q1 > 0 && $q2 <= 0) return -1;
+                if ($q1 <= 0 && $q2 > 0) return 1;
+                
+                // If both have same stock status, sort by expiry
+                $t1 = isset($a['ngay_het_han']) && $a['ngay_het_han'] ? ($a['ngay_het_han'] instanceof \MongoDB\BSON\UTCDateTime ? $a['ngay_het_han']->toDateTime()->getTimestamp() : strtotime($a['ngay_het_han'])) : PHP_INT_MAX;
+                $t2 = isset($b['ngay_het_han']) && $b['ngay_het_han'] ? ($b['ngay_het_han'] instanceof \MongoDB\BSON\UTCDateTime ? $b['ngay_het_han']->toDateTime()->getTimestamp() : strtotime($b['ngay_het_han'])) : PHP_INT_MAX;
                 return $t1 - $t2;
             });
         }

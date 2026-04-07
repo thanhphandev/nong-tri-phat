@@ -106,7 +106,7 @@
                             <td colspan="7" class="text-right font-weight-bold">TỔNG THÀNH TIỀN:</td>
                             <td class="text-right font-weight-bold text-danger">{{ number_format($dh['tong_thanh_tien'], 0, ',', '.') }}</td>
                         </tr>
-                         <tr>
+                        <tr>
                             <td colspan="7" class="text-right font-weight-bold">
                                 <a href="#paymentHistory" data-toggle="collapse" class="text-success" aria-expanded="false" aria-controls="paymentHistory" title="Bấm để xem chi tiết lịch sử thanh toán">
                                     ĐÃ THANH TOÁN <i class="fa fa-caret-down"></i>:
@@ -114,6 +114,12 @@
                             </td>
                             <td class="text-right font-weight-bold text-success">{{ number_format($dh->da_thanh_toan ?? 0, 0, ',', '.') }}</td>
                         </tr>
+                        @if(($dh->gia_tri_tra_hang ?? 0) > 0)
+                        <tr>
+                            <td colspan="7" class="text-right font-weight-bold text-warning">GIÁ TRỊ TRẢ HÀNG KHÁCH:</td>
+                            <td class="text-right font-weight-bold text-warning">{{ number_format($dh->gia_tri_tra_hang, 0, ',', '.') }}</td>
+                        </tr>
+                        @endif
                         <tr class="collapse" id="paymentHistory">
                             <td colspan="8" class="p-0">
                                 <div class="px-3 py-2" style="background-color: #f1f5f7;">
@@ -132,7 +138,11 @@
                                                 @foreach($lich_su_thanh_toan as $ls)
                                                     <tr>
                                                         <td class="text-center">{{ \App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'] ?? '', "d/m/Y H:i") }}</td>
-                                                        <td class="text-right text-success font-weight-bold">+{{ number_format($ls['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                                        @if(isset($ls['id_trahangkhach']))
+                                                            <td class="text-right text-warning font-weight-bold">-{{ number_format($ls['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                                        @else
+                                                            <td class="text-right text-success font-weight-bold">+{{ number_format($ls['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                                        @endif
                                                         <td>{{ $ls['ghi_chu'] ?? '' }}</td>
                                                         <td>
                                                             @php

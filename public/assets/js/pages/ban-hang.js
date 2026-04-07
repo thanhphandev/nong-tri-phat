@@ -208,12 +208,26 @@ function change_so_luong(path) {
                     if (warningName.length > 0) {
                         warningName.html(resp.warning_info);
                     } else {
-                        parent.find("td:eq(1) .profit-info").before('<div class="alert alert-warning p-1 m-1" style="font-size: 11px;">' + resp.warning_info + '</div>');
+                        parent.find("td:eq(1) .batch-usage-container").before('<div class="alert alert-warning p-1 m-1" style="font-size: 11px;">' + resp.warning_info + '</div>');
                     }
                 } else {
                     if (warningName.length > 0) {
                         warningName.remove();
                     }
+                }
+
+                // Cập nhật chi tiết lô hàng
+                var batchContainer = parent.find(".batch-usage-container");
+                if (resp.batches && resp.batches.length > 0) {
+                    var batchHtml = '<div class="batch-usage-info mt-1" style="font-size: 11px; line-height: 1.4;">';
+                    batchHtml += '<strong class="text-muted"><i class="fas fa-layer-group"></i> Lô hàng sử dụng:</strong>';
+                    resp.batches.forEach(function(b) {
+                        batchHtml += '<div class="ml-2 text-info border-left pl-1 mb-1">- Lô ' + b.ma_lo + ' (HSD: ' + b.ngay_het_han + ') - Giá nhập: ' + b.gia_von + ' : <b>' + b.so_luong + '</b></div>';
+                    });
+                    batchHtml += '</div>';
+                    batchContainer.html(batchHtml);
+                } else {
+                    batchContainer.empty();
                 }
 
                 // Cập nhật giá vốn thực tế và lợi nhuận

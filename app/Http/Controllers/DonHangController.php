@@ -60,13 +60,15 @@ class DonHangController extends Controller
             return ObjectController::ObjectId($id); }, $ids);
 
         $payments = [];
+        $returns = [];
         if (count($ids) > 0) {
             $raw_payments = CongNo::raw(function ($collection) use ($ids) {
                 return $collection->aggregate([
                 [
                 '$match' => [
                 'id_donhang' => ['$in' => $ids],
-                'loai_cong_no' => 1 // Payment
+                'loai_cong_no' => 1, // Payment
+                'id_trahangkhach' => ['$exists' => false] // Loại trừ record trả hàng KH
                 ]
                 ],
                 [
@@ -78,14 +80,36 @@ class DonHangController extends Controller
                 ]);
             });
 
+            $raw_returns = CongNo::raw(function ($collection) use ($ids) {
+                return $collection->aggregate([
+                [
+                '$match' => [
+                'id_donhang' => ['$in' => $ids],
+                'loai_cong_no' => 1, // Payment
+                'id_trahangkhach' => ['$exists' => true] // Chỉ lấy record trả hàng
+                ]
+                ],
+                [
+                '$group' => [
+                '_id' => '$id_donhang',
+                'total_return' => ['$sum' => '$tong_thanh_tien']
+                ]
+                ]
+                ]);
+            });
+
             foreach ($raw_payments as $p) {
                 $payments[(string)$p['_id']] = $p['total_paid'];
+            }
+            foreach ($raw_returns as $r) {
+                $returns[(string)$r['_id']] = $r['total_return'];
             }
         }
 
         foreach ($danhsach as $ds) {
             $ds->da_thanh_toan = isset($payments[(string)$ds->_id]) ? $payments[(string)$ds->_id] : 0;
-            $ds->con_no = $ds->tong_thanh_tien - $ds->da_thanh_toan;
+            $ds->gia_tri_tra_hang = isset($returns[(string)$ds->_id]) ? $returns[(string)$ds->_id] : 0;
+            $ds->con_no = $ds->tong_thanh_tien - $ds->da_thanh_toan - $ds->gia_tri_tra_hang;
         }
 
         // Lọc theo trạng thái nợ (sau khi đã tính toán con_no)
@@ -390,9 +414,9 @@ class DonHangController extends Controller
                 }
 
                 // --- FEFO & Real Cost Calculation ---
-                $hanghoa_db = $hh; // Already found above
-                $sl_can_tru = $sl_can_tru_kho; // Trừ kho theo đơn vị chuẩn
-                $tong_gia_von_thuc_te = 0; // Total cost for this line item based on batches
+                $hanghoa_db = $hh; 
+                $sl_can_tru = $sl_can_tru_kho; 
+                $tong_gia_von_thuc_te = 0; 
                 $sl_da_tru = 0;
 
                 if ($hanghoa_db && isset($hanghoa_db['ds_lo_hang']) && is_array($hanghoa_db['ds_lo_hang']) && count($hanghoa_db['ds_lo_hang']) > 0) {
@@ -455,22 +479,31 @@ class DonHangController extends Controller
                         $new_batches[] = $batch;
                     }
 
-                    // Nếu vẫn còn số lượng cần trừ (không đủ hàng), tính giá vốn cho phần thiếu
-                    $sl_thieu = $sl_can_tru;
+                    // Nếu vẫn còn số lượng cần trừ (Trường hợp BÁN ÂM)
                     if ($sl_can_tru > 0) {
-                        // Dùng giá vốn mặc định cho phần thiếu
-                        $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
-                        $tong_gia_von_thuc_te += $sl_can_tru * $default_cost;
-                        $sl_da_tru += $sl_can_tru;
-
-                        // Trừ vào lô cuối cùng (lô mới nhất hoặc lô cuối non-expired) để phản ánh dư nợ kho
-                        $target_idx = ($last_valid_batch_index >= 0) ? $last_valid_batch_index : (count($new_batches) - 1);
-                        if ($target_idx >= 0) {
-                            $batch_to_update = $new_batches[$target_idx];
-                            $batch_to_update['so_luong_con_lai'] = (isset($batch_to_update['so_luong_con_lai']) ? floatval($batch_to_update['so_luong_con_lai']) : 0) - $sl_can_tru;
-                            $new_batches[$target_idx] = $batch_to_update;
+                        if (count($new_batches) > 0) {
+                            // CẢI TIẾN: Trừ vào lô ĐẦU TIÊN (lô cũ nhất theo FEFO) thay vì lô mới nhất
+                            // Giúp giữ giá vốn ở mức giá lịch sử (ví dụ 100k) thay vì lấy giá mới nhất (110k)
+                            $target_idx = 0; 
+                            $current_batch_qty = isset($new_batches[$target_idx]['so_luong_con_lai']) ? floatval($new_batches[$target_idx]['so_luong_con_lai']) : 0;
+                            $new_batches[$target_idx]['so_luong_con_lai'] = $current_batch_qty - $sl_can_tru;
+                            
+                            // Dùng giá vốn của chính lô cũ đó thay vì giá vốn mặc định của hàng hóa
+                            $batch_cost = isset($new_batches[$target_idx]['gia_von']) ? doubleval($new_batches[$target_idx]['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
+                            $tong_gia_von_thuc_te += $sl_can_tru * $batch_cost;
+                        } else {
+                            // Tạo lô nợ mới nếu chưa có lô nào
+                            $new_batches[] = [
+                                'ma_nhap_hang' => 'BAN_AM_' . date('dmY_His'),
+                                'so_luong_nhap' => 0,
+                                'so_luong_con_lai' => -$sl_can_tru,
+                                'gia_von' => isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0,
+                                'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                                'ghi_chu' => 'Bán âm tự động'
+                            ];
+                            $tong_gia_von_thuc_te += $sl_can_tru * (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
                         }
-
+                        $sl_da_tru += $sl_can_tru;
                         $sl_can_tru = 0;
                     }
 
@@ -514,11 +547,23 @@ class DonHangController extends Controller
                     $hanghoa_db->save();
                 }
                 else {
-                    // Không có lô hàng, trừ trực tiếp vào so_luong_ton
+                    // Không có lô hàng -> Cho phép bán âm trực tiếp
+                    $so_luong_ton_current = floatval($hanghoa_db->so_luong_ton ?? 0);
                     $default_cost = isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0;
                     $tong_gia_von_thuc_te = $sl_can_tru_kho * $default_cost;
 
-                    $hanghoa_db->so_luong_ton = floatval($hanghoa_db->so_luong_ton) - $sl_can_tru_kho;
+                    $hanghoa_db->so_luong_ton = $so_luong_ton_current - $sl_can_tru_kho;
+                    
+                    // Tạo lô nợ để đồng bộ logic ds_lo_hang
+                    $hanghoa_db->ds_lo_hang = [[
+                        'ma_nhap_hang' => 'BAN_AM_' . date('dmY_His'),
+                        'so_luong_nhap' => 0,
+                        'so_luong_con_lai' => -$sl_can_tru_kho,
+                        'gia_von' => $default_cost,
+                        'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                        'ghi_chu' => 'Bán âm (Chưa có lô hàng)'
+                    ]];
+                    
                     $hanghoa_db->save();
                 }
 
@@ -647,20 +692,16 @@ class DonHangController extends Controller
         // FEFO Simulation & Calculate Real Cost
         $warning_info = "";
         $batches_used = $this->resolveBatches($hh, $so_luong);
-
-        // Tính giá vốn thực tế theo lô hàng
         $gia_von_thuc_te = $this->calculateRealCost($hh, $so_luong);
 
-        if (count($batches_used) > 1) {
-            $warning_info = "Sử dụng từ nhiều lô: ";
-            foreach ($batches_used as $b) {
-                $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Giá nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
+        if (count($batches_used) > 0) {
+            if (count($batches_used) > 1) {
+                $warning_info = "Sử dụng từ " . count($batches_used) . " lô hàng.";
+            } else if ($batches_used[0]['so_luong'] < $so_luong) {
+                $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'] . " hàng trong kho.";
             }
-        }
-        elseif (count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
-            // Case where total stock is less than requested, but handled by validator elsewhere usually.
-            // But if we want to show what is available:
-            $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];
+        } else if ($so_luong > 0) {
+            $warning_info = "Không có hàng trong kho cho sản phẩm này.";
         }
 
         return view('Admin.DonHang.cart')->with(compact('kh', 'hh', 'so_luong', 'warning_info', 'gia_von_thuc_te', 'batches_used'));
@@ -679,20 +720,21 @@ class DonHangController extends Controller
             $batches_used = $this->resolveBatches($hh, $so_luong);
             $gia_von_thuc_te = $this->calculateRealCost($hh, $so_luong);
 
-            if (count($batches_used) > 1) {
-                $warning_info = "Sử dụng từ nhiều lô: ";
-                foreach ($batches_used as $b) {
-                    $warning_info .= "<br/>- Lô " . $b['ma_lo'] . " (HSD: " . $b['ngay_het_han'] . ") - Giá nhập: " . $b['gia_von'] . ": " . $b['so_luong'];
+            if (count($batches_used) > 0) {
+                if (count($batches_used) > 1) {
+                    $warning_info = "Sử dụng từ " . count($batches_used) . " lô hàng.";
+                } else if ($batches_used[0]['so_luong'] < $so_luong) {
+                    $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'] . " hàng trong kho.";
                 }
-            }
-            elseif (count($batches_used) == 1 && $batches_used[0]['so_luong'] < $so_luong) {
-                $warning_info = "Chỉ đáp ứng được " . $batches_used[0]['so_luong'];
+            } else if ($so_luong > 0) {
+                $warning_info = "Không có hàng trong kho cho sản phẩm này.";
             }
         }
 
         return response()->json([
             'warning_info' => $warning_info,
-            'gia_von_thuc_te' => $gia_von_thuc_te
+            'gia_von_thuc_te' => $gia_von_thuc_te,
+            'batches' => $batches_used ?? []
         ]);
     }
 
@@ -768,8 +810,9 @@ class DonHangController extends Controller
 
         // Calculate current debt
         $id_dh = ObjectController::ObjectId($donhang['_id']);
-        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-        $con_no = $donhang['tong_thanh_tien'] - $da_thanh_toan;
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->whereNull('id_trahangkhach')->sum('tong_thanh_tien');
+        $gia_tri_tra_hang = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->whereNotNull('id_trahangkhach')->sum('tong_thanh_tien');
+        $con_no = $donhang['tong_thanh_tien'] - $da_thanh_toan - $gia_tri_tra_hang;
 
         // Parse payment amount
         $so_tien = ObjectController::convertStr2Number_1($data['so_tien']);
@@ -837,11 +880,13 @@ class DonHangController extends Controller
         // 1. Map thông tin Hàng hóa & Đơn vị tính
         $dh->hanghoa = $this->mapHangHoaArray($dh->hanghoa);
 
-        // 2. Tính đã thanh toán từ bảng CongNo
+        // 2. Tính đã thanh toán từ bảng CongNo (loại trừ record trả hàng)
         $id_dh = ObjectController::ObjectId($dh->_id);
-        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->whereNull('id_trahangkhach')->sum('tong_thanh_tien');
+        $gia_tri_tra_hang = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->whereNotNull('id_trahangkhach')->sum('tong_thanh_tien');
         $dh->da_thanh_toan = $da_thanh_toan;
-        $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
+        $dh->gia_tri_tra_hang = $gia_tri_tra_hang;
+        $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan - $gia_tri_tra_hang;
 
         $lich_su_thanh_toan = CongNo::where('id_donhang', $id_dh)
             ->where('loai_cong_no', 1)
@@ -869,16 +914,18 @@ class DonHangController extends Controller
         // 1. Map thông tin Hàng hóa & Đơn vị tính
         $dh->hanghoa = $this->mapHangHoaArray($dh->hanghoa);
 
-        // 2. Tính đã thanh toán từ bảng CongNo
+        // 2. Tính đã thanh toán từ bảng CongNo (loại trừ record trả hàng)
         $id_dh = ObjectController::ObjectId($dh->_id);
-        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->whereNull('id_trahangkhach')->sum('tong_thanh_tien');
+        $gia_tri_tra_hang = CongNo::where('id_donhang', $id_dh)->where('loai_cong_no', 1)->whereNotNull('id_trahangkhach')->sum('tong_thanh_tien');
         $lich_su_thanh_toan = CongNo::where('id_donhang', $id_dh)
             ->where('loai_cong_no', 1)
             ->orderBy('ngay_gio', 'asc')
             ->get();
 
         $dh->da_thanh_toan = $da_thanh_toan;
-        $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan;
+        $dh->gia_tri_tra_hang = $gia_tri_tra_hang;
+        $dh->con_no = $dh->tong_thanh_tien - $da_thanh_toan - $gia_tri_tra_hang;
 
         return view('Admin.DonHang.edit', compact('dh', 'lich_su_thanh_toan'));
     }
@@ -945,7 +992,7 @@ class DonHangController extends Controller
                         $gia_von = isset($batch['gia_von']) ? number_format($batch['gia_von'], 0, ',', '.') : (isset($hanghoa['gia_von']) ? number_format($hanghoa['gia_von'], 0, ',', '.') : '0');
 
                         $batches_used[] = [
-                            'ma_lo' => isset($batch['ma_lo']) ? $batch['ma_lo'] : '',
+                            'ma_lo' => $batch['ma_nhap_hang'] ?? ($batch['ma_lo'] ?? ''),
                             'so_luong' => $used,
                             'ngay_het_han' => $date_display,
                             'gia_von' => $gia_von

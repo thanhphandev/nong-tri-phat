@@ -200,10 +200,10 @@
     <div id="stats-cards">
     <div class="row">
         <div class="col-md-4 col-xl-2">
-            <div class="card-box widget-flat border-success bg-success text-white" title="Tổng bán: {{ number_format($tong_doanh_thu_ban,0,",",".") }} - Trả: {{ number_format($tong_doanh_thu_tra,0,",",".") }}">
+            <div class="card-box widget-flat border-success bg-success text-white" title="Doanh thu sau cùng = Tổng bán - Tổng trả">
                 <i class="fas fa-money-bill-wave"></i>
                 <h4 class="text-white">{{ number_format($tong_doanh_thu,0,",",".") }}</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Doanh thu thực</p>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Doanh thu thực (NET)</p>
             </div>
         </div>
         <div class="col-md-4 col-xl-2">
@@ -221,17 +221,17 @@
             </div>
         </div>
         <div class="col-md-4 col-xl-3">
-            <div class="card-box bg-primary widget-flat border-primary text-white">
+            <div class="card-box bg-primary widget-flat border-primary text-white" title="Thanh toán NET = Tổng thu - Tổng hoàn trả">
                 <i class="fas fa-check-circle"></i>
                 <h4 class="text-white">{{ number_format($tong_da_thanh_toan,0,",",".") }}</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Đã thanh toán</p>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Đã thanh toán (NET)</p>
             </div>
         </div>
         <div class="col-md-4 col-xl-3">
-            <div class="card-box bg-danger widget-flat border-danger text-white">
+            <div class="card-box bg-danger widget-flat border-danger text-white" title="Nợ thực tế khách còn phải trả">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h4 class="text-white">{{ number_format($tong_con_no,0,",",".") }}</h4>
-                <p class="text-uppercase font-12 font-weight-bold mb-0">Còn nợ</p>
+                <p class="text-uppercase font-12 font-weight-bold mb-0">Còn nợ (NET)</p>
             </div>
         </div>
     </div>
@@ -360,8 +360,8 @@
                                 <td class="text-center text-primary">{{ number_format($so_san_pham_ban,0,",",".") }}</td>
                                 <td class="text-right text-success"><b>{{ number_format($tong_doanh_thu_ban,0,",",".") }}</b></td>
                                 <td class="text-right text-info"><b>{{ number_format($tong_tien_hang_ct,0,",",".") }}</b></td>
-                                <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan,0,",",".") }}</b></td>
-                                <td class="text-right text-danger"><b>{{ number_format($tong_con_no,0,",",".") }}</b></td>
+                                <td class="text-right text-primary"><b>{{ number_format($tong_da_thanh_toan_ban,0,",",".") }}</b></td>
+                                <td class="text-right text-danger"><b>{{ number_format($tong_con_no_ban,0,",",".") }}</b></td>
                                 <td class="text-right text-warning">{{ number_format($tong_gia_von_ban,0,",",".") }}</td>
                                 @php
                                     $tong_loi_nhuan_uoc_tinh_table = 0;
@@ -387,7 +387,7 @@
                                         }
                                     }
                                 @endphp
-                                <td class="text-right text-success"><b>{{ number_format($tong_loi_nhuan_uoc_tinh_table,0,",",".") }}</b></td>
+                                <td class="text-right text-success"><b>{{ number_format($tong_loi_nhuan_ban,0,",",".") }}</b></td>
                                 <td colspan="2"></td>
                             </tr>
                         </thead>
@@ -463,7 +463,7 @@
             @if(count($ds_tra_hang) > 0)
                 <div class="table-responsive mt-3">
                     <table class="table table-border table-bordered table-striped table-hovered table-sm">
-                        <thead class="thead-light">
+                        <thead class="thead-dark">
                             <tr>
                                 <th>STT</th>
                                 <th>Mã Trả hàng</th>
@@ -475,6 +475,14 @@
                                 <th class="text-info">Tiền Hàng CT trả</th>
                                 <th>Tổng giá vốn</th>
                                 <th>Chi tiết</th>
+                            </tr>
+                            <tr class="bg-light text-dark font-weight-bold summary-row">
+                                <td colspan="5" class="text-right text-uppercase">TỔNG TRẢ:</td>
+                                <td class="text-center text-danger">{{ number_format($so_san_pham_tra,0,",",".") }}</td>
+                                <td class="text-right text-danger"><b>{{ number_format($tong_doanh_thu_tra,0,",",".") }}</b></td>
+                                <td class="text-right text-info"><b>{{ number_format($tong_tien_hang_ct_tra,0,",",".") }}</b></td>
+                                <td class="text-right text-warning">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
+                                <td></td>
                             </tr>
                         </thead>
                         <tbody>
@@ -516,16 +524,7 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                        <tfoot class="bg-light font-weight-bold">
-                            <tr>
-                                <td colspan="5" class="text-right">TỔNG TRẢ:</td>
-                                <td class="text-center text-danger">{{ number_format($so_san_pham_tra,0,",",".") }}</td>
-                                <td class="text-right text-danger">{{ number_format($tong_doanh_thu_tra,0,",",".") }}</td>
-                                <td class="text-right text-info">{{ number_format($tong_tien_hang_ct_tra,0,",",".") }}</td>
-                                <td class="text-right text-warning">{{ number_format($tong_gia_von_tra,0,",",".") }}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
+
                     </table>
                 </div>
                 <div class="mt-3">

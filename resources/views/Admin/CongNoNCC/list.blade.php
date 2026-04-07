@@ -312,22 +312,21 @@
                         <div>
                             <div class="custom-control custom-radio custom-control-inline">
                                 <input type="radio" id="loai_1" name="loai_cong_no" class="custom-control-input" value="1" checked>
-                                <label class="custom-control-label" for="loai_1">Thanh toán (Trả tiền cho NCC)</label>
+                                <label class="custom-control-label" for="loai_1">Trả nợ cho NCC</label>
                             </div>
                             <div class="custom-control custom-radio custom-control-inline">
                                 <input type="radio" id="loai_0" name="loai_cong_no" class="custom-control-input" value="0">
-                                <label class="custom-control-label" for="loai_0">Ghi nợ thêm (Tăng nợ hiện tại)</label>
+                                <label class="custom-control-label" for="loai_0">Nhận tiền từ NCC</label>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Số tiền (VND) <span class="text-danger">*</span></label>
                         <input type="text" name="so_tien" class="form-control number" required style="font-size: 18px; font-weight: bold;">
-                        <small class="text-muted">Nhập số âm nếu nhận tiền hoàn lại từ NCC.</small>
                     </div>
                     <div class="form-group">
                         <label>Ghi chú</label>
-                        <textarea name="ghi_chu" class="form-control" rows="2"></textarea>
+                        <textarea name="ghi_chu" id="ghi_chu" class="form-control" rows="2">{{ isset($supplier_detail['ten']) ? 'Thanh toán công nợ cho ' . $supplier_detail['ten'] : '' }}</textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -375,6 +374,18 @@
             $(window).resize(adjustStickySummary);
             $('#table-debt').on('draw.dt', function() {
                 setTimeout(adjustStickySummary, 50);
+            });
+
+            // Tự động thay đổi ghi chú theo loại giao dịch
+            $('input[name="loai_cong_no"]').change(function() {
+                var tenNCC = "{!! isset($supplier_detail['ten']) ? $supplier_detail['ten'] : '' !!}";
+                if(tenNCC != '') {
+                    if($(this).val() == '1') {
+                        $('#ghi_chu').val('Thanh toán công nợ cho ' + tenNCC);
+                    } else {
+                        $('#ghi_chu').val('Nhận tiền từ ' + tenNCC);
+                    }
+                }
             });
         });
     </script>

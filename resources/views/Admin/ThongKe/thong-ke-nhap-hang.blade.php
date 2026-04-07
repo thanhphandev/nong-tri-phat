@@ -354,7 +354,7 @@
             @if(count($ds_tra_hang_ncc) > 0)
                 <div class="table-responsive mt-3">
                     <table class="table table-border table-bordered table-striped table-hovered table-sm">
-                        <thead class="thead-light">
+                        <thead class="thead-dark">
                             <tr>
                                 <th>STT</th>
                                 <th>Mã Trả hàng</th>
@@ -364,6 +364,12 @@
                                 <th>SL Trả</th>
                                 <th>Tiền nhận lại</th>
                                 <th>Chi tiết</th>
+                            </tr>
+                            <tr class="bg-light text-dark font-weight-bold summary-row">
+                                <td colspan="5" class="text-right text-uppercase">TỔNG CỘNG:</td>
+                                <td class="text-center text-primary">{{ number_format($so_san_pham_tra, 0, ",", ".") }}</td>
+                                <td class="text-right text-danger"><b>{{ number_format($tong_gia_tri_tra, 0, ",", ".") }}</b></td>
+                                <td></td>
                             </tr>
                         </thead>
                         <tbody>
@@ -390,14 +396,7 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                        <tfoot class="bg-light font-weight-bold">
-                            <tr>
-                                <td colspan="5" class="text-right">TỔNG CỘNG:</td>
-                                <td class="text-center text-primary">{{ number_format($so_san_pham_tra, 0, ",", ".") }}</td>
-                                <td class="text-right text-danger">{{ number_format($tong_gia_tri_tra, 0, ",", ".") }}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
+
                     </table>
                 </div>
                 <div class="mt-3">

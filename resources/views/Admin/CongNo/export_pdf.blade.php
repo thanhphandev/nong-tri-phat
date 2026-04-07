@@ -80,7 +80,7 @@
                         @elseif($isTraHang) 
                             <span style="color: #d71a21;">Trả hàng: {{ $item->ma_phieu ?? '' }}</span>
                         @else 
-                            {{ $item->tien_hang > 0 ? 'Phát sinh nợ' : 'Thu tiền' }}
+                            {{ $item->tien_hang > 0 ? 'Trả tiền lại khách' : 'Thu tiền' }}
                         @endif
                     </td>
                     <td class="text-center">

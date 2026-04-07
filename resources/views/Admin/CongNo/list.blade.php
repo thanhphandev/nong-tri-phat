@@ -301,21 +301,20 @@
                     <input type="hidden" name="url" value="{{ Request::fullUrl() }}">
                     <div class="form-group">
                         <label>Loại giao dịch</label>
-                        <div>
+                        <div class="d-flex">
                             <div class="custom-control custom-radio custom-control-inline">
                                 <input type="radio" id="loai_1" name="loai_cong_no" class="custom-control-input" value="1" checked>
-                                <label class="custom-control-label" for="loai_1">Thanh toán (Khách trả tiền)</label>
+                                <label class="custom-control-label" for="loai_1"><b>Khách trả nợ</b></label>
                             </div>
                             <div class="custom-control custom-radio custom-control-inline">
                                 <input type="radio" id="loai_0" name="loai_cong_no" class="custom-control-input" value="0">
-                                <label class="custom-control-label" for="loai_0">Ghi nợ thêm</label>
+                                <label class="custom-control-label" for="loai_0"><b>Trả lại tiền cho khách</b></label>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Số tiền (VND) <span class="text-danger">*</span></label>
                         <input type="text" name="so_tien" class="form-control number" required style="font-size: 18px; font-weight: bold;">
-                        <small class="text-muted">Nhập số âm nếu muốn hoàn tiền lại cho khách.</small>
                     </div>
                     <div class="form-group">
                         <label>Ghi chú</label>

@@ -295,7 +295,13 @@ class TraHangNCCController extends Controller
                     }
                     
                     $hang_hoa->ds_lo_hang = $new_batches;
-                    $hang_hoa->so_luong_ton -= $so_luong_tra;
+
+                    // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
+                    $total_stock = 0;
+                    foreach ($new_batches as $b) {
+                        $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                    }
+                    $hang_hoa->so_luong_ton = $total_stock;
                     $hang_hoa->save();
                 }
             }
@@ -346,39 +352,21 @@ class TraHangNCCController extends Controller
             $congno->id_user = ObjectController::ObjectId($id_user);
             $congno->save();
         } elseif ($data['hinh_thuc_hoan'] == 'hoan_tien') {
-            // Nhận tiền mặt từ NCC: Tạo 2 bản ghi để cân bằng và ghi nhận đầy đủ lịch sử
-            
-            // Bản ghi 1: Giảm nợ (ghi nhận giá trị hàng trả - credit from return)
-            $congno1 = new CongNoNCC();
-            $congno1->id_nhacungcap = $nhaphang['id_nhacungcap'];
-            $congno1->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
-            $congno1->id_trahangncc = ObjectController::ObjectId($tra_hang->_id); // Link to return record
-            $congno1->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
-            $congno1->ten_ncc = $nhaphang['ten_ncc'];
-            $congno1->dien_thoai = $nhaphang['dien_thoai'] ?? '';
-            $congno1->dia_chi = $nhaphang['dia_chi'] ?? '';
-            $congno1->tong_thanh_tien = $tong_tien_tra;
-            $congno1->ngay_gio = ObjectController::setDate();
-            $congno1->loai_cong_no = 1; // Giảm nợ - ghi nhận giá trị trả hàng
-            $congno1->ghi_chu = 'Trả hàng NCC [' . $ma_tra_hang . '] - Giá trị hàng trả: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
-            $congno1->id_user = ObjectController::ObjectId($id_user);
-            $congno1->save();
-            
-            // Bản ghi 2: Ghi nợ lại (ghi nhận đã nhận tiền mặt từ NCC)
-            $congno2 = new CongNoNCC();
-            $congno2->id_nhacungcap = $nhaphang['id_nhacungcap'];
-            $congno2->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
-            $congno2->id_trahangncc = ObjectController::ObjectId($tra_hang->_id); // Link to return record
-            $congno2->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
-            $congno2->ten_ncc = $nhaphang['ten_ncc'];
-            $congno2->dien_thoai = $nhaphang['dien_thoai'] ?? '';
-            $congno2->dia_chi = $nhaphang['dia_chi'] ?? '';
-            $congno2->tong_thanh_tien = $tong_tien_tra;
-            $congno2->ngay_gio = ObjectController::setDate();
-            $congno2->loai_cong_no = 0; // Ghi nợ lại - vì đã nhận tiền mặt thay vì trừ nợ
-            $congno2->ghi_chu = 'Đã nhận tiền mặt từ NCC [' . $nhaphang['ten_ncc'] . '] - Hoàn tiền trả hàng [' . $ma_tra_hang . ']: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
-            $congno2->id_user = ObjectController::ObjectId($id_user);
-            $congno2->save();
+            // Hoàn tiền mặt: Tạo bút toán công nợ giá trị 0 để tracking nhận tiền
+            $congno = new CongNoNCC();
+            $congno->id_nhacungcap = $nhaphang['id_nhacungcap'];
+            $congno->id_nhaphang = ObjectController::ObjectId($nhaphang['_id']);
+            $congno->id_trahangncc = ObjectController::ObjectId($tra_hang->_id); // Link to return record
+            $congno->ma_nhap_hang = $nhaphang['ma_nhap_hang'];
+            $congno->ten_ncc = $nhaphang['ten_ncc'];
+            $congno->dien_thoai = $nhaphang['dien_thoai'] ?? '';
+            $congno->dia_chi = $nhaphang['dia_chi'] ?? '';
+            $congno->tong_thanh_tien = 0; // Giá trị 0
+            $congno->ngay_gio = ObjectController::setDate();
+            $congno->loai_cong_no = 1;
+            $congno->ghi_chu = 'Trả hàng NCC [' . $ma_tra_hang . '] - Hoàn tiền mặt';
+            $congno->id_user = ObjectController::ObjectId($id_user);
+            $congno->save();
         }
 
         // Log
@@ -430,8 +418,6 @@ class TraHangNCCController extends Controller
         foreach ($tra_hang['hanghoa'] as $item) {
             $hang_hoa = isset($hanghoa_dict[(string)$item['id_hanghoa']]) ? $hanghoa_dict[(string)$item['id_hanghoa']] : null;
             if ($hang_hoa) {
-                $hang_hoa->so_luong_ton += $item['so_luong_tra'];
-                
                 $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
                 $restored = false;
                 
@@ -484,6 +470,13 @@ class TraHangNCCController extends Controller
                 }
                 
                 $hang_hoa->ds_lo_hang = $ds_lo_hang;
+
+                // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
+                $total_stock = 0;
+                foreach ($ds_lo_hang as $b) {
+                    $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                }
+                $hang_hoa->so_luong_ton = $total_stock;
                 $hang_hoa->save();
             }
         }

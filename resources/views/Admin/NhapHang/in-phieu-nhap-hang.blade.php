@@ -107,11 +107,7 @@
                 @foreach($lich_su_thanh_toan as $ls)
                 <tr>
                     <td class="summary-label">
-                        @if(isset($ls['id_trahangncc']))
-                            Hàng trả ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
-                        @else
-                            {{ $is_preview ? 'Sẽ thanh toán' : 'Đã thanh toán' }} ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
-                        @endif
+                        {{ $is_preview ? 'Sẽ thanh toán' : 'Đã thanh toán' }} ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
                     </td>
                     <td class="summary-value">- {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
                 </tr>
@@ -123,6 +119,13 @@
                     <td class="summary-value">- {{ number_format($da_thanh_toan_lo_nay, 0, ",", ".") }}</td>
                 </tr>
                 @endif
+            @endif
+
+            @if(isset($gia_tri_tra_hang_lo_nay) && $gia_tri_tra_hang_lo_nay > 0)
+            <tr>
+                <td class="summary-label" style="color: #e67e22;">Trả hàng NCC:</td>
+                <td class="summary-value" style="color: #e67e22;">- {{ number_format($gia_tri_tra_hang_lo_nay, 0, ",", ".") }}</td>
+            </tr>
             @endif
 
             @if(isset($cong_no_ton_ncc) && $cong_no_ton_ncc != 0)

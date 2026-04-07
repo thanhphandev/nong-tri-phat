@@ -161,7 +161,7 @@ function tong_thanh_tien() {
 function change_so_luong() {
     $(".cart-change").off("change").change(function () {
         var parent = $(this).parents(".item");
-        
+
         // Handle unit change
         if ($(this).hasClass('don-vi-nhap')) {
             var unitSelect = $(this);
@@ -241,7 +241,7 @@ function change_so_luong() {
     });
 
     // Sync id_nhacungcap with id_nhacungcap_cart
-    $("#id_nhacungcap").change(function(){
+    $("#id_nhacungcap").change(function () {
         $("#id_nhacungcap_cart").val($(this).val());
     });
 }

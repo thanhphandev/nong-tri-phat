@@ -151,7 +151,8 @@ class CongNoNCCController extends Controller
                         [
                             '$match' => [
                                 'id_nhaphang' => ['$in' => $nh_ids],
-                                'loai_cong_no' => 1
+                                'loai_cong_no' => 1,
+                                'id_trahangncc' => ['$exists' => false] // Loại trừ record trả hàng NCC
                             ]
                         ],
                         [
@@ -256,7 +257,8 @@ class CongNoNCCController extends Controller
                     [
                         '$match' => [
                             'id_nhaphang' => ['$in' => $ids],
-                            'loai_cong_no' => 1
+                            'loai_cong_no' => 1,
+                            'id_trahangncc' => ['$exists' => false] // Loại trừ record trả hàng NCC
                         ]
                     ],
                     [
@@ -412,9 +414,34 @@ class CongNoNCCController extends Controller
             $traHangByNhapHang[(string)$th->id_nhaphang][] = $th;
         }
 
-        $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) {
+        $phatSinhTrongKyRawSorted = $phatSinh->sortBy(function($item) {
             return $item->ngay_gio->toDateTime()->getTimestamp();
         });
+
+        // --- MERGE IMMEDIATE PAYMENTS ---
+        $tempPhatSinh = [];
+        $nhapRecordsById = []; 
+        foreach($phatSinhTrongKyRawSorted as $item) {
+            $isProcessed = false;
+            if (isset($item->loai_cong_no) && $item->loai_cong_no == 1 && !empty($item->id_nhaphang)) {
+                $nh_id_str = (string)$item->id_nhaphang;
+                $timestamp = $item->ngay_gio->toDateTime()->getTimestamp();
+                if (isset($nhapRecordsById[$nh_id_str])) {
+                    $nhapItem = $nhapRecordsById[$nh_id_str];
+                    if (abs($timestamp - $nhapItem->ngay_gio->toDateTime()->getTimestamp()) <= 5) {
+                        $nhapItem->thanh_toan_merged = ($nhapItem->thanh_toan_merged ?? 0) + $item->tong_thanh_tien;
+                        $isProcessed = true;
+                    }
+                }
+            }
+            if (!$isProcessed) {
+                if (isset($item->loai_cong_no) && $item->loai_cong_no == 0 && !empty($item->id_nhaphang)) {
+                    $nhapRecordsById[(string)$item->id_nhaphang] = $item;
+                }
+                $tempPhatSinh[] = $item;
+            }
+        }
+        $phatSinhTrongKyRaw = collect($tempPhatSinh);
 
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
@@ -427,7 +454,7 @@ class CongNoNCCController extends Controller
             
             if ($item->loai_cong_no == 0) {
                 $item->tien_hang = $item->tong_thanh_tien;
-                $item->thanh_toan = 0;
+                $item->thanh_toan = $item->thanh_toan_merged ?? 0;
             } else {
                 $item->tien_hang = 0;
                 $item->thanh_toan = $item->tong_thanh_tien;
@@ -541,7 +568,32 @@ class CongNoNCCController extends Controller
             $traHangByNhapHang[(string)$th->id_nhaphang][] = $th;
         }
 
-        $phatSinhTrongKyRaw = $phatSinh->sortBy(function($item) { return $item->ngay_gio->toDateTime()->getTimestamp(); });
+        $phatSinhTrongKySorted = $phatSinh->sortBy(function($item) { return $item->ngay_gio->toDateTime()->getTimestamp(); });
+
+        // --- MERGE IMMEDIATE PAYMENTS ---
+        $tempPhatSinhExcel = [];
+        $nhapRecordsExcel = []; 
+        foreach($phatSinhTrongKySorted as $item) {
+            $isProcessed = false;
+            if (isset($item->loai_cong_no) && $item->loai_cong_no == 1 && !empty($item->id_nhaphang)) {
+                $nh_id_str = (string)$item->id_nhaphang;
+                $timestamp = $item->ngay_gio->toDateTime()->getTimestamp();
+                if (isset($nhapRecordsExcel[$nh_id_str])) {
+                    $nhapItem = $nhapRecordsExcel[$nh_id_str];
+                    if (abs($timestamp - $nhapItem->ngay_gio->toDateTime()->getTimestamp()) <= 5) {
+                        $nhapItem->thanh_toan_merged = ($nhapItem->thanh_toan_merged ?? 0) + $item->tong_thanh_tien;
+                        $isProcessed = true;
+                    }
+                }
+            }
+            if (!$isProcessed) {
+                if (isset($item->loai_cong_no) && $item->loai_cong_no == 0 && !empty($item->id_nhaphang)) {
+                    $nhapRecordsExcel[(string)$item->id_nhaphang] = $item;
+                }
+                $tempPhatSinhExcel[] = $item;
+            }
+        }
+        $phatSinhTrongKyRaw = collect($tempPhatSinhExcel);
 
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
@@ -554,7 +606,7 @@ class CongNoNCCController extends Controller
 
             if ($item->loai_cong_no == 0) {
                 $item->tien_hang = $item->tong_thanh_tien;
-                $item->thanh_toan = 0;
+                $item->thanh_toan = $item->thanh_toan_merged ?? 0;
             } else {
                 $item->tien_hang = 0;
                 $item->thanh_toan = $item->tong_thanh_tien;
@@ -656,7 +708,7 @@ class CongNoNCCController extends Controller
             } elseif($item->co_tra_hang && !$item->id_nhaphang) {
                 $label = 'Trả hàng: ' . ($item->ma_phieu ?? '');
             } else {
-                $label = $item->tien_hang > 0 ? 'Phát sinh nợ' : 'Phiếu chi';
+                $label = $item->tien_hang > 0 ? 'Nhận tiền từ NCC' : 'Trả tiền cho NCC';
             }
 
             $sheet->setCellValue('A' . $row, $item->time->toDateTime()->format('d/m/Y H:i'));

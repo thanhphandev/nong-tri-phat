@@ -44,6 +44,17 @@
 			</span>
 			@endif
 		</div>
+		{{-- Container hiển thị chi tiết lô hàng --}}
+		<div class="batch-usage-container">
+			@if(count($batches_used) > 0)
+				<div class="batch-usage-info mt-1" style="font-size: 11px; line-height: 1.4;">
+					<strong class="text-muted"><i class="fas fa-layer-group"></i> Lô hàng sử dụng:</strong>
+					@foreach($batches_used as $b)
+						<div class="ml-2 text-info border-left pl-1 mb-1">- Lô {{ $b['ma_lo'] }} (HSD: {{ $b['ngay_het_han'] }}) - Giá nhập: {{ $b['gia_von'] }} : <b>{{ $b['so_luong'] }}</b></div>
+					@endforeach
+				</div>
+			@endif
+		</div>
 		<div class="mt-1 d-flex align-items-center">
 		    <label style="cursor: pointer; font-size: 12px;" class="mb-0 text-primary font-weight-bold mr-2">
 		        <input type="hidden" name="gui_kho_cart[]" value="0" class="gui-kho-hidden">

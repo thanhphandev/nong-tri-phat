@@ -222,8 +222,6 @@ class TraHangKhachController extends Controller
                     // Update inventory - Return to stock as NEW BATCH (Always use normalized values)
                     $hang_hoa = isset($hanghoa_dict[(string)$hh['id_hanghoa']]) ? $hanghoa_dict[(string)$hh['id_hanghoa']] : null;
                     if ($hang_hoa) {
-                        $hang_hoa->so_luong_ton += $hoan_kho;
-                        
                         $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
                         try {
                             $nsx_date = Carbon::createFromFormat('d/m/Y', $nsx_input)->startOfDay();
@@ -248,6 +246,13 @@ class TraHangKhachController extends Controller
                         $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
                         $ds_lo_hang[] = $new_batch;
                         $hang_hoa->ds_lo_hang = $ds_lo_hang;
+
+                        // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
+                        $total_stock = 0;
+                        foreach ($ds_lo_hang as $b) {
+                            $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                        }
+                        $hang_hoa->so_luong_ton = $total_stock;
                         $hang_hoa->save();
                     }
                 }
@@ -336,45 +341,24 @@ class TraHangKhachController extends Controller
                 $tra_hang->save();
                 
             } elseif ($hinh_thuc == 'hoan_tien') {
-                // Hoàn tiền mặt: Tạo 2 bản ghi để cân bằng và ghi nhận đầy đủ lịch sử
-                
-                // Bản ghi 1: Giảm nợ (ghi nhận giá trị hàng trả - credit from return)
-                $congno1 = new CongNo();
-                $congno1->id_khachhang = $donhang['id_khachhang'];
-                $congno1->id_donhang = ObjectController::ObjectId($donhang['_id']);
-                $congno1->id_trahangkhach = ObjectController::ObjectId($tra_hang->_id); // Link to return record
-                $congno1->ma_don_hang = $donhang['ma_don_hang'];
-                $congno1->ho_ten = $donhang['ho_ten'];
-                $congno1->dien_thoai = $donhang['dien_thoai'];
-                $congno1->dia_chi = $donhang['dia_chi'] ?? '';
-                $congno1->email = $donhang['email'] ?? '';
-                $congno1->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
-                $congno1->tong_thanh_tien = $tong_tien_tra;
-                $congno1->ngay_gio = ObjectController::setDate();
-                $congno1->loai_cong_no = 1; // Giảm nợ - ghi nhận giá trị trả hàng
-                $congno1->ghi_chu = 'Trả hàng [' . $ma_tra_hang . '] - Giá trị hàng trả: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
-                $congno1->id_user = ObjectController::ObjectId($id_user);
-                $congno1->save();
-                
-                // Bản ghi 2: Ghi nợ lại (ghi nhận đã hoàn tiền mặt cho khách)
-                $congno2 = new CongNo();
-                $congno2->id_khachhang = $donhang['id_khachhang'];
-                $congno2->id_donhang = ObjectController::ObjectId($donhang['_id']);
-                $congno2->id_trahangkhach = ObjectController::ObjectId($tra_hang->_id); // Link to return record
-                $congno2->ma_don_hang = $donhang['ma_don_hang'];
-                $congno2->ho_ten = $donhang['ho_ten'];
-                $congno2->dien_thoai = $donhang['dien_thoai'];
-                $congno2->dia_chi = $donhang['dia_chi'] ?? '';
-                $congno2->email = $donhang['email'] ?? '';
-                $congno2->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
-                $congno2->tong_thanh_tien = $tong_tien_tra;
-                $congno2->ngay_gio = ObjectController::setDate();
-                $congno2->loai_cong_no = 0; // Ghi nợ lại - vì đã hoàn tiền mặt thay vì trừ nợ
-                $congno2->ghi_chu = 'Đã hoàn tiền mặt cho khách [' . $donhang['ho_ten'] . '] - Trả hàng [' . $ma_tra_hang . ']: ' . number_format($tong_tien_tra, 0, ',', '.') . ' VND';
-                $congno2->id_user = ObjectController::ObjectId($id_user);
-                $congno2->save();
-                
-                // Công nợ không đổi (2 bút toán triệt tiêu nhau)
+                // Hoàn tiền mặt: Tạo bút toán công nợ giá trị 0 để tracking
+                $congno = new CongNo();
+                $congno->id_khachhang = $donhang['id_khachhang'];
+                $congno->id_donhang = ObjectController::ObjectId($donhang['_id']);
+                $congno->id_trahangkhach = ObjectController::ObjectId($tra_hang->_id); // Link to return record
+                $congno->ma_don_hang = $donhang['ma_don_hang'];
+                $congno->ho_ten = $donhang['ho_ten'];
+                $congno->dien_thoai = $donhang['dien_thoai'];
+                $congno->dia_chi = $donhang['dia_chi'] ?? '';
+                $congno->email = $donhang['email'] ?? '';
+                $congno->loai_khach_hang = $donhang['loai_khach_hang'] ?? '';
+                $congno->tong_thanh_tien = 0; // Giá trị 0
+                $congno->ngay_gio = ObjectController::setDate();
+                $congno->loai_cong_no = 1; // 1 = THANH TOAN/GIAM NO
+                $congno->ghi_chu = 'Trả hàng [' . $ma_tra_hang . '] - Hoàn tiền mặt';
+                $congno->id_user = ObjectController::ObjectId($id_user);
+                $congno->save();
+
                 $tra_hang->no_sau_tra = $no_truoc_tra;
                 $tra_hang->save();
             }
@@ -430,12 +414,11 @@ class TraHangKhachController extends Controller
         foreach ($tra_hang['hanghoa'] as $item) {
             $hang_hoa = isset($hanghoa_dict[(string)$item['id_hanghoa']]) ? $hanghoa_dict[(string)$item['id_hanghoa']] : null;
             if ($hang_hoa) {
-                // Deduct from total stock
-                $hang_hoa->so_luong_ton -= $item['so_luong_tra'];
-                
                 $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
                 $new_batches = [];
-                $remaining = floatval($item['so_luong_tra']);
+                // Dùng so_luong_tru_kho_tra (đơn vị chính/Bao) thay vì so_luong_tra (có thể là Kg)
+                $sl_kho = floatval($item['so_luong_tru_kho_tra'] ?? $item['so_luong_tra']);
+                $remaining = $sl_kho;
                 $batch_deducted = false;
                 
                 // EXACT BATCH DEDUCTION: Find batch created by this return
@@ -462,38 +445,41 @@ class TraHangKhachController extends Controller
                     }
                 }
                 
-                // If batch not found or insufficient quantity in the specific return batch (meaning items were sold/moved)
                 if (!$batch_deducted || $remaining > 0) {
-                    $missing = $remaining;
-                    /* 
-                       Logic handling for missing quantity (items already sold):
-                       We have already deducted from 'so_luong_ton' above.
-                       Since we removed the specific batch(es) entirely if they were smaller than needed,
-                       we effectively reduced the specific batch stock to 0.
-                       The discrepancy is that we deducted FULL 'so_luong_tra' from global stock, 
-                       but only removed 'batch_qty' from batch details.
-                       This creates a mismatch between sum(batches) and so_luong_ton logic if we don't handle it.
-                       However, in this system, 'so_luong_ton' is the master record. 
-                       If we want strict consistency, we should deduct 'missing' from OTHER batches (FIFO)?
-                       But user requested "Exact batch".
-                       So we log it. The inventory count will be correct globally, but batch details might be slightly off sum-wise if strict validation is run.
-                       Actually, if we remove the batch (qty=0), sum(batches) reduces by batch_qty.
-                       so_luong_ton reduces by so_luong_tra.
-                       If so_luong_tra > batch_qty, then so_luong_ton reduces MORE than sum(batches).
-                       This implies we need to deduct 'missing' from other batches to maintain consistency?
-                       For now, adhering to "Exact Batch" instruction, we only touch the return batch.
-                    */
                     \Log::warning('TraHangKhach Delete: Batch not found or insufficient for product ' . $item['ten'] . 
                         ' from return ' . $tra_hang['ma_tra_hang'] . 
-                        '. Missing/Sold: ' . $missing);
+                        '. Missing/Sold: ' . $remaining);
                 }
                 
                 $hang_hoa->ds_lo_hang = $new_batches;
+
+                // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
+                $total_stock = 0;
+                foreach ($new_batches as $b) {
+                    $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                }
+                $hang_hoa->so_luong_ton = $total_stock;
                 $hang_hoa->save();
             }
         }
 
-        // NOTE: Không cập nhật DonHang collection - chỉ thao tác trên ds_lo_hang trong HangHoa
+        // Revert DonHang.hanghoa[].so_luong_tra
+        $donhang_update = DonHang::find($tra_hang['id_donhang']);
+        if ($donhang_update && isset($donhang_update['hanghoa'])) {
+            $updated_items = $donhang_update['hanghoa'];
+            foreach ($updated_items as &$dh_item) {
+                foreach ($tra_hang['hanghoa'] as $return_item) {
+                    if ((string)$dh_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
+                        $current_return = isset($dh_item['so_luong_tra']) ? floatval($dh_item['so_luong_tra']) : 0;
+                        $qty_to_revert = floatval($return_item['so_luong_tra']);
+                        $dh_item['so_luong_tra'] = max(0, $current_return - $qty_to_revert);
+                    }
+                }
+            }
+            unset($dh_item);
+            $donhang_update->hanghoa = $updated_items;
+            $donhang_update->save();
+        }
 
         // Revert CongNo if applicable
         if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
@@ -511,37 +497,6 @@ class TraHangKhachController extends Controller
             $congno->ghi_chu = 'Hủy phiếu trả hàng [' . $tra_hang['ma_tra_hang'] . ']';
             $congno->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
             $congno->save();
-        } elseif ($tra_hang['hinh_thuc_hoan'] == 'hoan_tien') {
-            // Khi xóa hoan_tien: tạo 2 record đảo ngược (giảm nợ + ghi nợ lại)
-            // Record 1: Ghi nợ lại (đảo ngược record giảm nợ)
-            $congno1 = new CongNo();
-            $congno1->id_khachhang = $tra_hang['id_khachhang'];
-            $congno1->id_donhang = $tra_hang['id_donhang'];
-            $congno1->ma_don_hang = $tra_hang['ma_don_hang'];
-            $congno1->ho_ten = $tra_hang['ho_ten'];
-            $congno1->dien_thoai = $tra_hang['dien_thoai'];
-            $congno1->dia_chi = $tra_hang['dia_chi'] ?? '';
-            $congno1->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
-            $congno1->ngay_gio = ObjectController::setDate();
-            $congno1->loai_cong_no = 0; // Ghi nợ lại (đảo ngược giảm nợ)
-            $congno1->ghi_chu = 'Hủy trả hàng [' . $tra_hang['ma_tra_hang'] . '] - Hoàn lại công nợ';
-            $congno1->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
-            $congno1->save();
-            
-            // Record 2: Giảm nợ lại (đảo ngược record ghi nợ)
-            $congno2 = new CongNo();
-            $congno2->id_khachhang = $tra_hang['id_khachhang'];
-            $congno2->id_donhang = $tra_hang['id_donhang'];
-            $congno2->ma_don_hang = $tra_hang['ma_don_hang'];
-            $congno2->ho_ten = $tra_hang['ho_ten'];
-            $congno2->dien_thoai = $tra_hang['dien_thoai'];
-            $congno2->dia_chi = $tra_hang['dia_chi'] ?? '';
-            $congno2->tong_thanh_tien = $tra_hang['tong_tien_tra']; 
-            $congno2->ngay_gio = ObjectController::setDate();
-            $congno2->loai_cong_no = 1; // Giảm nợ lại (đảo ngược ghi nợ)
-            $congno2->ghi_chu = 'Hủy trả hàng [' . $tra_hang['ma_tra_hang'] . '] - Thu hồi tiền hoàn';
-            $congno2->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
-            $congno2->save();
         }
 
         // Log and delete

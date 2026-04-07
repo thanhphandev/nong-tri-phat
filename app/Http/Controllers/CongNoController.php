@@ -155,7 +155,8 @@ class CongNoController extends Controller
                          [
                              '$match' => [
                                  'id_donhang' => ['$in' => $dh_ids],
-                                 'loai_cong_no' => 1
+                                 'loai_cong_no' => 1,
+                                 'id_trahangkhach' => ['$exists' => false]
                              ]
                          ],
                          [
@@ -261,7 +262,8 @@ class CongNoController extends Controller
                     [
                         '$match' => [
                             'id_donhang' => ['$in' => $ids],
-                            'loai_cong_no' => 1
+                            'loai_cong_no' => 1,
+                            'id_trahangkhach' => ['$exists' => false]
                         ]
                     ],
                     [
@@ -477,9 +479,37 @@ class CongNoController extends Controller
         $phatSinhCollection = collect($phatSinh);
         $phatSinhCombined = $phatSinhCollection->merge($pickupEvents);
 
-        $phatSinhTrongKyRaw = $phatSinhCombined->sortBy(function($item) {
+        $phatSinhTrongKySorted = $phatSinhCombined->sortBy(function($item) {
             return $item->ngay_gio->toDateTime()->getTimestamp();
         });
+
+        // --- MERGE IMMEDIATE PAYMENTS ---
+        $tempPhatSinh = [];
+        $saleRecordsByDh = []; 
+        foreach($phatSinhTrongKySorted as $item) {
+            $isProcessed = false;
+            // If it's a payment (1) with an order ID
+            if (isset($item->loai_cong_no) && $item->loai_cong_no == 1 && !empty($item->id_donhang)) {
+                $dh_id_str = (string)$item->id_donhang;
+                $timestamp = $item->ngay_gio->toDateTime()->getTimestamp();
+                if (isset($saleRecordsByDh[$dh_id_str])) {
+                    $saleItem = $saleRecordsByDh[$dh_id_str];
+                    $saleTimestamp = $saleItem->ngay_gio->toDateTime()->getTimestamp();
+                    // If same order and timestamp is within 5 seconds (immediate payment)
+                    if (abs($timestamp - $saleTimestamp) <= 5) {
+                        $saleItem->thanh_toan_merged = ($saleItem->thanh_toan_merged ?? 0) + $item->tong_thanh_tien;
+                        $isProcessed = true;
+                    }
+                }
+            }
+            if (!$isProcessed) {
+                if (isset($item->loai_cong_no) && $item->loai_cong_no == 0 && !empty($item->id_donhang)) {
+                    $saleRecordsByDh[(string)$item->id_donhang] = $item;
+                }
+                $tempPhatSinh[] = $item;
+            }
+        }
+        $phatSinhTrongKyRaw = collect($tempPhatSinh);
 
         $units = $allUnits;
 
@@ -501,7 +531,7 @@ class CongNoController extends Controller
 
             if ($item->loai_cong_no == 0) {
                 $item->tien_hang = $item->tong_thanh_tien;
-                $item->thanh_toan = 0;
+                $item->thanh_toan = $item->thanh_toan_merged ?? 0;
             } else {
                 $item->tien_hang = 0;
                 $item->thanh_toan = $item->tong_thanh_tien;
@@ -665,9 +695,34 @@ class CongNoController extends Controller
         $phatSinhCollection = collect($phatSinh);
         $phatSinhCombined = $phatSinhCollection->merge($pickupEvents);
 
-        $phatSinhTrongKyRaw = $phatSinhCombined->sortBy(function($item) {
+        $phatSinhTrongKySorted = $phatSinhCombined->sortBy(function($item) {
             return $item->ngay_gio->toDateTime()->getTimestamp();
         });
+
+        // --- MERGE IMMEDIATE PAYMENTS ---
+        $tempPhatSinh = [];
+        $saleRecordsByDh = []; 
+        foreach($phatSinhTrongKySorted as $item) {
+            $isProcessed = false;
+            if (isset($item->loai_cong_no) && $item->loai_cong_no == 1 && !empty($item->id_donhang)) {
+                $dh_id_str = (string)$item->id_donhang;
+                $timestamp = $item->ngay_gio->toDateTime()->getTimestamp();
+                if (isset($saleRecordsByDh[$dh_id_str])) {
+                    $saleItem = $saleRecordsByDh[$dh_id_str];
+                    if (abs($timestamp - $saleItem->ngay_gio->toDateTime()->getTimestamp()) <= 5) {
+                        $saleItem->thanh_toan_merged = ($saleItem->thanh_toan_merged ?? 0) + $item->tong_thanh_tien;
+                        $isProcessed = true;
+                    }
+                }
+            }
+            if (!$isProcessed) {
+                if (isset($item->loai_cong_no) && $item->loai_cong_no == 0 && !empty($item->id_donhang)) {
+                    $saleRecordsByDh[(string)$item->id_donhang] = $item;
+                }
+                $tempPhatSinh[] = $item;
+            }
+        }
+        $phatSinhTrongKyRaw = collect($tempPhatSinh);
 
         $units = \App\Models\DonViTinh::all()->keyBy(function($i) { return (string)$i->_id; });
 
@@ -689,7 +744,7 @@ class CongNoController extends Controller
 
             if ($item->loai_cong_no == 0) {
                 $item->tien_hang = $item->tong_thanh_tien;
-                $item->thanh_toan = 0;
+                $item->thanh_toan = $item->thanh_toan_merged ?? 0;
             } else {
                 $item->tien_hang = 0;
                 $item->thanh_toan = $item->tong_thanh_tien;

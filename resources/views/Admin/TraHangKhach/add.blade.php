@@ -114,7 +114,7 @@
                                                 data-gia-goc="{{ $don_gia_goc }}"
                                                 value="{{ $don_gia_goc }}"
                                                 min="0"
-                                                step="1000"
+                                                step="any"
                                                 disabled>
                                             <div class="input-group-append">
                                                 <button type="button" class="btn btn-outline-secondary btn-reset-price" data-index="{{ $key }}" title="Khôi phục giá gốc" disabled>

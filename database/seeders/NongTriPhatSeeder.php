@@ -72,6 +72,7 @@ class NongTriPhatSeeder extends Seeder
             $doc = LoaiHang::create(['ten' => $loai]);
             $loaiMap[$loai] = $doc->_id;
         }
+        $faker = \Faker\Factory::create('vi_VN');
 
         $this->command->info('3. Seeding Nha Cung Cap & Khach Hang...');
         $ncc_names = ['A Nhiều', 'BÒ VÀNG', 'Bảy Phận', 'HAI', 'Kimagri', 'King Azone', 'Lộc Trời', 'Nam Á', 'P&D', 'Phân Phạm Hoàng', 'Phân Siếu Việt', 'Phân Thuận Mùa', 'Phân Tân Thành', 'Phân Việt Nga', 'Quốc Bảo', 'Sang QCL', 'Thuốc Tân Thành', 'Thế Mẫn', 'Thọ', 'Trung ương 1', 'Tâm Nông Phú', 'Việt Á', 'a Nghĩa', 'Đại Nghĩa'];
@@ -90,7 +91,7 @@ class NongTriPhatSeeder extends Seeder
         }
 
         $khachhangs = [];
-        for ($i = 1; $i <= 20; $i++) {
+        for ($i = 1; $i <= 50; $i++) {
             $khachhangs[] = KhachHang::create([
                 'ma_khach_hang' => 'KH' . str_pad($i, 3, '0', STR_PAD_LEFT),
                 'ho_ten' => 'Khách Hàng ' . $i,
@@ -121,8 +122,15 @@ class NongTriPhatSeeder extends Seeder
             
             $gia_von = $item['gia_von'];
             if ($gia_von > 0) {
-                $gia_si = $gia_von + rand(20, 30) * 1000;
-                $gia_le = $gia_von + rand(40, 50) * 1000;
+                // Tỉ suất lợi nhuận khoảng 10% - 25% cho giá sỉ, làm tròn đến hàng ngàn
+                $gia_si = round($gia_von * (1 + rand(10, 25) / 100), -3);
+                // Tỉ suất lợi nhuận khoảng 25% - 40% cho giá lẻ, làm tròn đến hàng ngàn
+                $gia_le = round($gia_von * (1 + rand(25, 40) / 100), -3);
+                
+                // Đảm bảo giá lẻ phải lớn hơn giá sỉ
+                if ($gia_le <= $gia_si) {
+                    $gia_le = $gia_si + 5000;
+                }
             } else {
                 $gia_si = 0;
                 $gia_le = 0;

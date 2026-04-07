@@ -110,9 +110,15 @@
                                 </div>
                             </td>
                         </tr>
+                        @if(isset($nh['gia_tri_tra_hang']) && $nh['gia_tri_tra_hang'] > 0)
+                        <tr>
+                            <td colspan="6" class="text-right font-weight-bold">TRẢ HÀNG NCC:</td>
+                            <td class="text-right font-weight-bold text-warning">-{{ number_format($nh['gia_tri_tra_hang'], 0, ',', '.') }}</td>
+                        </tr>
+                        @endif
                         <tr>
                             <td colspan="6" class="text-right font-weight-bold">CÒN LẠI:</td>
-                            <td class="text-right font-weight-bold">{{ number_format($nh['tong_thanh_tien'] - ($nh['da_thanh_toan'] ?? 0), 0, ',', '.') }}</td>
+                            <td class="text-right font-weight-bold">{{ number_format($nh['tong_thanh_tien'] - ($nh['da_thanh_toan'] ?? 0) - ($nh['gia_tri_tra_hang'] ?? 0), 0, ',', '.') }}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -120,7 +126,7 @@
             
             <div class="mt-3 text-right">
                 @php
-                    $con_no = $nh['tong_thanh_tien'] - ($nh['da_thanh_toan'] ?? 0);
+                    $con_no = $nh['tong_thanh_tien'] - ($nh['da_thanh_toan'] ?? 0) - ($nh['gia_tri_tra_hang'] ?? 0);
                 @endphp
                 @if($con_no > 0)
                     <button class="btn btn-success mr-2 btn-tra-no" data-id="{{ $nh['_id'] }}" data-ma="{{ $nh['ma_nhap_hang'] }}" data-ncc="{{ $nh['ten_ncc'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo">

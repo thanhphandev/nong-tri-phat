@@ -48,7 +48,8 @@ class NhapHangController extends Controller
                     [
                         '$match' => [
                             'id_nhaphang' => ['$in' => $ids],
-                            'loai_cong_no' => 1 // Payment
+                            'loai_cong_no' => 1, // Payment
+                            'id_trahangncc' => ['$exists' => false] // Loại trừ record trả hàng NCC
                         ]
                     ],
                     [
@@ -312,43 +313,50 @@ class NhapHangController extends Controller
         $ngay_nhap = ObjectController::setDate();
 
         if($data['id_hanghoa_cart']){
+            // --- KHÔNG GỘP SẢN PHẨM (Mỗi dòng là 1 lô riêng biệt theo yêu cầu người dùng) ---
             $hh_obj_ids = array_map(function($id){ return ObjectController::ObjectId($id); }, $data['id_hanghoa_cart']);
             $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function($item) { return (string)$item->_id; });
-            // ---------------------------
 
             foreach($data['id_hanghoa_cart'] as $key => $value){
                 $hh = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
                 if (!$hh) continue;
+                
                 $so_luong = floatval($data['so_luong_cart'][$key]);
                 $don_gia = ObjectController::convertStr2Number_1($data['don_gia_cart'][$key]);
                 $tt = doubleval($data['thanh_tien_cart'][$key]);
-                $so_thang = isset($data['so_thang_cart'][$key]) ? intval($data['so_thang_cart'][$key]) : 0;
+                $so_thang = intval($data['so_thang_cart'][$key] ?? 0);
+                $nsx = $data['ngay_san_xuat_cart'][$key] ?? '';
+                $hsd = $data['ngay_het_han_cart'][$key] ?? '';
+                $dvt = $data['don_vi_tinh_cart'][$key] ?? 'main';
+                
                 $ngay_het_han = null;
-                if(isset($data['ngay_het_han_cart'][$key]) && $data['ngay_het_han_cart'][$key]){
-                    $date_convert = ObjectController::convertDateTime($data['ngay_het_han_cart'][$key]);
+                if($hsd){
+                    $date_convert = ObjectController::convertDateTime($hsd);
                     $ngay_het_han = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
                 }
                 $ngay_san_xuat = null;
-                if(isset($data['ngay_san_xuat_cart'][$key]) && $data['ngay_san_xuat_cart'][$key]){
-                    $date_convert = ObjectController::convertDateTime($data['ngay_san_xuat_cart'][$key]);
+                if($nsx){
+                    $date_convert = ObjectController::convertDateTime($nsx);
                     $ngay_san_xuat = new \MongoDB\BSON\UTCDateTime($date_convert->timestamp * 1000);
                 }
 
                 $id_hanghoa = ObjectController::ObjectId($value);
                 
                 // Handle Unit Conversion for Inventory and Display
-                $sl_quy_doi = $so_luong;
+                $sl_qty_doi = $so_luong;
                 $gia_von_quy_doi = $don_gia;
                 $don_vi_nhap = 'main';
 
-                if(isset($data['don_vi_tinh_cart'][$key]) && $data['don_vi_tinh_cart'][$key] == 'retail' && !empty($hh['don_vi_le'])) {
+                if($dvt == 'retail' && !empty($hh['don_vi_le'])) {
                     $ty_le = $hh['ty_le_quy_doi'] ?? 1;
                     if($ty_le > 0) {
-                        $sl_quy_doi = $so_luong / $ty_le;
+                        $sl_qty_doi = $so_luong / $ty_le;
                         $gia_von_quy_doi = $don_gia * $ty_le;
                         $don_vi_nhap = 'retail';
                     }
                 }
+                
+                $sl_quy_doi = $sl_qty_doi; // Gán lại biến cho logic tiếp theo
 
                 array_push($arr_hanghoa, array(
                     'id_hanghoa' => $id_hanghoa, 
@@ -357,7 +365,7 @@ class NhapHangController extends Controller
                     'ten' => $hh['ten'], 
                     'so_luong' => $so_luong, 
                     'don_gia' => $don_gia, 
-                    'don_vi_nhap' => $don_vi_nhap, // Store unit selection
+                    'don_vi_nhap' => $don_vi_nhap, 
                     'so_thang_het_han' => $so_thang, 
                     'ngay_het_han' => $ngay_het_han, 
                     'ngay_san_xuat' => $ngay_san_xuat,
@@ -377,39 +385,34 @@ class NhapHangController extends Controller
                 
                 $hanghoa_update = isset($hanghoa_dict[(string)$value]) ? $hanghoa_dict[(string)$value] : null;
                 if($hanghoa_update){
-                    $current_batches = isset($hanghoa_update['ds_lo_hang']) ? $hanghoa_update['ds_lo_hang'] : [];
+                    $current_batches = isset($hanghoa_update['ds_lo_hang']) ? (array)$hanghoa_update['ds_lo_hang'] : [];
 
-                    // Tính tổng phần âm cần bù vào lô mới
-                    $tong_am = 0;
-
-                    if(count($current_batches) > 0) {
-                        // Có ds_lo_hang: gom phần âm từ các lô cũ, reset lô âm về 0
-                        foreach($current_batches as &$b) {
-                            $sl_con = isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
-                            if($sl_con < 0) {
-                                $tong_am += $sl_con;
-                                $b['so_luong_con_lai'] = 0;
-                            }
-                        }
-                        unset($b);
-                    } else {
-                        // Không có ds_lo_hang: phần âm nằm trong so_luong_ton
-                        $sl_ton_hien_tai = floatval($hanghoa_update->so_luong_ton ?? 0);
-                        if($sl_ton_hien_tai < 0) {
-                            $tong_am = $sl_ton_hien_tai; // giá trị âm
+                    // --- CẤN TRỪ NỢ KHO (RECONCILIATION) ---
+                    $total_debt = 0;
+                    foreach($current_batches as &$batch_ref) {
+                        $batch_qty = isset($batch_ref['so_luong_con_lai']) ? floatval($batch_ref['so_luong_con_lai']) : 0;
+                        if($batch_qty < 0) {
+                            $total_debt += $batch_qty;
+                            $batch_ref['so_luong_con_lai'] = 0; // Xóa nợ cũ
                         }
                     }
+                    unset($batch_ref); // Giải phóng tham chiếu để tránh lỗi ghi đè dữ liệu ở các vòng lặp sau
 
-                    // Trừ phần âm vào lô mới nhập
-                    $lo_hang['so_luong_con_lai'] = $sl_quy_doi + $tong_am; // có thể vẫn âm nếu nhập ít hơn phần thiếu
+                    if($total_debt < 0) {
+                        // Trừ nợ vào số lượng khả dụng của lô mới
+                        $new_qty_con_lai = $lo_hang['so_luong_con_lai'] + $total_debt;
+                        $lo_hang['so_luong_con_lai'] = max(0, $new_qty_con_lai);
+                        $lo_hang['ghi_chu'] = (isset($lo_hang['ghi_chu']) ? $lo_hang['ghi_chu'] . " | " : "") 
+                                            . "Hệ thống tự động cấn trừ nợ kho: " . number_format($total_debt, 2);
+                    }
 
                     $current_batches[] = $lo_hang;
                     $hanghoa_update->ds_lo_hang = $current_batches;
 
                     // Tính lại so_luong_ton từ tổng tất cả lô
                     $total_stock = 0;
-                    foreach($current_batches as $b) {
-                        $total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
+                    foreach($current_batches as $batch_item) {
+                        $total_stock += isset($batch_item['so_luong_con_lai']) ? floatval($batch_item['so_luong_con_lai']) : 0;
                     }
                     $hanghoa_update->so_luong_ton = $total_stock;
                     $hanghoa_update->save();
@@ -536,13 +539,16 @@ class NhapHangController extends Controller
         
         $nh->hanghoa = $this->mapHangHoaArray($nh->hanghoa);
 
-        $da_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $da_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))->where('loai_cong_no', 1)->whereNull('id_trahangncc')->sum('tong_thanh_tien');
+        $gia_tri_tra_hang = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))->where('loai_cong_no', 1)->whereNotNull('id_trahangncc')->sum('tong_thanh_tien');
         $lich_su_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))
                                        ->where('loai_cong_no', 1)
+                                       ->whereNull('id_trahangncc')
                                        ->orderBy('ngay_gio', 'asc')
                                        ->get();
         
         $nh->da_thanh_toan = $da_thanh_toan;
+        $nh->gia_tri_tra_hang = $gia_tri_tra_hang;
 
         return view('Admin.NhapHang.edit', compact('nh', 'lich_su_thanh_toan'));
     }
@@ -558,12 +564,14 @@ class NhapHangController extends Controller
         $id_nh = ObjectController::ObjectId($nh->_id);
 
         $gia_tri_lo_nay = $nh->tong_thanh_tien;
-        $da_thanh_toan_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+        $da_thanh_toan_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->whereNull('id_trahangncc')->sum('tong_thanh_tien');
+        $gia_tri_tra_hang_lo_nay = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->whereNotNull('id_trahangncc')->sum('tong_thanh_tien');
         $lich_su_thanh_toan = CongNoNCC::where('id_nhaphang', ObjectController::ObjectId($nh->_id))
                                        ->where('loai_cong_no', 1)
                                        ->orderBy('ngay_gio', 'asc')
                                        ->get();
-        $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay;
+        // Tổng nợ = Tiền phiếu - TT thực - Trả hàng
+        $tong_no_moi = $gia_tri_lo_nay - $da_thanh_toan_lo_nay - $gia_tri_tra_hang_lo_nay;
 
         // 3. Tính công nợ tồn NCC (KHÔNG tính phiếu nhập hiện tại)
         $tong_no_ncc = $this->getCongNoNCC($id_ncc);
@@ -572,7 +580,7 @@ class NhapHangController extends Controller
 
         $is_preview = false;
 
-        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'cong_no_ton_ncc', 'is_preview'));
+        return view('Admin.NhapHang.in-phieu-nhap-hang', compact('nh', 'gia_tri_lo_nay', 'da_thanh_toan_lo_nay', 'gia_tri_tra_hang_lo_nay', 'tong_no_moi', 'lich_su_thanh_toan', 'cong_no_ton_ncc', 'is_preview'));
     }
     function tra_no(Request $request) {
         $data = $request->all();
@@ -594,8 +602,9 @@ class NhapHangController extends Controller
         
         // Calculate Debt
         $id_nh = ObjectController::ObjectId($nhaphang['_id']);
-        $da_thanh_toan = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
-        $con_no = $nhaphang['tong_thanh_tien'] - $da_thanh_toan;
+        $da_thanh_toan = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->whereNull('id_trahangncc')->sum('tong_thanh_tien');
+        $gia_tri_tra_hang = CongNoNCC::where('id_nhaphang', $id_nh)->where('loai_cong_no', 1)->whereNotNull('id_trahangncc')->sum('tong_thanh_tien');
+        $con_no = $nhaphang['tong_thanh_tien'] - $da_thanh_toan - $gia_tri_tra_hang;
         
         $so_tien = ObjectController::convertStr2Number_1($data['so_tien']);
         
