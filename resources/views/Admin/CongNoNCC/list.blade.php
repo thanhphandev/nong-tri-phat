@@ -199,7 +199,10 @@
                 <a href="#transactions" data-toggle="tab" class="nav-link active"><i class="fas fa-history"></i> Lịch sử Giao dịch</a>
             </li>
             <li class="nav-item">
-                <a href="#orders" data-toggle="tab" class="nav-link"><i class="fas fa-file-invoice-dollar"></i> Danh sách Phiếu nhập còn nợ</a>
+                <a href="#orders" data-toggle="tab" class="nav-link"><i class="fas fa-file-invoice-dollar"></i> Nhập hàng còn nợ</a>
+            </li>
+            <li class="nav-item">
+                <a href="#orders_negative" data-toggle="tab" class="nav-link text-danger"><i class="fas fa-undo-alt"></i> Đơn hàng dư tiền (Hoàn trả)</a>
             </li>
         </ul>
         <div class="tab-content pt-3">
@@ -262,7 +265,7 @@
                             <th class="text-center">Số chứng từ</th>
                             <th class="text-right">Tổng thành tiền</th>
                             <th class="text-right">Đã thanh toán</th>
-                            <th class="text-right">Còn nợ</th>
+                            <th class="text-right text-danger">Còn nợ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -283,6 +286,56 @@
                         @else
                             <tr>
                                 <td colspan="7" class="text-center text-muted font-italic">Không có phiếu nhập kho nào còn nợ.</td>
+                            </tr>
+                        @endif
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Negative Orders Tab -->
+            <div class="tab-pane" id="orders_negative">
+                <div class="alert alert-info">
+                    <i class="fa fa-info-circle"></i> Đây là danh sách các đơn hàng có số dư âm (thường do <b>trả hàng</b> sau khi đã thanh toán). Bạn cần thực hiện <b>Hoàn tiền</b> và chọn khớp vào các đơn này để cân bằng.
+                </div>
+                <table class="table table-bordered table-striped table-sm">
+                    <thead class="thead-light">
+                        <tr>
+                            <th class="text-center" width="5%">STT</th>
+                            <th class="text-center">Ngày nhập</th>
+                            <th class="text-center">Mã Phiếu</th>
+                            <th class="text-center">Số chứng từ</th>
+                            <th class="text-right">Tổng nợ</th>
+                            <th class="text-right">Đã trả/Trả hàng</th>
+                            <th class="text-right text-warning">Dư tiền (Cần hoàn)</th>
+                            <th class="text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if(isset($don_am_list) && count($don_am_list) > 0)
+                            @foreach($don_am_list as $k => $don)
+                            <tr>
+                                <td class="text-center">{{ $k + 1 }}</td>
+                                <td class="text-center">{{ App\Http\Controllers\ObjectController::getDate($don['ngay_nhap'], "d/m/Y H:i") }}</td>
+                                <td class="text-center">
+                                    <a href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $don['id_nhap_hang'] }}" class="font-weight-bold text-primary" target="_blank">{{ $don['ma_nhap_hang'] }}</a>
+                                </td>
+                                <td class="text-center">{{ $don['so_chung_tu'] }}</td>
+                                <td class="text-right">{{ number_format($don['tong_thanh_tien'], 0, ',', '.') }}</td>
+                                <td class="text-right text-success">{{ number_format($don['da_thanh_toan'], 0, ',', '.') }}</td>
+                                <td class="text-right text-warning font-weight-bold">{{ number_format(abs($don['con_no']), 0, ',', '.') }}</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-warning btn-sm btn-balance" 
+                                        data-id="{{ $don['id_nhap_hang'] }}" 
+                                        data-amount="{{ abs($don['con_no']) }}"
+                                        data-toggle="modal" data-target="#modalThanhToan">
+                                        <i class="fas fa-balance-scale"></i> Hoàn trả/Cân bằng
+                                    </button>
+                                </td>
+                            </tr>
+                            @endforeach
+                        @else
+                            <tr>
+                                <td colspan="8" class="text-center text-muted font-italic">Không có đơn hàng nào dư tiền.</td>
                             </tr>
                         @endif
                     </tbody>
@@ -312,13 +365,36 @@
                         <div>
                             <div class="custom-control custom-radio custom-control-inline">
                                 <input type="radio" id="loai_1" name="loai_cong_no" class="custom-control-input" value="1" checked>
-                                <label class="custom-control-label" for="loai_1">Trả nợ cho NCC</label>
+                                <label class="custom-control-label font-weight-bold text-success" for="loai_1">Thanh toán nợ cho NCC</label>
                             </div>
                             <div class="custom-control custom-radio custom-control-inline">
                                 <input type="radio" id="loai_0" name="loai_cong_no" class="custom-control-input" value="0">
-                                <label class="custom-control-label" for="loai_0">Nhận tiền từ NCC</label>
+                                <label class="custom-control-label font-weight-bold text-danger" for="loai_0">Hoàn tiền / Nhận tiền từ NCC</label>
                             </div>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Khớp vào đơn hàng (Không bắt buộc)</label>
+                        <select name="id_nhaphang" id="id_nhaphang_link" class="form-control select2">
+                            <option value="">-- Tự động phân bổ (FIFO) --</option>
+                            <optgroup label="Đơn hàng đang còn nợ" id="group_no">
+                                @foreach($don_no_list as $d)
+                                    <option value="{{ $d['id_nhap_hang'] }}" data-type="no" data-amount="{{ $d['con_no'] }}">
+                                        {{ $d['ma_nhap_hang'] }} (Còn nợ: {{ number_format($d['con_no'], 0, ',', '.') }})
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="Đơn hàng đang dư tiền (Cần hoàn)" id="group_am">
+                                @if(isset($don_am_list))
+                                    @foreach($don_am_list as $d)
+                                        <option value="{{ $d['id_nhap_hang'] }}" data-type="am" data-amount="{{ abs($d['con_no']) }}">
+                                            {{ $d['ma_nhap_hang'] }} (Dư: {{ number_format(abs($d['con_no']), 0, ',', '.') }})
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </optgroup>
+                        </select>
+                        <small class="text-muted italic">Chọn đơn hàng cụ thể nếu bạn muốn thanh toán hoặc hoàn tiền riêng cho đơn đó.</small>
                     </div>
                     <div class="form-group">
                         <label>Số tiền (VND) <span class="text-danger">*</span></label>
@@ -376,16 +452,55 @@
                 setTimeout(adjustStickySummary, 50);
             });
 
-            // Tự động thay đổi ghi chú theo loại giao dịch
+            // Tự động thay đổi ghi chú và gợi ý số tiền theo loại giao dịch
             $('input[name="loai_cong_no"]').change(function() {
                 var tenNCC = "{!! isset($supplier_detail['ten']) ? $supplier_detail['ten'] : '' !!}";
+                var type = $(this).val();
                 if(tenNCC != '') {
-                    if($(this).val() == '1') {
+                    if(type == '1') {
                         $('#ghi_chu').val('Thanh toán công nợ cho ' + tenNCC);
+                        $('#id_nhaphang_link').val('').trigger('change');
                     } else {
-                        $('#ghi_chu').val('Nhận tiền từ ' + tenNCC);
+                        $('#ghi_chu').val('Nhận tiền hoàn từ ' + tenNCC);
+                        // Nếu có đơn âm, gợi ý đơn âm đầu tiên
+                        var firstAm = $('#group_am option').first().val();
+                        if(firstAm) {
+                            $('#id_nhaphang_link').val(firstAm).trigger('change');
+                        }
                     }
                 }
+            });
+
+            $('.btn-balance').click(function(){
+                var id = $(this).data('id');
+                var amount = $(this).data('amount');
+                
+                // Select "Hoàn tiền" (loai 0)
+                $('#loai_0').prop('checked', true).trigger('change');
+                
+                // Select the order
+                $('#id_nhaphang_link').val(id).trigger('change');
+                
+                // Set the amount (abs)
+                $('input[name="so_tien"]').val(amount).trigger('input');
+                
+                // Focusing on the amount input for convenience
+                setTimeout(function(){
+                    $('input[name="so_tien"]').focus();
+                }, 500);
+            });
+
+            $('#id_nhaphang_link').change(function(){
+                var selected = $(this).find('option:selected');
+                var amount = selected.data('amount');
+                if(amount) {
+                    $('input[name="so_tien"]').val(amount).trigger('input');
+                }
+            });
+
+            $('.select2').select2({
+                dropdownParent: $('#modalThanhToan'),
+                width: '100%'
             });
         });
     </script>

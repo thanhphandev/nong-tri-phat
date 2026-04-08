@@ -55,7 +55,7 @@
                 <td class="text-center">{{ $key + 1 }}</td>
                 <td style="font-weight: 500;">{{ $hh['ten'] }}</td>
                 <td class="text-center">{{ $hh['don_vi_tinh'] ?? ($hh['donvitinh']['ten'] ?? '-') }}</td>
-                <td class="text-center">{{ number_format($hh['so_luong_tra'], 2) }}</td>
+                <td class="text-center">{{ rtrim(rtrim(number_format($hh['so_luong_tra'], 2, ',', '.'), '0'), ',') }}</td>
                 <td class="text-right">{{ number_format($hh['don_gia'], 0, ",", ".") }}</td>
                 <td class="text-right text-bold">{{ number_format($hh['thanh_tien'], 0, ",", ".") }}</td>
             </tr>

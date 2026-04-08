@@ -78,6 +78,12 @@ class ThongKeController extends Controller
                         if ($con_gui > 0) {
                             $hh_id = (string) ($hh['id_hanghoa'] ?? '');
                             if ($hh_id) {
+                                // Quy đổi về đơn vị chính nếu là bán lẻ
+                                $is_retail = isset($hh['don_vi_ban']) && $hh['don_vi_ban'] == 'retail';
+                                $ty_le = floatval($hh['ty_le_quy_doi'] ?? 1);
+                                if ($is_retail && $ty_le > 0) {
+                                    $con_gui = $con_gui / $ty_le;
+                                }
                                 $gui_kho_map[$hh_id] = ($gui_kho_map[$hh_id] ?? 0) + $con_gui;
                             }
                         }

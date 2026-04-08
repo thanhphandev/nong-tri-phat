@@ -21,7 +21,15 @@
 		<input type="hidden" name="id_hanghoa_cart[]" value="{{ $hh['_id'] }}" placeholder="">
 		{{ $hh['ma'] }}
 	</td>
-	<td class="align-middle"><strong>{{ $hh['ten'] }}</strong></td>
+	<td class="align-middle">
+		<strong>{{ $hh['ten'] }}</strong>
+		@if(isset($hh['so_luong_ton']) && $hh['so_luong_ton'] < 0)
+			<div class="text-danger font-italic" style="font-size: 11px;">
+				<i class="fas fa-exclamation-triangle"></i> Đang âm kho: {{ number_format($hh['so_luong_ton'], 0, ',', '.') }}
+				<br>Hệ thống sẽ tự động cấn trừ nợ kho.
+			</div>
+		@endif
+	</td>
 	<td class="text-center align-middle">
         <div class="input-group input-group-sm mx-auto" style="width: 100px;">
 		    <input type="number" name="so_luong_cart[]" value="{{ $so_luong }}" class="so-luong cart-change form-control form-control-sm text-center font-weight-bold px-1" min="0.01" step="0.01">

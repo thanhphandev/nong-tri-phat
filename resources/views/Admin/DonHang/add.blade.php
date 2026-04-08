@@ -269,7 +269,7 @@
                     if (repo.loading) return repo.text;
 
                     var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
-                    var stockText = repo.so_luong_ton > 0 ? repo.so_luong_ton : 'Hết hàng';
+                    var stockText = repo.so_luong_ton > 0 ? stockFormat(parseFloat(repo.so_luong_ton)) : 'Hết hàng';
                     var programItem = repo.hang_chuong_trinh ? " <span class='badge badge-warning' style='font-size:10px;'><i class='fas fa-gift'></i> Hàng C.Trình</span>" : "";
 
                     var markup = "<div class='product-result'>" +
@@ -308,6 +308,11 @@
                 
                 function currencyFormat(num) {
                     return num.toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.")
+                }
+
+                function stockFormat(num) {
+                    if (isNaN(num)) return 0;
+                    return Math.round(num * 1000) / 1000;
                 }
             }
         });

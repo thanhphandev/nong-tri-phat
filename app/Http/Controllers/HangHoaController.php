@@ -217,9 +217,15 @@ class HangHoaController extends Controller
                 $str_hsd = '<span class="badge badge-warning">HSD Gần nhất: ' . $ngay_het_han_gan_nhat->format('d/m/Y') . '</span>';
             }
 
+            $warning_am_kho = "";
+            if ($hh['so_luong_ton'] < 0) {
+                $warning_am_kho = 'Mặt hàng này đang âm kho ('. round($hh['so_luong_ton'], 3) .'). Số lượng nhập mới sẽ được hệ thống tự động cấn trừ nợ kho.';
+            }
+
             $arr = array(
                 'id_hanghoa' => $hh['_id'],
-                'thongtinhanghoa' => 'Tên hàng: ' . $hh['ten'] . ' -- [SL Tồn: '.$hh['so_luong_ton'].'] ' . $str_hsd,
+                'thongtinhanghoa' => 'Tên hàng: ' . $hh['ten'] . ' -- [SL Tồn: '.round($hh['so_luong_ton'], 3).'] ' . $str_hsd,
+                'warning_am_kho' => $warning_am_kho,
                 'gia_si' => $hh['gia_si'],
                 'gia_le' => $hh['gia_le'],
                 // Thông tin bán lẻ
@@ -313,7 +319,8 @@ class HangHoaController extends Controller
                     'gia_von' => $item->gia_von,
                     'gia_si' => $item->gia_si,
                     'gia_le' => $item->gia_le,
-                    'so_luong_ton' => $item->so_luong_ton,
+                    'so_luong_ton' => round((float)$item->so_luong_ton, 3),
+                    'is_negative' => $item->so_luong_ton < 0,
                     'id_donvitinh' => (string)$item->id_donvitinh,
                     'don_vi_tinh' => $ten_dvt,
                     // Thông tin bán lẻ

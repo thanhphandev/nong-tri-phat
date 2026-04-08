@@ -142,6 +142,11 @@ function currencyFormat(num) {
     return num.toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.")
 }
 
+function stockFormat(num) {
+    if (isNaN(num)) return 0;
+    return Math.round(num * 1000) / 1000;
+}
+
 function change_so_luong(path) {
     $(".cart-change").off('change.cart').on('change.cart', function () {
         if ($(this).hasClass('don-vi-ban')) {
@@ -182,7 +187,7 @@ function change_so_luong(path) {
         var stockWarning = parent.find("td:eq(1) .alert-danger");
         if (sl_tru_kho > maxTon) {
             var tru_am = sl_tru_kho - maxTon;
-            var warningHtml = '<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn ' + currencyFormat(maxTon) + ', sẽ trừ âm ' + currencyFormat(tru_am);
+            var warningHtml = '<i class="fas fa-exclamation-triangle"></i> <strong>Cảnh báo:</strong> Tồn kho chỉ còn ' + stockFormat(maxTon) + ', sẽ trừ âm ' + stockFormat(tru_am);
             if (stockWarning.length > 0) {
                 stockWarning.html(warningHtml);
             } else {
@@ -222,7 +227,7 @@ function change_so_luong(path) {
                     var batchHtml = '<div class="batch-usage-info mt-1" style="font-size: 11px; line-height: 1.4;">';
                     batchHtml += '<strong class="text-muted"><i class="fas fa-layer-group"></i> Lô hàng sử dụng:</strong>';
                     resp.batches.forEach(function(b) {
-                        batchHtml += '<div class="ml-2 text-info border-left pl-1 mb-1">- Lô ' + b.ma_lo + ' (HSD: ' + b.ngay_het_han + ') - Giá nhập: ' + b.gia_von + ' : <b>' + b.so_luong + '</b></div>';
+                        batchHtml += '<div class="ml-2 text-info border-left pl-1 mb-1">- Lô ' + b.ma_lo + ' (HSD: ' + b.ngay_het_han + ') - Giá nhập: ' + b.gia_von + ' : <b>' + stockFormat(b.so_luong) + '</b></div>';
                     });
                     batchHtml += '</div>';
                     batchContainer.html(batchHtml);

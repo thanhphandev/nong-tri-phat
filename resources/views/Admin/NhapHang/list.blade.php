@@ -86,6 +86,7 @@
                     $sum_tong_tien = 0;
                     $sum_da_tt = 0;
                     $sum_con_no = 0;
+                    $sum_gia_tri_tra_hang = 0;
                     foreach($danhsach as $ds){
                         $t_so_luong = 0;
                         if(isset($ds['hanghoa'])){
@@ -94,9 +95,10 @@
                             }
                         }
                         $sum_sl += $t_so_luong;
-                        $sum_tong_tien += $ds['thanh_tien'] ?? 0;
-                        $sum_da_tt += $ds['da_thanh_toan'] ?? 0;
-                        $sum_con_no += $ds['con_no'] ?? 0;
+                        $sum_tong_tien += (float)($ds['thanh_tien'] ?? 0);
+                        $sum_da_tt += (float)($ds['da_thanh_toan'] ?? 0);
+                        $sum_con_no += (float)($ds['con_no'] ?? 0);
+                        $sum_gia_tri_tra_hang += (float)($ds['gia_tri_tra_hang'] ?? 0);
                     }
                 @endphp
 
@@ -122,6 +124,9 @@
                             <th class="text-right">
                                 <span class="text-primary font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</span><br/>
                                 <small class="text-success">Đã TT: {{ number_format($sum_da_tt, 0, ",", ".") }}</small><br/>
+                                @if($sum_gia_tri_tra_hang > 0)
+                                    <small class="text-warning">Trả hàng: {{ number_format($sum_gia_tri_tra_hang, 0, ",", ".") }}</small><br/>
+                                @endif
                                 <small class="text-danger">Nợ: {{ number_format($sum_con_no, 0, ",", ".") }}</small>
                             </th>
                             <th colspan="2"></th>
@@ -147,10 +152,14 @@
                             </td>
                             <td class="text-right">
                                 {{ number_format($ds['thanh_tien'],0,",",".") }}
+                                <br/><small class="text-success">Đã TT: {{ number_format($ds['da_thanh_toan'],0,",",".") }}</small>
+                                @if(($ds['gia_tri_tra_hang'] ?? 0) > 0)
+                                    <br/><small class="text-warning">Trả hàng: {{ number_format($ds['gia_tri_tra_hang'], 0, ",", ".") }}</small>
+                                @endif
                                 @if($ds['con_no'] > 0)
                                     <br/><small class="text-danger">Nợ: {{ number_format($ds['con_no'],0,",",".") }}</small>
                                 @else
-                                    <br/><small class="text-success">Đã thanh toán</small>
+                                    <br/><small class="badge badge-success px-1">Đã thanh toán</small>
                                 @endif
                             </td>
                             <td>{{ $ds['ghi_chu'] ?? '' }}</td>

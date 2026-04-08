@@ -136,6 +136,11 @@ function initializeProductSearch(path) {
 
         $.getJSON(get_cart_path, function (hh) {
             $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
+            if (hh.warning_am_kho) {
+                $("#selection-warning").html('<div class="alert alert-danger py-1 px-2 mb-0" style="font-size:12px;"><i class="fas fa-exclamation-triangle"></i> ' + hh.warning_am_kho + '</div>').show();
+            } else {
+                $("#selection-warning").hide();
+            }
         });
 
         $("#so_luong").select().focus();
@@ -245,3 +250,18 @@ function change_so_luong() {
         $("#id_nhacungcap_cart").val($(this).val());
     });
 }
+
+/**
+ * Initialize Quick Payment Shortcut
+ */
+$(document).on("click", "#btnPayFull", function () {
+    var total = $("#thanh-tien").val();
+    $("#thanh-toan").val(total);
+    // Trigger change for jquery.number to format value
+    $("#thanh-toan").trigger("change");
+    // Show toast for feedback
+    $(this).addClass('btn-primary').removeClass('btn-outline-primary');
+    setTimeout(() => {
+        $(this).addClass('btn-outline-primary').removeClass('btn-primary');
+    }, 200);
+});

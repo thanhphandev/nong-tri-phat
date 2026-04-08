@@ -50,7 +50,7 @@
                     {{ $hh['ten'] }}
                     @if(isset($hh['gui_kho']) && $hh['gui_kho'] == 1 && isset($hh['sl_gui_kho']) && $hh['sl_gui_kho'] > 0)
                         <div style="font-size: 8pt; color: #d9534f; font-weight: bold; margin-top: 1mm; border-top: 1px dashed #ccc; padding-top: 0.5mm;">
-                            <i class="fas fa-warehouse"></i> Nhận ngay: {{ number_format($hh['so_luong'] - $hh['sl_gui_kho'], 2, ',', '.') }} | Gửi kho: {{ number_format($hh['sl_gui_kho'], 2, ',', '.') }}
+                            <i class="fas fa-warehouse"></i> Nhận ngay: {{ rtrim(rtrim(number_format($hh['so_luong'] - $hh['sl_gui_kho'], 2, ',', '.'), '0'), ',') }} | Gửi kho: {{ rtrim(rtrim(number_format($hh['sl_gui_kho'], 2, ',', '.'), '0'), ',') }}
                         </div>
                     @endif
                     @if(!empty($hh['don_vi_le_info']))
@@ -58,7 +58,7 @@
                     @endif
                 </td>
                 <td class="text-center">{{ $hh['don_vi_tinh'] ?? '-' }}</td>
-                <td class="text-center">{{ number_format($hh['so_luong'], 2) }}</td>
+                <td class="text-center">{{ rtrim(rtrim(number_format($hh['so_luong'], 2, ',', '.'), '0'), ',') }}</td>
                 <td class="text-right">{{ number_format($hh['don_gia'], 0, ",", ".") }}</td>
                 <td class="text-right text-bold">{{ number_format($hh['thanh_tien'], 0, ",", ".") }}</td>
             </tr>
@@ -91,35 +91,50 @@
         </div>
         <table class="summary-table" style="width: 58%; padding-left: 3mm;">
             <tr>
-                <td class="summary-label">TIỀN HÀNG ĐƠN NÀY:</td>
-                <td class="summary-value">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
+                <td class="summary-label">TỔNG CỘNG ĐƠN NÀY:</td>
+                <td class="summary-value text-bold" style="font-size: 11pt;">{{ number_format($dh['tong_thanh_tien'], 0, ",", ".") }}</td>
             </tr>
 
-            @if(isset($lich_su_thanh_toan) && count($lich_su_thanh_toan) > 0)
-                @foreach($lich_su_thanh_toan as $ls)
-                <tr>
-                    <td class="summary-label">
-                        @if(isset($ls['id_trahangkhach']))
-                            Trả hàng ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
-                        @else
-                            {{ $is_preview ? 'Sẽ thanh toán' : 'Đã thanh toán' }} ({{ App\Http\Controllers\ObjectController::getDate($ls['ngay_gio'], "d/m/Y") }}):
-                        @endif
-                    </td>
-                    <td class="summary-value">- {{ number_format($ls['tong_thanh_tien'], 0, ",", ".") }}</td>
-                </tr>
-                @endforeach
+            @php
+                $tong_da_tt_don_nay = 0;
+                if(isset($lich_su_thanh_toan)) {
+                    foreach($lich_su_thanh_toan as $ls) {
+                        if(!isset($ls['id_trahangkhach'])) {
+                            $tong_da_tt_don_nay += (float)$ls['tong_thanh_tien'];
+                        }
+                    }
+                }
+            @endphp
+
+            @if($tong_da_tt_don_nay > 0)
+            <tr>
+                <td class="summary-label">Đã thanh toán (phiếu này):</td>
+                <td class="summary-value">- {{ number_format($tong_da_tt_don_nay, 0, ",", ".") }}</td>
+            </tr>
             @endif
+
+            @if(isset($gia_tri_tra_hang_lo_nay) && $gia_tri_tra_hang_lo_nay > 0)
+            <tr>
+                <td class="summary-label" style="color: #e67e22;">Tiền hàng trả (phiếu này):</td>
+                <td class="summary-value" style="color: #e67e22;">- {{ number_format($gia_tri_tra_hang_lo_nay, 0, ",", ".") }}</td>
+            </tr>
+            @endif
+
+            <tr style="border-top: 1px solid #ddd;">
+                <td class="summary-label" style="font-style: italic;">Còn lại đơn này:</td>
+                <td class="summary-value" style="font-style: italic;">{{ number_format($con_no_val, 0, ",", ".") }}</td>
+            </tr>
 
             @if(isset($cong_no_ton) && $cong_no_ton != 0)
             <tr>
-                <td class="summary-label">Nợ cũ:</td>
+                <td class="summary-label">Nợ cũ tồn:</td>
                 <td class="summary-value">{{ $cong_no_ton > 0 ? '+' : '' }}{{ number_format($cong_no_ton, 0, ",", ".") }}</td>
             </tr>
             @endif
             
-            <tr class="summary-total">
-                <td class="summary-label">TỔNG CÒN LẠI:</td>
-                <td class="summary-value">
+            <tr class="summary-total" style="border-top: 2px solid #333;">
+                <td class="summary-label" style="font-size: 12pt;">TỔNG NỢ CUỐI CÙNG:</td>
+                <td class="summary-value" style="font-size: 12pt;">
                     {{ number_format($tong_cuoi_cung, 0, ",", ".") }}
                 </td>
             </tr>

@@ -362,6 +362,17 @@
                 
                 return confirm('Xác nhận tạo phiếu trả hàng cho NCC? Tồn kho sẽ bị GIẢM!');
             });
+            @if(Session::get('msg'))
+                $.toast({
+                    heading: "Thông báo",
+                    text: "{{ Session::get('msg') }}",
+                    loaderBg: "#3b98b5",
+                    icon: "info",
+                    hideAfter: 5000,
+                    stack: 1,
+                    position: "top-right"
+                });
+            @endif
         });
     </script>
 @endsection

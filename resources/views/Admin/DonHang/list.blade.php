@@ -93,6 +93,7 @@
                     $sum_tong_tien = 0;
                     $sum_da_tt = 0;
                     $sum_con_no = 0;
+                    $sum_gia_tri_tra_hang = 0;
                     $sum_loi_nhuan = 0;
                     foreach($danhsach as $item){
                         $t_so_luong = 0;
@@ -108,15 +109,16 @@
                                 }
                             }
                         }
-                        $t_da_thanh_toan = $item->da_thanh_toan ?? 0;
-                        $t_con_no = $item->con_no ?? ($item['tong_thanh_tien'] - $t_da_thanh_toan);
-                        $t_loi_nhuan = $item['tong_thanh_tien'] - $t_tong_gia_von;
-
+                        $t_da_tt = $item->da_thanh_toan ?? 0;
+                        $t_gia_tri_tra = $item->gia_tri_tra_hang ?? 0;
+                        $t_con_no = $item->con_no ?? ($item['tong_thanh_tien'] - $t_da_tt - $t_gia_tri_tra);
+                        
                         $sum_sl += $t_so_luong;
-                        $sum_tong_tien += $item['tong_thanh_tien'];
-                        $sum_da_tt += $t_da_thanh_toan;
+                        $sum_tong_tien += $item['tong_thanh_tien'] ?? 0;
+                        $sum_da_tt += $t_da_tt;
                         $sum_con_no += $t_con_no;
-                        $sum_loi_nhuan += $t_loi_nhuan;
+                        $sum_gia_tri_tra_hang += $t_gia_tri_tra;
+                        $sum_loi_nhuan += (float)($item['tong_thanh_tien'] - $t_tong_gia_von);
                     }
                 @endphp
 				<div class="table-responsive table-sticky-header" style="padding-bottom: 70px;">
@@ -141,7 +143,10 @@
                             <th colspan="4" class="text-right text-uppercase font-weight-bold text-primary"><b>Tổng cộng:</b></th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_sl, 0, ",", ".") }}</th>
                             <th class="text-right text-info font-weight-bold">{{ number_format($sum_tong_tien, 0, ",", ".") }}</th>
-                            <th class="text-right text-success font-weight-bold">{{ number_format($sum_da_tt, 0, ",", ".") }}</th>
+                            <th class="text-right">
+                                <span class="text-success font-weight-bold">{{ number_format($sum_da_tt, 0, ",", ".") }}</span><br/>
+                                <small class="text-warning" title="Tổng tiền khách trả hàng">Trả: {{ number_format($sum_gia_tri_tra_hang, 0, ",", ".") }}</small>
+                            </th>
                             <th class="text-right text-danger font-weight-bold">{{ number_format($sum_con_no, 0, ",", ".") }}</th>
                             <th class="text-right text-primary font-weight-bold">{{ number_format($sum_loi_nhuan, 0, ",", ".") }}</th>
                             <th colspan="3"></th>
@@ -190,7 +195,12 @@
 								<td class="text-right">
                                     <b>{{ number_format($ds['tong_thanh_tien'],0,",",".") }}</b>
                                 </td>
-								<td class="text-right text-success">{{ number_format($da_thanh_toan,0,",",".") }}</td>
+								<td class="text-right">
+                                    <span class="text-success">{{ number_format($da_thanh_toan,0,",",".") }}</span>
+                                    @if(($ds->gia_tri_tra_hang ?? 0) > 0)
+                                        <br/><small class="text-warning">Trả: {{ number_format($ds->gia_tri_tra_hang, 0, ",", ".") }}</small>
+                                    @endif
+                                </td>
 								<td class="text-right {{ $con_no > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ number_format($con_no,0,",",".") }}</td>
 								<td class="text-right font-weight-bold text-primary">
                                     {{ number_format($loi_nhuan,0,",",".") }}

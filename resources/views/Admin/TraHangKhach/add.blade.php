@@ -78,6 +78,8 @@
                                         <input type="hidden" name="hanghoa[{{ $key }}][don_gia_goc]" value="{{ $don_gia_goc }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][ngay_san_xuat]" value="{{ $hh['ngay_san_xuat'] ?? '' }}">
                                         <input type="hidden" name="hanghoa[{{ $key }}][so_thang]" value="{{ $hh['so_thang'] ?? 12 }}">
+                                        <input type="hidden" name="hanghoa[{{ $key }}][index_goc]" value="{{ $key }}">
+                                        <input type="hidden" name="hanghoa[{{ $key }}][id_hanghoa]" value="{{ $hh['id_hanghoa'] }}">
                                     </td>
                                     <td class="text-center">
                                         @php
@@ -373,7 +375,11 @@
                     return false;
                 }
                 
-                return confirm('Xác nhận tạo phiếu trả hàng?');
+                if(confirm('Xác nhận tạo phiếu trả hàng?')) {
+                    $(this).find('button[type="submit"]').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang xử lý...');
+                    return true;
+                }
+                return false;
             });
 
             @if(Session::get('msg'))

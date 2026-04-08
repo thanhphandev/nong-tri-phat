@@ -34,6 +34,7 @@
                 </div>
                 <div class="col-12 mt-2">
                     <span id="thongtinhanghoa" class="badge badge-info" style="padding:5px 10px 5px 10px;font-size: 13px;display:none;">Thông tin hàng hóa:</span>
+                    <div id="selection-warning" class="mt-2" style="display:none;"></div>
                 </div>
             </div>
 
@@ -137,6 +138,11 @@
                             <span class="input-group-text"><i class="fas fa-money-bill-wave"></i></span>
                         </div>
                         <input type="text" name="thanh_toan" id="thanh-toan" value="0" placeholder="0" class="number form-control form-control-lg text-right text-success font-weight-bold">
+                        <div class="input-group-append">
+                            <button type="button" class="btn btn-outline-primary font-weight-bold" id="btnPayFull" title="Trả đủ số tiền">
+                                TRẢ ĐỦ
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -271,8 +277,9 @@
                 function formatRepo(repo) {
                     if (repo.loading) return repo.text;
 
-                    var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : 'stock-out';
-                    var stockText = repo.so_luong_ton > 0 ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(repo.so_luong_ton) : 'Hết hàng';
+                    var stockClass = repo.so_luong_ton > 0 ? 'stock-in' : (repo.so_luong_ton < 0 ? 'stock-out text-danger font-weight-bold' : 'stock-out');
+                    var formattedStock = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(repo.so_luong_ton);
+                    var stockText = repo.so_luong_ton > 0 ? formattedStock : (repo.so_luong_ton < 0 ? 'Đang âm: ' + formattedStock : 'Hết hàng');
 
                     var markup = "<div class='product-result'>" +
                         "<div class='product-title'>" +
@@ -301,6 +308,11 @@
                     $.getJSON(get_cart_path, function (hh) {
                         $("#thongtinhanghoa").html(hh.thongtinhanghoa).show();
                         if (hh.so_thang) $("#so_thang_item").val(hh.so_thang);
+                        if (hh.warning_am_kho) {
+                            $("#selection-warning").html('<div class="alert alert-danger py-1 px-2 mb-0" style="font-size:12px;"><i class="fas fa-exclamation-triangle"></i> ' + hh.warning_am_kho + '</div>').show();
+                        } else {
+                            $("#selection-warning").hide();
+                        }
                     });
 
                     $("#so_luong").select().focus();
