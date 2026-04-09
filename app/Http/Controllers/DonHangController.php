@@ -448,6 +448,7 @@ class DonHangController extends Controller
                     });
 
                     $new_batches = [];
+                    $batches_used_metadata = [];
                     $last_valid_batch_index = -1; // Lưu index lô cuối cùng chưa hết hạn
 
                     foreach ($batches as $index => $batch) {
@@ -488,6 +489,15 @@ class DonHangController extends Controller
                                 $batch_cost_price = isset($batch['gia_von']) ? doubleval($batch['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
                                 $tong_gia_von_thuc_te += $qty_deducted_from_batch * $batch_cost_price;
                                 $sl_da_tru += $qty_deducted_from_batch;
+
+                                // RECORD METADATA
+                                $batches_used_metadata[] = [
+                                    'ma_nhap_hang' => $batch['ma_nhap_hang'] ?? ($batch['ma_lo'] ?? 'UNKNOWN'),
+                                    'id_nhaphang' => $batch['id_nhaphang'] ?? null,
+                                    'so_luong' => $qty_deducted_from_batch,
+                                    'gia_von' => $batch_cost_price,
+                                    'ngay_het_han' => $batch['ngay_het_han'] ?? null
+                                ];
                             }
                         }
 
@@ -498,7 +508,6 @@ class DonHangController extends Controller
                     if ($sl_can_tru > 0) {
                         if (count($new_batches) > 0) {
                             // CẢI TIẾN: Trừ vào lô ĐẦU TIÊN (lô cũ nhất theo FEFO) thay vì lô mới nhất
-                            // Giúp giữ giá vốn ở mức giá lịch sử (ví dụ 100k) thay vì lấy giá mới nhất (110k)
                             $target_idx = 0;
                             $current_batch_qty = isset($new_batches[$target_idx]['so_luong_con_lai']) ? floatval($new_batches[$target_idx]['so_luong_con_lai']) : 0;
                             $new_batches[$target_idx]['so_luong_con_lai'] = $current_batch_qty - $sl_can_tru;
@@ -506,9 +515,18 @@ class DonHangController extends Controller
                             // Dùng giá vốn của chính lô cũ đó thay vì giá vốn mặc định của hàng hóa
                             $batch_cost = isset($new_batches[$target_idx]['gia_von']) ? doubleval($new_batches[$target_idx]['gia_von']) : (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
                             $tong_gia_von_thuc_te += $sl_can_tru * $batch_cost;
+
+                            // RECORD METADATA for negative usage
+                            $batches_used_metadata[] = [
+                                'ma_nhap_hang' => $new_batches[$target_idx]['ma_nhap_hang'] ?? 'UNKNOWN',
+                                'id_nhaphang' => $new_batches[$target_idx]['id_nhaphang'] ?? null,
+                                'so_luong' => $sl_can_tru,
+                                'gia_von' => $batch_cost,
+                                'is_negative' => true
+                            ];
                         } else {
                             // Tạo lô nợ mới nếu chưa có lô nào
-                            $new_batches[] = [
+                            $temp_batch = [
                                 'ma_nhap_hang' => 'BAN_AM_' . date('dmY_His'),
                                 'so_luong_nhap' => 0,
                                 'so_luong_con_lai' => -$sl_can_tru,
@@ -516,16 +534,24 @@ class DonHangController extends Controller
                                 'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
                                 'ghi_chu' => 'Bán âm tự động'
                             ];
+                            $new_batches[] = $temp_batch;
                             $tong_gia_von_thuc_te += $sl_can_tru * (isset($hh['gia_von']) ? doubleval($hh['gia_von']) : 0);
+
+                            // RECORD METADATA for negative usage
+                            $batches_used_metadata[] = [
+                                'ma_nhap_hang' => $temp_batch['ma_nhap_hang'],
+                                'id_nhaphang' => null,
+                                'so_luong' => $sl_can_tru,
+                                'gia_von' => $temp_batch['gia_von'],
+                                'is_negative' => true
+                            ];
                         }
                         $sl_da_tru += $sl_can_tru;
                         $sl_can_tru = 0;
                     }
 
                     // Giới hạn số lượng lô trong database để tránh quá tải (giữ tối đa 100 lô)
-                    // Ưu tiên giữ lại các lô còn hàng và các lô mới nhất
                     if (count($new_batches) > 100) {
-                        // Phân loại lô
                         $with_qty = [];
                         $empty = [];
                         foreach ($new_batches as $b) {
@@ -535,12 +561,9 @@ class DonHangController extends Controller
                                 $empty[] = $b;
                             }
                         }
-
-                        // Nếu số lô có hàng đã > 100, chỉ giữ 100 lô có hàng mới nhất (theo ngày hết hạn/nhập)
                         if (count($with_qty) >= 100) {
                             $new_batches = array_slice($with_qty, -100);
                         } else {
-                            // Giữ lại tất cả lô có hàng, và bù thêm các lô trống mới nhất cho đủ 100
                             $needed = 100 - count($with_qty);
                             $latest_empty = array_slice($empty, -$needed);
                             $new_batches = array_merge($with_qty, $latest_empty);
@@ -548,15 +571,11 @@ class DonHangController extends Controller
                     }
 
                     $hanghoa_db->ds_lo_hang = $new_batches;
-
-                    // Tính so_luong_ton = tổng các lô còn lại
                     $current_total_stock = 0;
                     foreach ($new_batches as $b) {
                         $current_total_stock += isset($b['so_luong_con_lai']) ? floatval($b['so_luong_con_lai']) : 0;
                     }
-                    // Trừ thêm phần thiếu để so_luong_ton có thể âm (Trường hợp cho phép bán âm)
                     $hanghoa_db->so_luong_ton = $current_total_stock;
-
                     $hanghoa_db->save();
                 } else {
                     // Không có lô hàng -> Cho phép bán âm trực tiếp
@@ -567,18 +586,25 @@ class DonHangController extends Controller
                     $hanghoa_db->so_luong_ton = $so_luong_ton_current - $sl_can_tru_kho;
 
                     // Tạo lô nợ để đồng bộ logic ds_lo_hang
-                    $hanghoa_db->ds_lo_hang = [
-                        [
-                            'ma_nhap_hang' => 'BAN_AM_' . date('dmY_His'),
-                            'so_luong_nhap' => 0,
-                            'so_luong_con_lai' => -$sl_can_tru_kho,
-                            'gia_von' => $default_cost,
-                            'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
-                            'ghi_chu' => 'Bán âm (Chưa có lô hàng)'
-                        ]
+                    $temp_batch = [
+                        'ma_nhap_hang' => 'BAN_AM_' . date('dmY_His'),
+                        'so_luong_nhap' => 0,
+                        'so_luong_con_lai' => -$sl_can_tru_kho,
+                        'gia_von' => $default_cost,
+                        'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                        'ghi_chu' => 'Bán âm (Chưa có lô hàng)'
                     ];
-
+                    $hanghoa_db->ds_lo_hang = [$temp_batch];
                     $hanghoa_db->save();
+
+                    // RECORD METADATA
+                    $batches_used_metadata = [[
+                        'ma_nhap_hang' => $temp_batch['ma_nhap_hang'],
+                        'id_nhaphang' => null,
+                        'so_luong' => $sl_can_tru_kho,
+                        'gia_von' => $default_cost,
+                        'is_negative' => true
+                    ]];
                 }
 
                 // Prepare Item for Order with Real Cost Snapshot
@@ -592,6 +618,7 @@ class DonHangController extends Controller
                     'chiet_khau' => $chiet_khau,
                     'thanh_tien' => $thanh_tien,
                     'gia_von_thuc_te' => $tong_gia_von_thuc_te, // Total Cost for this line
+                    'ds_lo_su_dung' => $batches_used_metadata, // NEW: BATCH PERSISTENCE
                     // Snapshot Supplier
                     'id_nhacungcap' => $hanghoa_ncc_map[(string) $id_hanghoa]['id_nhacungcap'] ?? null,
                     'ten_ncc' => $hanghoa_ncc_map[(string) $id_hanghoa]['ten_ncc'] ?? 'Không xác định',

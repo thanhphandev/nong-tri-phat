@@ -1075,7 +1075,7 @@ class CongNoController extends Controller
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
                     $sheet->getStyle('A' . $row . ':L' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
                     $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('E' . $row . ':H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('E' . $row . ':I' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
                     if (isset($ct['hang_chuong_trinh']) && $ct['hang_chuong_trinh']) {

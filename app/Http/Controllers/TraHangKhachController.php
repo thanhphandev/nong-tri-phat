@@ -228,7 +228,7 @@ class TraHangKhachController extends Controller
                         'tinh_trang' => $hh['tinh_trang'] ?? 'Khác',
                     ];
 
-                    // Update inventory - Return to stock as NEW BATCH (Always use normalized values)
+                    // Update inventory - Smart Restoration to Original Batches
                     $hang_hoa = isset($hanghoa_dict[(string) $hh['id_hanghoa']]) ? $hanghoa_dict[(string) $hh['id_hanghoa']] : null;
                     if ($hang_hoa) {
                         $nsx_input = $hh['ngay_san_xuat'] ?? Carbon::now()->format('d/m/Y');
@@ -241,24 +241,40 @@ class TraHangKhachController extends Controller
                         $so_thang = isset($hh['so_thang']) && is_numeric($hh['so_thang']) ? intval($hh['so_thang']) : 12;
                         $hsd_date = (clone $nsx_date)->addMonths($so_thang);
 
-                        $new_batch = [
-                            'ma_nhap_hang' => $ma_tra_hang,
-                            'so_luong_nhap' => $hoan_kho,
-                            'so_luong_con_lai' => $hoan_kho,
-                            'ngay_san_xuat' => new \MongoDB\BSON\UTCDateTime($nsx_date->timestamp * 1000),
-                            'ngay_het_han' => new \MongoDB\BSON\UTCDateTime($hsd_date->timestamp * 1000),
-                            'gia_von' => $gia_von_base_main, // CHUẨN TỒN KHO: Sử dụng giá vốn đơn vị chính
-                            'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(Carbon::now()->timestamp * 1000),
-                            'ghi_chu' => 'Hoàn trả từ đơn: ' . $donhang['ma_don_hang'],
-                        ];
+                        $ds_lo_su_dung = $original_item['ds_lo_su_dung'] ?? [];
+                        $sl_cho_hoan = $hoan_kho; // Số lượng cần trả (theo đơn vị chính)
+                        $ds_lo_hang_hien_tai = $hang_hoa->ds_lo_hang ?? [];
 
-                        $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
-                        $ds_lo_hang[] = $new_batch;
-                        $hang_hoa->ds_lo_hang = $ds_lo_hang;
+                        if (!empty($ds_lo_su_dung)) {
+                            // Cập nhật lô cũ theo logic LIFO (Lô nào lấy ra sau cùng thì trả vào trước)
+                            $ds_lo_da_dung_dao_nguoc = array_reverse($ds_lo_su_dung);
 
-                        // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
+                            foreach ($ds_lo_da_dung_dao_nguoc as $lo_cu) {
+                                if ($sl_cho_hoan <= 0) break;
+
+                                // Số lượng tối đa có thể trả vào lô này là số lượng đã bán từ nó
+                                $sl_co_the_hoan = (float)($lo_cu['so_luong'] ?? 0);
+                                $qty_to_restore = min($sl_cho_hoan, $sl_co_the_hoan);
+
+                                if ($qty_to_restore > 0) {
+                                    $found = false;
+                                    foreach ($ds_lo_hang_hien_tai as &$b) {
+                                        if (($b['ma_nhap_hang'] ?? '') == ($lo_cu['ma_nhap_hang'] ?? '')) {
+                                            $b['so_luong_con_lai'] = (float)($b['so_luong_con_lai'] ?? 0) + $qty_to_restore;
+                                            $sl_cho_hoan -= $qty_to_restore;
+                                            $found = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        $hang_hoa->ds_lo_hang = $ds_lo_hang_hien_tai;
+
+                        // Tính lại so_luong_ton = SUM tất cả lô
                         $total_stock = 0;
-                        foreach ($ds_lo_hang as $b) {
+                        foreach ($ds_lo_hang_hien_tai as $b) {
                             $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
                         }
                         $hang_hoa->so_luong_ton = $total_stock;
