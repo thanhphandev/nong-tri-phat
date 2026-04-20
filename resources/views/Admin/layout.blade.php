@@ -49,6 +49,10 @@
                                     <i class="fe-user"></i> <span>Quản lý tài khoản</span>
                                 </a>
                                 {{-- @endif --}}
+                                <a href="{{ env('APP_URL') }}admin/user/change-password" class="dropdown-item notify-item">
+                                    <i class="fe-lock"></i> <span>Đổi mật khẩu</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
                                 <a href="{{ env('APP_URL') }}auth/logout" class="dropdown-item notify-item">
                                     <i class="fe-log-out"></i> <span>Đăng xuất</span>
                                 </a>

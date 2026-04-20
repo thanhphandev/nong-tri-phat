@@ -198,17 +198,19 @@ class UserController extends Controller {
 
   function update_password(Request $request){
     $data = $request->all();
-    if (!Auth::attempt(['email' => $data['email'], 'password' => $data['old_password']])) {
-      return redirect(env('APP_URL').'admin/user/change-password')->withErrors(['msg' => 'Mật khẩu cũ không trùng khớp'])->withInput();
+    $user = User::find($data['id']);
+    if (!$user || !Hash::check($data['old_password'], $user->password)) {
+      return redirect(env('APP_URL').'admin/user/change-password')->with('error', 'Mật khẩu cũ không đúng.');
     } else {
       if($data['password'] !== $data['confirm_password']){
-        return redirect(env('APP_URL').'admin/user/change-password')->withErrors(['msg' => 'Mật khẩu mới không trùng khớp'])->withInput();
+        return redirect(env('APP_URL').'admin/user/change-password')->with('error', 'Mật khẩu mới không trùng khớp.');
+      } else if(strlen($data['password']) < 6){
+        return redirect(env('APP_URL').'admin/user/change-password')->with('error', 'Mật khẩu mới phải có ít nhất 6 ký tự.');
       } else {
-        $user = User::find($data['id']);
         $user->password = Hash::make($data['password']);
         $user->save();
-        return redirect(env('APP_URL').'admin/user/change-password')->withErrors(['msg' => 'Thay đổi mật khẩu thành công'])->withInput();
+        return redirect(env('APP_URL').'admin/user/change-password')->with('success', 'Thay đổi mật khẩu thành công!');
       }
     }
-}
+  }
 }

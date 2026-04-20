@@ -140,9 +140,9 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     // Route::get('tra-hang-ncc/delete/{id}', 'TraHangNCCController@delete')->middleware('role:Admin');
     Route::get('tra-hang-ncc/in-phieu-tra-hang/{id}', 'TraHangNCCController@in_phieu_tra_hang')->middleware('role:Admin,Manager');
 
+    Route::get('user/change-password', 'UserController@change_password');
+    Route::post('user/update-password', 'UserController@update_password');
     Route::get('user', 'UserController@list')->middleware('role:Admin');
-    Route::get('user/change-password', 'UserController@change_password')->middleware('role:Admin');
-    Route::post('user/update-password', 'UserController@update_password')->middleware('role:Admin');
     Route::get('user/add', 'UserController@add')->middleware('role:Admin');
     Route::post('user/create', 'UserController@create')->middleware('role:Admin');
     Route::get('user/edit/{id}', 'UserController@edit')->middleware('role:Admin');
