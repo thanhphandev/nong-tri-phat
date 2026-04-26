@@ -35,7 +35,7 @@ return [
     'connections' => [
         'mongodb' => [
             'driver'   => 'mongodb',
-            'dsn'      => env('DB_DSN', 'mongodb+srv://admin:Wkv81fE5t2QM@nongtriphat.yxggdz6.mongodb.net/NongTriPhat?retryWrites=true&w=majority&tlsInsecure=true'),
+            'dsn'      => env('DB_DSN', ''),
             'database' => env('DB_DATABASE', 'NongTriPhat'),
         ],
 

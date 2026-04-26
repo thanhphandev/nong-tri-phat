@@ -109,7 +109,7 @@ class ThongKeController extends Controller
             $item['so_luong_gui_kho'] = $sl_gui_con;   // SL đang gửi kho
             $item['id'] = (string) $product->_id;
 
-            if ($sl_thuc_te > 0) {
+            if ($sl_thuc_te != 0) {
                 $tonkho[] = $item;
                 $tonkho_sum += $sl_thuc_te;
             } else {
