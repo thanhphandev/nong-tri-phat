@@ -33,7 +33,7 @@ class ImportMasterData extends Command
         // ========================================================
         $this->info('📦 [1/4] Xử lý Đơn vị tính & Nhóm hàng...');
 
-        $file1 = $basePath . '/Danh_Muc_Hang_Hoa.csv';
+        $file1 = $basePath . '/Danh_Muc_Hang_Hoa1.csv';
         if (!file_exists($file1)) {
             $this->error("❌ Không tìm thấy file: {$file1}");
             $this->error("   Hãy chạy: php artisan migration:generate-sample-csv");
@@ -221,7 +221,7 @@ class ImportMasterData extends Command
         $this->newLine();
         $this->info('👥 [3/4] Import Khách hàng...');
 
-        $file2 = $basePath . '/Danh_Muc_Khach_Hang.csv';
+        $file2 = $basePath . '/Danh_Muc_Khach_Hang1.csv';
         if (!file_exists($file2)) {
             $this->error("❌ Không tìm thấy: {$file2}");
             return 1;
@@ -293,7 +293,7 @@ class ImportMasterData extends Command
         $this->newLine();
         $this->info('🏭 [4/4] Import Nhà cung cấp...');
 
-        $file3 = $basePath . '/Danh_Muc_Nha_Cung_Cap.csv';
+        $file3 = $basePath . '/Danh_Muc_Nha_Cung_Cap1.csv';
         if (!file_exists($file3)) {
             $this->error("❌ Không tìm thấy: {$file3}");
             return 1;

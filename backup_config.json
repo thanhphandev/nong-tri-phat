@@ -1,6 +1,12 @@
 ﻿{
-    "time":  "10:52",
+    "cloudRemote":  "gdrive",
+    "cloudKeep":  10,
+    "enabled":  true,
     "keep":  10,
-    "lastRun":  "2026-04-21 10:51:50",
-    "enabled":  false
+    "cloudNotify":  true,
+    "time":  "10:52",
+    "cloudFolder":  "NongTriPhat-Backups",
+    "lastCloudRun":  "2026-04-26 13:21:54",
+    "lastRun":  "2026-04-26 13:21:11",
+    "cloudEnabled":  true
 }

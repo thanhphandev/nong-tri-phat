@@ -42,7 +42,7 @@ class ImportOpeningBalances extends Command
         // ========================================================
         $this->info('📦 [1/3] Bơm Tồn kho đầu kỳ...');
 
-        $file1 = $basePath . '/Danh_Muc_Hang_Hoa.csv';
+        $file1 = $basePath . '/Danh_Muc_Hang_Hoa1.csv';
         if (!file_exists($file1)) {
             $this->error("❌ Không tìm thấy: {$file1}");
             return 1;

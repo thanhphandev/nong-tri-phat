@@ -228,7 +228,7 @@
             </div>
         </div>
         <div class="col-md-4 col-xl-3">
-            <div class="card-box bg-danger widget-flat border-danger text-white" title="Nợ thực tế khách còn phải trả">
+            <div class="card-box bg-danger widget-flat border-danger text-white" title="Nợ đầu kỳ: {{ number_format($no_dau_ky,0,",",".") }} + Doanh thu thực: {{ number_format($tong_doanh_thu,0,",",".") }} - Đã thanh toán: {{ number_format($tong_da_thanh_toan,0,",",".") }}">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h4 class="text-white">{{ number_format($tong_con_no,0,",",".") }}</h4>
                 <p class="text-uppercase font-12 font-weight-bold mb-0">Còn nợ (NET)</p>

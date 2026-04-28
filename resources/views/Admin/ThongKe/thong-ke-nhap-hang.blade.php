@@ -199,7 +199,7 @@
             </div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="card-box bg-danger widget-flat border-danger text-white">
+            <div class="card-box bg-danger widget-flat border-danger text-white" title="Nợ đầu kỳ: {{ number_format($no_dau_ky_ncc,0,",",".") }} + Nhập thực: {{ number_format($tong_gia_tri_nhap,0,",",".") }} - Đã trả: {{ number_format($tong_da_thanh_toan,0,",",".") }}">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h3 class="text-white">{{ number_format($tong_con_no,0,",",".") }}</h3>
                 <p class="text-uppercase font-13 font-weight-bold">Còn nợ NCC</p>
