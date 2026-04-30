@@ -57,6 +57,9 @@ Route::group(['prefix' => 'admin',  'middleware' => 'checkauth'], function(){
     Route::get('hang-hoa/delete/{id}', 'HangHoaController@delete')->middleware('role:Admin,Manager');
     Route::get('hang-hoa/get-cart/{mahanghoa}', 'HangHoaController@get_cart')->middleware('role:Admin,Manager');
     Route::get('hang-hoa/xem-ton-kho/{id}', 'HangHoaController@xem_ton_kho')->middleware('role:Admin,Manager');
+    Route::post('hang-hoa/update-hsd-lo-hang', 'HangHoaController@update_hsd_lo_hang')->middleware('role:Admin,Manager');
+    Route::post('hang-hoa/update-ton-kho-lo-hang', 'HangHoaController@update_ton_kho_lo_hang')->middleware('role:Admin,Manager');
+
 
     Route::get('hang-hoa/autocomplete', 'HangHoaController@autocomplete')->middleware('role:Admin,Manager');
 

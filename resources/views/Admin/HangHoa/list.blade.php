@@ -3,6 +3,7 @@
 @section('css')
     <link href="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ env('APP_URL') }}assets/libs/select2/select2.min.css" rel="stylesheet" type="text/css" />
+    <link href="{{ env('APP_URL') }}assets/libs/datatables/select.bootstrap4.css" rel="stylesheet" type="text/css" />
 @endsection
 @section('body')
 <div class="row">
@@ -90,7 +91,9 @@
                         <td class="text-right">{{ number_format($ds['gia_si'], 0,",",".") }}</td>
                         <td class="text-right">{{ number_format($ds['gia_le'], 0,",",".") }}</td>
                         <td class="text-right">
-                             {{ number_format($ds['so_luong_ton'],2,",",".") }}
+                             <a href="{{ url('admin/hang-hoa/xem-ton-kho') }}/{{ $ds['id'] }}" class="xem-ton-kho text-primary font-weight-bold" data-toggle="modal" data-target="#modalTonKho">
+                                 {{ number_format($ds['so_luong_ton'],2,",",".") }}
+                             </a>
                         </td>
 
                         {{-- <td class="text-right">0</td> --}}
@@ -114,10 +117,29 @@
     </div>
 </div>
 <!-- Modal Ton Kho -->
+<div class="modal fade" id="modalTonKho" tabindex="-1" role="dialog" aria-labelledby="modalTonKhoLabel" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-lg" style="min-width: 80%;">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h4 class="modal-title" id="modalTonKhoLabel" style="color:white;">Chi tiết Tồn kho (Theo lô nhập)</h4>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="ListTonKho">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @endsection
 @section('js')
 <script src="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.js"></script>
+    <script src="{{ env('APP_URL') }}assets/libs/pdfmake/vfs_fonts.js"></script>
 <script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
 <script src="{{ env('APP_URL') }}assets/libs/autocomplete/jquery.autocomplete.min.js"></script>
 <script type="text/javascript">
@@ -167,6 +189,22 @@
             }
         });
 
+        // --- Modal Xem Lô ---
+        $('body').on('click', '.xem-ton-kho', function(e){
+            e.preventDefault();
+            var _link = $(this).attr("href");
+            
+            $("#ListTonKho").html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x text-primary"></i><br>Đang tải dữ liệu...</div>');
+            
+            $.get(_link, function(data){
+                $("#ListTonKho").html(data);
+            });
+        });
+
+        // Function for child view to trigger redraw
+        window.redrawAll = function() {
+            location.reload(); // In list view, we just reload for simplicity
+        }
     });
 
 </script>
