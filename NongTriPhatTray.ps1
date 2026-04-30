@@ -9,7 +9,8 @@ $DB_DATA = "$PSScriptRoot\env\data"
 $LOG_PATH = "$PSScriptRoot\env\data\mongod.log"
 $ICON_PATH = "$PSScriptRoot\launcher_icon.ico"
 $WEB_URL = "http://127.0.0.1:8000"
-$STARTUP_LINK = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\NongTriPhat.lnk"
+$STARTUP_FOLDER = [Environment]::GetFolderPath('Startup')
+$STARTUP_LINK = Join-Path $STARTUP_FOLDER "NongTriPhat.lnk"
 $VBS_LAUNCHER = "$PSScriptRoot\NTP_Launcher.vbs"
 
 # --- BACKUP CONFIGURATION ---
@@ -480,7 +481,7 @@ $phpProc = Start-Process $PHP_EXE -ArgumentList "`"$PHP_ARTISAN`" serve --host=1
 
 $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
 $notifyIcon.Icon = if (Test-Path $ICON_PATH) { try { New-Object System.Drawing.Icon($ICON_PATH) } catch { [System.Drawing.SystemIcons]::Application } } else { [System.Drawing.SystemIcons]::Application }
-$notifyIcon.Text = "Nông Trí Phát"
+$notifyIcon.Text = "Nong Tri Phat"
 $notifyIcon.Visible = $true
 
 $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -521,7 +522,12 @@ $btnStartup.add_Click({
     } else {
         $shell = New-Object -ComObject WScript.Shell
         $shortcut = $shell.CreateShortcut($STARTUP_LINK)
-        $shortcut.TargetPath = "wscript.exe"; $shortcut.Arguments = "`"$VBS_LAUNCHER`""; $shortcut.Save()
+        $shortcut.TargetPath = "$env:SystemRoot\System32\wscript.exe"
+        $shortcut.Arguments = "`"$VBS_LAUNCHER`""
+        $shortcut.WorkingDirectory = $PSScriptRoot
+        $shortcut.IconLocation = if (Test-Path $ICON_PATH) { $ICON_PATH } else { "" }
+        $shortcut.Description = "Khởi động cùng Windows - Nông Trí Phát"
+        $shortcut.Save()
         $btnStartup.Checked = $true
     }
 })
