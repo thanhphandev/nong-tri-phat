@@ -258,7 +258,7 @@ class ThongKeController extends Controller
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
             $end_date = ObjectController::convertDateTime_max($den_ngay);
 
-            // 1. SALES ORDER QUERY
+            // 1. SALES ORDER QUERY (Bỏ qua các đơn hàng đã bị hủy/xóa)
             $query = DonHang::where('ngay_ban', '>=', $start_date)
                 ->where('ngay_ban', '<=', $end_date);
 
@@ -267,6 +267,8 @@ class ThongKeController extends Controller
             }
             if ($tinh_trang !== null && $tinh_trang !== '') {
                 $query->where('tinh_trang', intval($tinh_trang));
+            } else {
+                $query->whereNotIn('tinh_trang', [2, 3]);
             }
 
             $danhsach = $query->orderBy('ngay_ban', 'desc')->get();
@@ -374,15 +376,14 @@ class ThongKeController extends Controller
             }
             $danhsach = $filtered_danhsach;
 
-            // 2. CUSTOMER RETURN QUERY
+            // 2. CUSTOMER RETURN QUERY (Bỏ qua các phiếu trả hàng đã bị hủy)
             $query_tra = \App\Models\TraHangKhach::where('ngay_tra', '>=', $start_date)
-                ->where('ngay_tra', '<=', $end_date);
+                ->where('ngay_tra', '<=', $end_date)
+                ->where('trang_thai', '!=', 0);
 
             if ($id_khachhang) {
                 $query_tra->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
             }
-            // Only confirmed returns usually count, assume status 1 is approved
-            // $query_tra->where('trang_thai', 1); 
 
             $ds_tra_hang = $query_tra->orderBy('ngay_tra', 'desc')->get();
             $so_don_tra = count($ds_tra_hang);
@@ -724,9 +725,10 @@ class ThongKeController extends Controller
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
             $end_date = ObjectController::convertDateTime_max($den_ngay);
 
-            // 1. IMPORT ORDERS
+            // 1. IMPORT ORDERS (Bỏ qua các phiếu nhập hàng đã bị hủy)
             $query = \App\Models\NhapHang::where('ngay_nhap', '>=', $start_date)
-                ->where('ngay_nhap', '<=', $end_date);
+                ->where('ngay_nhap', '<=', $end_date)
+                ->where('tinh_trang', '!=', 3);
 
             if ($id_nhacungcap) {
                 $query->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
@@ -780,9 +782,10 @@ class ThongKeController extends Controller
                 }
             }
 
-            // 2. SUPPLIER RETURNS (TraHangNCC)
+            // 2. SUPPLIER RETURNS (TraHangNCC - Bỏ qua các phiếu trả hàng đã bị hủy)
             $query_tra = \App\Models\TraHangNCC::where('ngay_tra', '>=', $start_date)
-                ->where('ngay_tra', '<=', $end_date);
+                ->where('ngay_tra', '<=', $end_date)
+                ->where('trang_thai', '!=', 0);
 
             if ($id_nhacungcap) {
                 $query_tra->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));

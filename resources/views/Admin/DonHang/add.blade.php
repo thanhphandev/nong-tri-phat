@@ -134,6 +134,11 @@
                             <span class="input-group-text"><i class="fas fa-money-bill-wave"></i></span>
                         </div>
                         <input type="text" name="thanh-toan" id="thanh-toan" value="0" placeholder="0" class="number form-control form-control-lg text-right text-success font-weight-bold">
+                        <div class="input-group-append">
+                            <button type="button" class="btn btn-outline-primary font-weight-bold" id="btnPayFull" title="Trả đủ số tiền">
+                                TRẢ ĐỦ
+                            </button>
+                        </div>
                     </div>
                 </div>
 

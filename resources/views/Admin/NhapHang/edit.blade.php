@@ -15,6 +15,36 @@
                 Chi tiết Ấn phẩm nhập: {{ $nh['ma_nhap_hang'] }}
             </h3>
             <hr>
+            
+            @if(isset($nh['tinh_trang']) && $nh['tinh_trang'] == 3)
+                <div class="alert alert-danger shadow-sm border-0 mb-4" style="background: linear-gradient(135deg, #f8d7da 0%, #f1b0b7 100%); color: #721c24;">
+                    <div class="row align-items-center">
+                        <div class="col-md-1 text-center">
+                            <i class="fas fa-ban fa-3x"></i>
+                        </div>
+                        <div class="col-md-8">
+                            <h4 class="alert-heading font-weight-bold mb-1">PHIẾU NHẬP ĐÃ HỦY</h4>
+                            <p class="mb-1">Lý do: <strong>{{ $nh['huy_don']['ly_do'] ?? 'Chưa xác định' }}</strong></p>
+                            @if(!empty($nh['huy_don']['ghi_chu']))
+                                <p class="mb-1">Ghi chú: <i>{{ $nh['huy_don']['ghi_chu'] }}</i></p>
+                            @endif
+                            <hr class="my-2" style="border-top-color: rgba(114, 28, 36, 0.2);">
+                            <p class="mb-0 small">
+                                <i class="fas fa-user-edit mr-1"></i> Người hủy: <strong>{{ $nh['huy_don']['nguoi_huy'] ?? 'N/A' }}</strong> 
+                                <span class="mx-2">|</span>
+                                <i class="fas fa-calendar-alt mr-1"></i> Ngày hủy: <strong>{{ \App\Http\Controllers\ObjectController::getDate($nh['huy_don']['ngay_huy'], "d/m/Y H:i") }}</strong>
+                            </p>
+                        </div>
+                        <div class="col-md-3 text-right">
+                             <div class="bg-white rounded p-2 text-center shadow-sm">
+                                <small class="text-muted text-uppercase d-block mb-1">Đã hoàn công nợ</small>
+                                <span class="h4 font-weight-bold text-danger">{{ number_format($nh['tong_thanh_tien'], 0, ',', '.') }}đ</span>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="row">
                 <div class="col-md-6">
                     <p><strong>Nhà cung cấp:</strong> {{ $nh['ten_ncc'] }}</p>
@@ -29,7 +59,7 @@
             </div>
             
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped {{ (isset($nh['tinh_trang']) && $nh['tinh_trang'] == 3) ? 'opacity-75' : '' }}">
                     <thead>
                         <tr>
                             <th class="text-center">STT</th>
@@ -43,7 +73,7 @@
                     </thead>
                     <tbody>
                         @foreach($nh['hanghoa'] as $k => $hh)
-                        <tr>
+                        <tr style="{{ (isset($nh['tinh_trang']) && $nh['tinh_trang'] == 3) ? 'text-decoration: line-through;' : '' }}">
                             <td class="text-center">{{ $k+1 }}</td>
                             <td>{{ $hh['ma'] ?? '' }}</td>
                             <td>
@@ -127,13 +157,22 @@
             <div class="mt-3 text-right">
                 @php
                     $con_no = $nh['tong_thanh_tien'] - ($nh['da_thanh_toan'] ?? 0) - ($nh['gia_tri_tra_hang'] ?? 0);
+                    $is_cancelled = isset($nh['tinh_trang']) && $nh['tinh_trang'] == 3;
                 @endphp
-                @if($con_no > 0)
-                    <button class="btn btn-success mr-2 btn-tra-no" data-id="{{ $nh['_id'] }}" data-ma="{{ $nh['ma_nhap_hang'] }}" data-ncc="{{ $nh['ten_ncc'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo">
-                        <i class="fas fa-money-bill-wave"></i> Trả nợ NCC
-                    </button>
+                @if(!$is_cancelled)
+                    @if($con_no > 0)
+                        <button class="btn btn-success mr-2 btn-tra-no" data-id="{{ $nh['_id'] }}" data-ma="{{ $nh['ma_nhap_hang'] }}" data-ncc="{{ $nh['ten_ncc'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo">
+                            <i class="fas fa-money-bill-wave"></i> Trả nợ NCC
+                        </button>
+                    @endif
+
+                    @if(in_array('Admin', session('user')['roles']) || in_array('Manager', session('user')['roles']))
+                        <button class="btn btn-danger mr-2 btn-huy-phieu" data-id="{{ $nh['_id'] }}">
+                            <i class="fas fa-ban"></i> Hủy phiếu nhập
+                        </button>
+                    @endif
                 @endif
-                <a href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $nh['_id'] }}" target="_blank" class="btn btn-warning"><i class="fa fa-print"></i> In Phiếu Nhập</a>
+                <a href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $nh['_id'] }}" target="_blank" class="btn btn-warning {{ $is_cancelled ? 'opacity-50' : '' }}"><i class="fa fa-print"></i> In Phiếu Nhập</a>
             </div>
         </div>
     </div>
@@ -182,11 +221,98 @@
         </div>
     </div>
 </div>
+
+{{-- Modal Hủy Phiếu --}}
+<div class="modal fade" id="modalHuyPhieu" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title text-white"><i class="fas fa-exclamation-triangle mr-1"></i> XÁC NHẬN HỦY PHIẾU NHẬP</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="huy_loading" class="text-center py-4">
+                    <div class="spinner-border text-danger" role="status"></div>
+                    <p class="mt-2 text-muted">Đang tải thông tin kiểm tra...</p>
+                </div>
+                <div id="huy_content" style="display: none;">
+                    <div class="alert alert-warning mb-3">
+                        <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Tóm tắt tác động</h5>
+                        <ul class="mb-0">
+                            <li>Mã phiếu: <strong id="huy_ma_phieu"></strong></li>
+                            <li>Tổng tiền nhập: <strong id="huy_tong_tien" class="text-danger"></strong></li>
+                            <li>Tiền đã trả NCC: <strong id="huy_da_tt" class="text-success"></strong></li>
+                        </ul>
+                        <div id="huy_credit_msg" class="mt-2 p-2 bg-white rounded border border-warning" style="display:none;">
+                            <i class="fas fa-wallet text-warning"></i> 
+                            Số tiền <strong id="huy_credit_amount"></strong> khách đã thanh toán sẽ trở thành <strong>số dư (credit)</strong> cho nhà cung cấp này.
+                        </div>
+                    </div>
+
+                    <div id="huy_negative_warning" class="alert alert-danger mb-3 animate__animated animate__shakeX" style="display:none;">
+                        <h5 class="alert-heading text-danger font-weight-bold"><i class="fas fa-radiation-alt"></i> CẢNH BÁO TỒN KHO ÂM!</h5>
+                        <p class="mb-0">Một số mặt hàng trong phiếu nhập này đã được xuất bán. Nếu tiếp tục hủy:</p>
+                        <ul class="font-weight-bold mt-1">
+                            <li>Tồn kho của lô hàng sẽ trở thành số âm.</li>
+                            <li>Giá vốn và báo cáo kho có thể bị sai lệch.</li>
+                        </ul>
+                    </div>
+
+                    <h6 class="font-weight-bold"><i class="fas fa-boxes mr-1"></i> Chi tiết hàng hóa hoàn kho:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Tên sản phẩm</th>
+                                    <th class="text-right">SL Nhập</th>
+                                    <th class="text-right">Đã bán</th>
+                                    <th class="text-right">Tồn lô</th>
+                                    <th class="text-right">Sau hủy</th>
+                                </tr>
+                            </thead>
+                            <tbody id="huy_items_table"></tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+                    <div class="form-group">
+                        <label class="font-weight-bold text-danger">Lý do hủy phiếu <span class="text-danger">*</span></label>
+                        <select id="huy_ly_do" class="form-control select2">
+                            <option value="">-- Chọn lý do --</option>
+                            <option value="Nhập sai thông tin (giá, số lượng)">Nhập sai thông tin (giá, số lượng)</option>
+                            <option value="Nhập nhầm nhà cung cấp">Nhập nhầm nhà cung cấp</option>
+                            <option value="Nhập trùng phiếu (duplicate)">Nhập trùng phiếu (duplicate)</option>
+                            <option value="Sản phẩm lỗi/không đúng yêu cầu (Hủy thay vì trả)">Sản phẩm lỗi/không đúng yêu cầu (Hủy thay vì trả)</option>
+                            <option value="Sai lô/ngày hết hạn">Sai lô/ngày hết hạn</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Ghi chú chi tiết</label>
+                        <textarea id="huy_ghi_chu" class="form-control" rows="2" placeholder="Nhập thêm chi tiết nếu cần..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-danger" id="btn_xac_nhan_huy" style="display:none;">
+                    <i class="fas fa-check-circle"></i> XÁC NHẬN HỦY PHIẾU
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 @section('js')
 <script src="{{ env('APP_URL') }}assets/libs/jquery-toast/jquery.toast.min.js"></script>
+<script src="{{ env('APP_URL') }}assets/libs/select2/select2.min.js"></script>
 <script>
     $(document).ready(function(){
+        $(".select2").select2();
+
         // Handle payment modal
         $(".btn-tra-no").click(function(){
             var _this = $(this);
@@ -206,6 +332,93 @@
             $("#ghi_chu_tra_no").val('Trả nợ NCC cho đơn ' + ma);
             
             $("#modalTraNo").modal("show");
+        });
+
+        // Hủy phiếu nhập
+        var currentHuyId = null;
+        $(".btn-huy-phieu").click(function() {
+            currentHuyId = $(this).data('id');
+            $('#modalHuyPhieu').modal('show');
+            $('#huy_loading').show();
+            $('#huy_content').hide();
+            $('#btn_xac_nhan_huy').hide();
+
+            $.ajax({
+                url: '{{ env("APP_URL") }}admin/nhap-hang/get-huy-phieu-info/' + currentHuyId,
+                type: 'GET',
+                success: function(res) {
+                    $('#huy_loading').hide();
+                    $('#huy_content').show();
+                    $('#btn_xac_nhan_huy').show();
+
+                    $('#huy_ma_phieu').text(res.ma_nhap_hang);
+                    $('#huy_tong_tien').text(new Intl.NumberFormat('vi-VN').format(res.tong_thanh_tien) + 'đ');
+                    $('#huy_da_tt').text(new Intl.NumberFormat('vi-VN').format(res.da_thanh_toan) + 'đ');
+
+                    if(res.da_thanh_toan > 0) {
+                        $('#huy_credit_msg').show();
+                        $('#huy_credit_amount').text(new Intl.NumberFormat('vi-VN').format(res.da_thanh_toan) + 'đ');
+                    } else {
+                        $('#huy_credit_msg').hide();
+                    }
+
+                    if(res.has_negative_warning) {
+                        $('#huy_negative_warning').show();
+                    } else {
+                        $('#huy_negative_warning').hide();
+                    }
+
+                    var html = '';
+                    res.items.forEach(function(item) {
+                        var badgeClass = item.is_negative ? 'badge-danger' : 'badge-success';
+                        html += `<tr>
+                            <td>${item.ten}</td>
+                            <td class="text-right">${item.so_luong_nhap} ${item.dvt}</td>
+                            <td class="text-right text-muted">${item.da_ban.toFixed(2)}</td>
+                            <td class="text-right">${item.ton_hien_tai.toFixed(2)}</td>
+                            <td class="text-right"><span class="badge ${badgeClass}">${item.ton_sau_huy.toFixed(2)}</span></td>
+                        </tr>`;
+                    });
+                    $('#huy_items_table').html(html);
+                },
+                error: function(xhr) {
+                    $('#modalHuyPhieu').modal('hide');
+                    var errorMsg = xhr.responseJSON ? xhr.responseJSON.error : 'Lỗi không xác định';
+                    alert(errorMsg);
+                }
+            });
+        });
+
+        $('#btn_xac_nhan_huy').click(function() {
+            var ly_do = $('#huy_ly_do').val();
+            if(!ly_do) {
+                alert('Vui lòng chọn lý do hủy phiếu!');
+                return;
+            }
+
+            if(!confirm('BẠN CÓ CHẮC CHẮN MUỐN HỦY PHIẾU NHẬP NÀY?\n\nHàng sẽ được trừ khỏi kho và công nợ sẽ được hoàn trả. Hành động này không thể hoàn tác!')) {
+                return;
+            }
+
+            $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Đang xử lý...');
+
+            $.ajax({
+                url: '{{ env("APP_URL") }}admin/nhap-hang/huy-phieu',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    id: currentHuyId,
+                    ly_do: ly_do,
+                    ghi_chu: $('#huy_ghi_chu').val()
+                },
+                success: function(res) {
+                    location.reload();
+                },
+                error: function(xhr) {
+                    $('#btn_xac_nhan_huy').prop('disabled', false).html('<i class="fas fa-check-circle"></i> XÁC NHẬN HỦY PHIẾU');
+                    alert(xhr.responseJSON ? xhr.responseJSON.error : 'Lỗi hệ thống');
+                }
+            });
         });
 
         // Định dạng tiền tệ khi nhập

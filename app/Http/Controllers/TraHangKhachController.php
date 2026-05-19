@@ -449,126 +449,120 @@ class TraHangKhachController extends Controller
     }
 
     /**
-     * Hiện không áp dụng xóa phiếu trả hàng
+     * Hủy phiếu trả hàng khách (Safe Delete)
      */
-    function delete(Request $request, $id)
+    function huy_tra_hang(Request $request)
     {
+        $id = $request->input('id');
+        $ly_do = $request->input('ly_do');
+        $ghi_chu = $request->input('ghi_chu');
+
+        // 1. Phân quyền (Chỉ Admin/Manager)
+        $user = session('user');
+        if (!(in_array('Admin', $user['roles']) || in_array('Manager', $user['roles']))) {
+            return response()->json(['error' => 'Bạn không có quyền thực hiện chức năng này.'], 403);
+        }
+
         $tra_hang = TraHangKhach::find($id);
 
-        if (!$tra_hang) {
-            Session::flash('msg', 'Không tìm thấy phiếu trả hàng');
-            return redirect(env('APP_URL') . 'admin/tra-hang-khach');
+        if (!$tra_hang || (isset($tra_hang['trang_thai']) && $tra_hang['trang_thai'] == 0 && isset($tra_hang['huy_phieu']))) {
+            return response()->json(['error' => 'Không tìm thấy phiếu trả hàng hoặc đã bị hủy.'], 400);
         }
 
-        // Revert inventory - Remove items from stock by finding EXACT return batch
-        $hh_ids = array_column($tra_hang['hanghoa'], 'id_hanghoa');
-        $hh_obj_ids = array_map(function ($id) {
-            return ObjectController::ObjectId($id);
-        }, $hh_ids);
-        $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function ($item) {
-            return (string) $item->_id;
-        });
-        // -----------------------
+        try {
+            // 2. Revert inventory - Remove items from stock by finding EXACT return batch
+            $hh_ids = array_column($tra_hang['hanghoa'], 'id_hanghoa');
+            $hh_obj_ids = array_map(function ($id) {
+                return ObjectController::ObjectId($id);
+            }, $hh_ids);
+            $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function ($item) {
+                return (string) $item->_id;
+            });
 
-        foreach ($tra_hang['hanghoa'] as $item) {
-            $hang_hoa = isset($hanghoa_dict[(string) $item['id_hanghoa']]) ? $hanghoa_dict[(string) $item['id_hanghoa']] : null;
-            if ($hang_hoa) {
-                $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
-                $new_batches = [];
-                // Dùng so_luong_tru_kho_tra (đơn vị chính/Bao) thay vì so_luong_tra (có thể là Kg)
-                $sl_kho = floatval($item['so_luong_tru_kho_tra'] ?? $item['so_luong_tra']);
-                $remaining = $sl_kho;
-                $batch_deducted = false;
+            foreach ($tra_hang['hanghoa'] as $item) {
+                $hang_hoa = isset($hanghoa_dict[(string) $item['id_hanghoa']]) ? $hanghoa_dict[(string) $item['id_hanghoa']] : null;
+                if ($hang_hoa) {
+                    $new_batches = [];
+                    $remaining = floatval($item['so_luong_tra']);
+                    $batch_deducted = false;
 
-                // EXACT BATCH DEDUCTION: Find batch created by this return
-                // In create(), we set ma_nhap_hang = ma_tra_hang
-                foreach ($ds_lo_hang as $batch) {
-                    $is_return_batch = false;
-
-                    if (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $tra_hang['ma_tra_hang']) {
-                        $is_return_batch = true;
+                    foreach ($hang_hoa->ds_lo_hang as $batch) {
+                        if ((string)($batch['ma_nhap_hang'] ?? '') == (string)($item['ma_nhap_hang'] ?? '') && !$batch_deducted) {
+                            $current_stock = floatval($batch['so_luong_con_lai'] ?? 0);
+                            $batch['so_luong_con_lai'] = $current_stock - $remaining;
+                            $remaining = 0;
+                            $new_batches[] = $batch;
+                            $batch_deducted = true;
+                        } else {
+                            $new_batches[] = $batch;
+                        }
                     }
 
-                    if ($is_return_batch && $remaining > 0) {
-                        // This is a batch from this return - deduct from here
-                        $batch_qty = floatval($batch['so_luong_con_lai'] ?? 0);
-
-                        // Deduct from this batch, even if it goes negative
-                        $batch['so_luong_con_lai'] = $batch_qty - $remaining;
-                        $new_batches[] = $batch;
-                        $remaining = 0;
-                        $batch_deducted = true;
-                    } else {
-                        // Keep other batches unchanged
-                        $new_batches[] = $batch;
-                    }
-                }
-
-                if (!$batch_deducted || $remaining > 0) {
-                    \Log::warning('TraHangKhach Delete: Batch not found or insufficient for product ' . $item['ten'] .
-                        ' from return ' . $tra_hang['ma_tra_hang'] .
-                        '. Missing/Sold: ' . $remaining);
-                }
-
-                $hang_hoa->ds_lo_hang = $new_batches;
-
-                // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
-                $total_stock = 0;
-                foreach ($new_batches as $b) {
-                    $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
-                }
-                $hang_hoa->so_luong_ton = $total_stock;
-                $hang_hoa->save();
-            }
-        }
-
-        // Revert DonHang.hanghoa[].so_luong_tra
-        $donhang_update = DonHang::find($tra_hang['id_donhang']);
-        if ($donhang_update && isset($donhang_update['hanghoa'])) {
-            $updated_items = $donhang_update['hanghoa'];
-            foreach ($updated_items as &$dh_item) {
-                foreach ($tra_hang['hanghoa'] as $return_item) {
-                    if ((string) $dh_item['id_hanghoa'] == (string) $return_item['id_hanghoa']) {
-                        $current_return = isset($dh_item['so_luong_tra']) ? floatval($dh_item['so_luong_tra']) : 0;
-                        $qty_to_revert = floatval($return_item['so_luong_tra']);
-                        $dh_item['so_luong_tra'] = max(0, $current_return - $qty_to_revert);
-                    }
+                    $hang_hoa->ds_lo_hang = $new_batches;
+                    $total_stock = 0;
+                    foreach ($new_batches as $b) $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                    $hang_hoa->so_luong_ton = $total_stock;
+                    $hang_hoa->save();
                 }
             }
-            unset($dh_item);
-            $donhang_update->hanghoa = $updated_items;
-            $donhang_update->save();
+
+            // 3. Revert DonHang.hanghoa[].so_luong_tra
+            $donhang_update = DonHang::find($tra_hang['id_donhang']);
+            if ($donhang_update && isset($donhang_update['hanghoa'])) {
+                $updated_items = $donhang_update['hanghoa'];
+                foreach ($updated_items as &$dh_item) {
+                    foreach ($tra_hang['hanghoa'] as $return_item) {
+                        if ((string)$dh_item['id_hanghoa'] == (string)$return_item['id_hanghoa']) {
+                            $current_return = isset($dh_item['so_luong_tra']) ? floatval($dh_item['so_luong_tra']) : 0;
+                            $qty_to_revert = floatval($return_item['so_luong_tra']);
+                            $dh_item['so_luong_tra'] = max(0, $current_return - $qty_to_revert);
+                        }
+                    }
+                }
+                $donhang_update->hanghoa = $updated_items;
+                $donhang_update->save();
+            }
+
+            // 4. Revert CongNo
+            if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
+                $congno = new CongNo();
+                $congno->id_khachhang = $tra_hang['id_khachhang'];
+                $congno->id_donhang = $tra_hang['id_donhang'];
+                $congno->ma_don_hang = $tra_hang['ma_don_hang'];
+                $congno->ho_ten = $tra_hang['ho_ten'];
+                $congno->dien_thoai = $tra_hang['dien_thoai'];
+                $congno->dia_chi = $tra_hang['dia_chi'] ?? '';
+                $congno->tong_thanh_tien = $tra_hang['tong_tien_tra'];
+                $congno->ngay_gio = ObjectController::setDate();
+                $congno->loai_cong_no = 0; // GHI NO lai
+                $congno->ghi_chu = 'Hủy phiếu trả hàng: ' . $tra_hang['ma_tra_hang'] . ' - Lý do: ' . $ly_do;
+                $congno->id_user = ObjectController::ObjectId($user['_id']);
+                $congno->save();
+            }
+
+            // 5. Update Status (Soft Delete)
+            $tra_hang->trang_thai = 0; // 0 = Da huy
+            $tra_hang->huy_phieu = [
+                'ly_do' => $ly_do,
+                'ghi_chu' => $ghi_chu,
+                'nguoi_huy' => $user['fullname'],
+                'id_user' => ObjectController::ObjectId($user['_id']),
+                'ngay_huy' => ObjectController::setDate()
+            ];
+            $tra_hang->save();
+
+            // 6. Log
+            LogController::addLog([
+                'action' => 'Hủy phiếu trả hàng khách [' . $tra_hang['ma_tra_hang'] . ']',
+                'id_collection' => $id,
+                'collection' => 'tra_hang_khach',
+                'data' => ['ly_do' => $ly_do, 'ghi_chu' => $ghi_chu]
+            ]);
+
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
         }
-
-        // Revert CongNo if applicable
-        if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
-            // Khi xóa giam_no: tạo 1 record ghi nợ lại
-            $congno = new CongNo();
-            $congno->id_khachhang = $tra_hang['id_khachhang'];
-            $congno->id_donhang = $tra_hang['id_donhang'];
-            $congno->ma_don_hang = $tra_hang['ma_don_hang'];
-            $congno->ho_ten = $tra_hang['ho_ten'];
-            $congno->dien_thoai = $tra_hang['dien_thoai'];
-            $congno->dia_chi = $tra_hang['dia_chi'] ?? '';
-            $congno->tong_thanh_tien = $tra_hang['tong_tien_tra'];
-            $congno->ngay_gio = ObjectController::setDate();
-            $congno->loai_cong_no = 0; // 0 = GHI NO (Increase debt back)
-            $congno->ghi_chu = 'Hủy phiếu trả hàng [' . $tra_hang['ma_tra_hang'] . ']';
-            $congno->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
-            $congno->save();
-        }
-
-        // Log and delete
-        $querLog = [
-            'action' => 'Xóa phiếu trả hàng [' . $tra_hang['ma_tra_hang'] . ']',
-            'id_collection' => $id,
-            'collection' => 'tra_hang_khach',
-            'data' => $tra_hang
-        ];
-        LogController::addLog($querLog);
-
-        $tra_hang->delete();
-        Session::flash('msg', 'Đã xóa phiếu trả hàng');
-        return redirect(env('APP_URL') . 'admin/tra-hang-khach');
     }
 }

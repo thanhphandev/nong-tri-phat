@@ -15,6 +15,7 @@ use Validator;
 use Session;
 use Config;
 use App\Models\NhaCungCap;
+use App\Models\TraHangKhach;
 class DonHangController extends Controller
 {
     use CodeGeneratorTrait;
@@ -261,7 +262,7 @@ class DonHangController extends Controller
             return redirect()->back()->withErrors(['Không tìm thấy khách hàng'])->withInput();
         }
 
-        $tong_thanh_tien = ObjectController::convertStr2Number_1($data['tong-thanh-tien']);
+        $tong_thanh_tien_frontend = ObjectController::convertStr2Number_1($data['tong-thanh-tien']);
         $thanh_toan = ObjectController::convertStr2Number_1($data['thanh-toan']);
 
         // Build hanghoa preview list
@@ -330,6 +331,12 @@ class DonHangController extends Controller
                     'sl_gui_kho' => $sl_gui_kho,
                 ];
             }
+        }
+
+        // FIX: Tính lại tổng từ các dòng hàng (đảm bảo chính xác)
+        $tong_thanh_tien = 0;
+        foreach ($arr_hanghoa as $item) {
+            $tong_thanh_tien += doubleval($item['thanh_tien']);
         }
 
         // Build preview dh object
@@ -644,6 +651,23 @@ class DonHangController extends Controller
                 ));
             }
         }
+
+        // FIX: Tính lại tong_thanh_tien từ các dòng hàng thực tế (không tin frontend)
+        // Tránh lỗi race condition khi frontend chưa kịp cập nhật tổng
+        $tong_thanh_tien_tinh_lai = 0;
+        foreach ($arr_hanghoa as $item) {
+            $tong_thanh_tien_tinh_lai += doubleval($item['thanh_tien']);
+        }
+        if (abs($tong_thanh_tien - $tong_thanh_tien_tinh_lai) > 1) {
+            // Log sự khác biệt để debug
+            LogController::addLog([
+                'action' => 'CẢNH BÁO: tong_thanh_tien frontend (' . $tong_thanh_tien . ') != server (' . $tong_thanh_tien_tinh_lai . '). Đã tự sửa.',
+                'collection' => 'don_hang',
+                'data' => ['frontend' => $tong_thanh_tien, 'server' => $tong_thanh_tien_tinh_lai]
+            ]);
+            $tong_thanh_tien = $tong_thanh_tien_tinh_lai;
+        }
+
         $db = new DonHang();
         $id = ObjectController::Id();
         $id_user = $request->session()->get('user._id');
@@ -1326,5 +1350,297 @@ class DonHangController extends Controller
             }
         }
         return response()->json(['error' => false, 'items' => $items, 'ma_don_hang' => $dh['ma_don_hang'], 'ngay_ban' => ObjectController::getDate($dh['ngay_ban'] ?? '', "d/m/Y")]);
+    }
+
+    /**
+     * Lấy thông tin tóm tắt trước khi hủy đơn (AJAX)
+     */
+    public function get_huy_don_info(Request $request, $id)
+    {
+        $dh = DonHang::find($id);
+        if (!$dh) {
+            return response()->json(['error' => true, 'msg' => 'Không tìm thấy đơn hàng']);
+        }
+
+        // Kiểm tra đã hủy chưa
+        if (in_array($dh->tinh_trang, [2, 3])) {
+            return response()->json(['error' => true, 'msg' => 'Đơn hàng đã bị hủy trước đó']);
+        }
+
+        // Kiểm tra có phiếu trả hàng khách liên quan (bỏ qua phiếu đã hủy)
+        $id_dh = ObjectController::ObjectId($dh->_id);
+        $tra_hang_count = TraHangKhach::where('id_donhang', $id_dh)->where('trang_thai', '!=', 0)->count();
+        if ($tra_hang_count > 0) {
+            return response()->json(['error' => true, 'msg' => 'Đơn hàng đã có phiếu trả hàng liên quan. Không thể hủy.']);
+        }
+
+        // Tính đã thanh toán (chỉ payment thật, không tính trả hàng)
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)
+            ->where('loai_cong_no', 1)
+            ->whereNull('id_trahangkhach')
+            ->sum('tong_thanh_tien');
+
+        // Danh sách hàng hóa sẽ hoàn kho
+        $hang_hoa_hoan = [];
+        if (isset($dh->hanghoa) && is_array($dh->hanghoa)) {
+            foreach ($dh->hanghoa as $hh) {
+                $sl_hoan = isset($hh['so_luong_tru_kho']) ? floatval($hh['so_luong_tru_kho']) : floatval($hh['so_luong']);
+                $hang_hoa_hoan[] = [
+                    'ten' => $hh['ten'],
+                    'ma' => $hh['ma'] ?? '',
+                    'so_luong' => floatval($hh['so_luong']),
+                    'so_luong_hoan_kho' => $sl_hoan,
+                    'don_gia' => $hh['don_gia'],
+                    'thanh_tien' => $hh['thanh_tien'],
+                ];
+            }
+        }
+
+        return response()->json([
+            'error' => false,
+            'ma_don_hang' => $dh->ma_don_hang,
+            'ho_ten' => $dh->ho_ten,
+            'tong_thanh_tien' => $dh->tong_thanh_tien,
+            'da_thanh_toan' => $da_thanh_toan,
+            'so_du_tao_ra' => $da_thanh_toan, // Số tiền sẽ thành credit cho khách
+            'hang_hoa_hoan' => $hang_hoa_hoan,
+        ]);
+    }
+
+    /**
+     * HỦY ĐƠN HÀNG — Đảo ngược toàn bộ: hoàn kho + xử lý công nợ + đánh dấu hủy
+     *
+     * Logic:
+     * 1. Validate (tồn tại, chưa hủy, chưa trả hàng)
+     * 2. Hoàn kho chính xác theo ds_lo_su_dung snapshot
+     * 3. Xử lý CongNo: tạo record điều chỉnh (không xóa lịch sử, giữ audit trail)
+     * 4. Đánh dấu đơn hủy + metadata
+     * 5. Ghi log
+     */
+    public function huy_don_hang(Request $request)
+    {
+        $id = $request->input('id_donhang');
+        $ly_do = $request->input('ly_do', 'Không rõ lý do');
+        $ghi_chu_huy = $request->input('ghi_chu_huy', '');
+        $id_user = $request->session()->get('user._id');
+        $user_roles = $request->session()->get('user.roles', []);
+
+        // 0. Authorization check
+        if (!(in_array('Admin', $user_roles) || in_array('Manager', $user_roles))) {
+            Session::flash('error', 'Bạn không có quyền thực hiện chức năng này.');
+            return redirect()->back();
+        }
+
+        // ==================== STEP 1: VALIDATE ====================
+        $dh = DonHang::find($id);
+        if (!$dh) {
+            Session::flash('error', 'Không tìm thấy đơn hàng');
+            return redirect()->back();
+        }
+
+        if (in_array($dh->tinh_trang, [2, 3])) {
+            Session::flash('error', 'Đơn hàng đã bị hủy trước đó. Không thể hủy lại.');
+            return redirect()->back();
+        }
+
+        // Kiểm tra có phiếu trả hàng khách liên quan (bỏ qua phiếu đã hủy)
+        $id_dh = ObjectController::ObjectId($dh->_id);
+        $tra_hang_count = TraHangKhach::where('id_donhang', $id_dh)->where('trang_thai', '!=', 0)->count();
+        if ($tra_hang_count > 0) {
+            Session::flash('error', 'Đơn hàng đã có phiếu trả hàng liên quan. Không thể hủy. Vui lòng xử lý phiếu trả hàng trước.');
+            return redirect()->back();
+        }
+
+        // ==================== STEP 2: HOÀN KHO ====================
+        $hoan_kho_log = []; // Ghi chi tiết hoàn kho để log
+
+        if (isset($dh->hanghoa) && is_array($dh->hanghoa)) {
+            foreach ($dh->hanghoa as $hh_item) {
+                $id_hanghoa = $hh_item['id_hanghoa'];
+                $hanghoa_db = HangHoa::find($id_hanghoa);
+
+                if (!$hanghoa_db) {
+                    // Hàng hóa đã bị xóa khỏi DB → ghi nhận nhưng bỏ qua
+                    $hoan_kho_log[] = [
+                        'ten' => $hh_item['ten'] ?? 'N/A',
+                        'status' => 'SKIPPED - Hàng hóa không còn tồn tại trong DB',
+                    ];
+                    continue;
+                }
+
+                // Số lượng cần hoàn vào kho (đã quy đổi nếu bán lẻ)
+                $sl_hoan = isset($hh_item['so_luong_tru_kho'])
+                    ? floatval($hh_item['so_luong_tru_kho'])
+                    : floatval($hh_item['so_luong']);
+
+                // Lấy danh sách lô hiện tại từ DB
+                $ds_lo_hang = $hanghoa_db->ds_lo_hang ?? [];
+
+                // Sử dụng ds_lo_su_dung snapshot để hoàn chính xác từng lô
+                if (isset($hh_item['ds_lo_su_dung']) && is_array($hh_item['ds_lo_su_dung']) && count($hh_item['ds_lo_su_dung']) > 0) {
+                    foreach ($hh_item['ds_lo_su_dung'] as $lo_used) {
+                        $sl_used = floatval($lo_used['so_luong']);
+                        $ma_nhap_hang = $lo_used['ma_nhap_hang'] ?? null;
+                        $id_nhaphang = isset($lo_used['id_nhaphang']) ? (string) $lo_used['id_nhaphang'] : null;
+                        $matched = false;
+
+                        // Tìm đúng lô trong ds_lo_hang hiện tại
+                        foreach ($ds_lo_hang as &$lo_hang) {
+                            $lo_ma = $lo_hang['ma_nhap_hang'] ?? ($lo_hang['ma_lo'] ?? null);
+                            $lo_id = isset($lo_hang['id_nhaphang']) ? (string) $lo_hang['id_nhaphang'] : null;
+
+                            // Match theo id_nhaphang trước, nếu không có thì match theo ma_nhap_hang
+                            if (
+                                ($id_nhaphang && $lo_id && $id_nhaphang === $lo_id) ||
+                                ($ma_nhap_hang && $lo_ma && $ma_nhap_hang === $lo_ma)
+                            ) {
+                                $lo_hang['so_luong_con_lai'] = floatval($lo_hang['so_luong_con_lai'] ?? 0) + $sl_used;
+                                $matched = true;
+
+                                $hoan_kho_log[] = [
+                                    'ten' => $hh_item['ten'],
+                                    'lo' => $ma_nhap_hang,
+                                    'so_luong_hoan' => $sl_used,
+                                    'status' => 'OK - Hoàn vào lô gốc',
+                                ];
+                                break;
+                            }
+                        }
+                        unset($lo_hang); // Giải phóng tham chiếu
+
+                        // Nếu không tìm được lô gốc (có thể lô đã bị gộp/xóa)
+                        if (!$matched) {
+                            // Tạo lô mới để hoàn vào
+                            $ds_lo_hang[] = [
+                                'ma_nhap_hang' => 'HOAN_HUY_' . ($ma_nhap_hang ?? date('dmY_His')),
+                                'so_luong_nhap' => $sl_used,
+                                'so_luong_con_lai' => $sl_used,
+                                'gia_von' => isset($lo_used['gia_von']) ? doubleval($lo_used['gia_von']) : 0,
+                                'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                                'ghi_chu' => 'Hoàn kho từ đơn hủy ' . $dh->ma_don_hang,
+                            ];
+
+                            $hoan_kho_log[] = [
+                                'ten' => $hh_item['ten'],
+                                'lo' => $ma_nhap_hang,
+                                'so_luong_hoan' => $sl_used,
+                                'status' => 'NEW_BATCH - Tạo lô mới (lô gốc không tìm thấy)',
+                            ];
+                        }
+                    }
+                } else {
+                    // Không có ds_lo_su_dung snapshot (đơn hàng cũ)
+                    // Fallback: cộng thẳng vào lô đầu tiên hoặc tạo lô mới
+                    if (count($ds_lo_hang) > 0) {
+                        $ds_lo_hang[0]['so_luong_con_lai'] = floatval($ds_lo_hang[0]['so_luong_con_lai'] ?? 0) + $sl_hoan;
+                        $hoan_kho_log[] = [
+                            'ten' => $hh_item['ten'],
+                            'so_luong_hoan' => $sl_hoan,
+                            'status' => 'FALLBACK - Hoàn vào lô đầu tiên (không có snapshot)',
+                        ];
+                    } else {
+                        $ds_lo_hang[] = [
+                            'ma_nhap_hang' => 'HOAN_HUY_' . date('dmY_His'),
+                            'so_luong_nhap' => $sl_hoan,
+                            'so_luong_con_lai' => $sl_hoan,
+                            'gia_von' => isset($hh_item['gia_von_thuc_te']) ? doubleval($hh_item['gia_von_thuc_te']) / max($sl_hoan, 0.001) : 0,
+                            'ngay_nhap' => new \MongoDB\BSON\UTCDateTime(time() * 1000),
+                            'ghi_chu' => 'Hoàn kho từ đơn hủy ' . $dh->ma_don_hang,
+                        ];
+                        $hoan_kho_log[] = [
+                            'ten' => $hh_item['ten'],
+                            'so_luong_hoan' => $sl_hoan,
+                            'status' => 'NEW_BATCH - Tạo lô mới (fallback, không có snapshot)',
+                        ];
+                    }
+                }
+
+                // Cập nhật ds_lo_hang và tính lại tổng tồn kho
+                $hanghoa_db->ds_lo_hang = $ds_lo_hang;
+                $total_stock = 0;
+                foreach ($ds_lo_hang as $b) {
+                    $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                }
+                $hanghoa_db->so_luong_ton = $total_stock;
+                $hanghoa_db->save();
+            }
+        }
+
+        // ==================== STEP 3: XỬ LÝ CÔNG NỢ ====================
+        // Tính đã thanh toán (chỉ payment thật, không tính trả hàng)
+        $da_thanh_toan = CongNo::where('id_donhang', $id_dh)
+            ->where('loai_cong_no', 1)
+            ->whereNull('id_trahangkhach')
+            ->sum('tong_thanh_tien');
+
+        // Tạo record ĐIỀU CHỈNH để zero-out công nợ đơn này
+        // Record 1: Giảm nợ (ngược lại record nợ gốc)
+        $congno_dieu_chinh = new CongNo();
+        $congno_dieu_chinh->id_khachhang = $dh->id_khachhang;
+        $congno_dieu_chinh->id_donhang = $id_dh;
+        $congno_dieu_chinh->ma_don_hang = $dh->ma_don_hang;
+        $congno_dieu_chinh->ho_ten = $dh->ho_ten;
+        $congno_dieu_chinh->dien_thoai = $dh->dien_thoai;
+        $congno_dieu_chinh->dia_chi = $dh->dia_chi ?? '';
+        $congno_dieu_chinh->email = $dh->email ?? '';
+        $congno_dieu_chinh->loai_khach_hang = $dh->loai_khach_hang ?? '';
+        $congno_dieu_chinh->tong_thanh_tien = -1 * $dh->tong_thanh_tien; // ÂM: xóa nợ
+        $congno_dieu_chinh->ngay_gio = ObjectController::setDate();
+        $congno_dieu_chinh->loai_cong_no = 0; // Nợ (giá trị âm = giảm nợ)
+        $congno_dieu_chinh->ghi_chu = '[HỦY ĐƠN] Điều chỉnh giảm nợ do hủy đơn ' . $dh->ma_don_hang . ' - Lý do: ' . $ly_do;
+        $congno_dieu_chinh->id_user = ObjectController::ObjectId($id_user);
+        $congno_dieu_chinh->is_huy_don = true;
+        $congno_dieu_chinh->save();
+
+        // Nếu đã thanh toán > 0, tạo record âm bên thanh toán để balance
+        // Công thức: Nợ gốc - Thanh toán gốc = Con nợ gốc
+        // Sau điều chỉnh: (Nợ gốc - Nợ gốc) - (TT gốc - TT gốc) = 0
+        // => Nếu khách đã TT, ta KHÔNG tạo record âm TT → tạo ra credit tự nhiên
+        // Vì: Nợ mới = 0, TT cũ = 400k → Con nợ = 0 - 400k = -400k (credit)
+        // => Đây chính là "số dư khách hàng" mà user yêu cầu!
+
+        // ==================== STEP 4: ĐÁNH DẤU HỦY ====================
+        $dh->tinh_trang = 3; // 3 = Hủy đơn hàng
+        $dh->huy_don = [
+            'ly_do' => $ly_do,
+            'ghi_chu' => $ghi_chu_huy,
+            'ngay_huy' => ObjectController::setDate(),
+            'id_user_huy' => ObjectController::ObjectId($id_user),
+            'user_huy' => $request->session()->get('user.fullname') ?? $request->session()->get('user.username'),
+            'tong_thanh_tien_goc' => $dh->tong_thanh_tien,
+            'da_thanh_toan_truoc_huy' => $da_thanh_toan,
+            'so_du_tao_ra' => $da_thanh_toan, // Credit cho khách
+            'hoan_kho_log' => $hoan_kho_log,
+        ];
+        $dh->save();
+
+        // ==================== STEP 5: GHI LOG ====================
+        $querLog = [
+            'action' => 'HỦY ĐƠN HÀNG [' . $dh->ma_don_hang . '] - Lý do: ' . $ly_do
+                . ' | Tổng đơn: ' . number_format($dh->tong_thanh_tien, 0, ',', '.')
+                . ' | Đã TT: ' . number_format($da_thanh_toan, 0, ',', '.')
+                . ' | Số dư tạo ra: ' . number_format($da_thanh_toan, 0, ',', '.'),
+            'id_collection' => $id_dh,
+            'collection' => 'don_hang',
+            'data' => [
+                'ma_don_hang' => $dh->ma_don_hang,
+                'ly_do' => $ly_do,
+                'ghi_chu_huy' => $ghi_chu_huy,
+                'tong_thanh_tien' => $dh->tong_thanh_tien,
+                'da_thanh_toan' => $da_thanh_toan,
+                'so_du_tao_ra' => $da_thanh_toan,
+                'hoan_kho_log' => $hoan_kho_log,
+            ],
+        ];
+        LogController::addLog($querLog);
+
+        $msg = 'Đã hủy đơn hàng ' . $dh->ma_don_hang . ' thành công.';
+        if ($da_thanh_toan > 0) {
+            $msg .= ' Số dư ' . number_format($da_thanh_toan, 0, ',', '.') . 'đ đã được ghi nhận cho khách hàng ' . $dh->ho_ten . '.';
+        }
+        $msg .= ' Tồn kho đã được hoàn lại.';
+
+        Session::flash('msg', $msg);
+        return redirect(env('APP_URL') . 'admin/don-hang/edit/' . $id);
     }
 }

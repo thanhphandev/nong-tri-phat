@@ -134,7 +134,7 @@ return [
     |
     */
     'loai_khach_hang' => array('gia_si' => 'Khách hàng Sĩ', 'gia_le' => 'Khách hàng Lẻ'),
-    'tinh_trang_don_hang' => array(0 => 'Đang xử lý', 1 => 'Thành công'),
+    'tinh_trang_don_hang' => array(0 => 'Đang xử lý', 1 => 'Thành công', 3 => 'Đã hủy'),
 
     'providers' => [
 

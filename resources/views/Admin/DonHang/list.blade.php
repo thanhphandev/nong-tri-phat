@@ -28,6 +28,17 @@
         .table-sticky-header tbody tr.summary-row * {
             color: inherit !important;
         }
+        .cancelled-order-row {
+            opacity: 0.55;
+        }
+        .cancelled-order-row td {
+            text-decoration: line-through;
+        }
+        .cancelled-order-row td:last-child,
+        .cancelled-order-row td:nth-last-child(2),
+        .cancelled-order-row td:nth-last-child(3) {
+            text-decoration: none;
+        }
     </style>
 @endsection
 @section('body')
@@ -96,6 +107,8 @@
                     $sum_gia_tri_tra_hang = 0;
                     $sum_loi_nhuan = 0;
                     foreach($danhsach as $item){
+                        if(($item['tinh_trang'] ?? 0) == 3) continue; // Bỏ qua đơn đã hủy
+
                         $t_so_luong = 0;
                         $t_tong_gia_von = 0;
                         if(isset($item['hanghoa'])){
@@ -177,7 +190,7 @@
 								$con_no = $ds->con_no ?? ($ds['tong_thanh_tien'] - $da_thanh_toan);
                                 $loi_nhuan = $ds['tong_thanh_tien'] - $tong_gia_von;
 							@endphp
-							<tr>
+							<tr class="{{ $ds['tinh_trang'] == 3 ? 'cancelled-order-row' : '' }}">
 								<td class="text-center">{{ $loop->iteration }}</td>
 								<td class="text-center">
 								    <b>{{ $ds['ma_don_hang'] }}</b>
@@ -207,22 +220,28 @@
                                 </td>
                                 <td class="text-center">
                                     @php
-                                        $tt = ($ds['tinh_trang'] == 0) ? 'badge-info' : 'badge-success'; @endphp @if(false)
-                                       } else if($ds['tinh_trang'] == 1) {
+                                        if($ds['tinh_trang'] == 0) {
+                                            $tt = 'badge-info';
+                                        } else if($ds['tinh_trang'] == 1) {
                                             $tt = 'badge-success';
-                                       } else if($ds['tinh_trang'] == 2 || $ds['tinh_trang'] == 3) {
+                                        } else if($ds['tinh_trang'] == 2 || $ds['tinh_trang'] == 3) {
                                             $tt = 'badge-danger';
-                                       } else {
-                                            $tt = 'badge-danger';
-                                       }
-                                        @endif
+                                        } else {
+                                            $tt = 'badge-secondary';
+                                        }
+                                    @endphp
                                     <span class="badge {{ $tt }}">
                                         @if($ds['tinh_trang'] == 0)
                                             <a href="#" data-toggle="modal" name="{{ $ds['_id'] }}" data-target="#modalTinhTrang" class="update_tinhtrang text-white">{{ $tinhtrang[$ds['tinh_trang']] }}</a>
+                                        @elseif($ds['tinh_trang'] == 3)
+                                            <i class="fas fa-ban mr-1"></i> Đã hủy
                                         @else
                                             {{ $tinhtrang[$ds['tinh_trang']] }}
                                         @endif
                                     </span>
+                                    @if($ds['tinh_trang'] == 3 && isset($ds['huy_don']))
+                                        <br><small class="text-muted" title="{{ $ds['huy_don']['ly_do'] ?? '' }}">{{ $ds['huy_don']['ly_do'] ?? '' }}</small>
+                                    @endif
 								</td>
                                 <td>{{ $ds['ghi_chu'] ?? '' }}</td>
 								<td class="text-center">
@@ -233,15 +252,17 @@
                                         <div class="dropdown-menu dropdown-menu-right" style="z-index: 1050;">
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                             <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/in-phieu-giao-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
-                                            @if($con_no > 0)
-                                                <a class="dropdown-item btn-tra-no" href="#" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                            @if($ds['tinh_trang'] != 3)
+                                                @if($con_no > 0)
+                                                    <a class="dropdown-item btn-tra-no" href="#" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_don_hang'] }}" data-khach="{{ $ds['ho_ten'] }}" data-conno="{{ $con_no }}" data-toggle="modal" data-target="#modalTraNo"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                                @endif
+                                                @if($has_gui_kho)
+                                                    <a class="dropdown-item btn-nhan-hang-gui-kho" href="#" data-id="{{ $ds['_id'] }}"><i class="fas fa-box-open text-info mr-2"></i> Nhận hàng gửi kho</a>
+                                                @endif
+                                                <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
+                                                <div class="dropdown-divider"></div>
+                                                <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/edit/{{ $ds['_id'] }}#huy-don"><i class="fas fa-ban text-danger mr-2"></i> Hủy đơn</a>
                                             @endif
-                                            @if($has_gui_kho)
-                                                <a class="dropdown-item btn-nhan-hang-gui-kho" href="#" data-id="{{ $ds['_id'] }}"><i class="fas fa-box-open text-info mr-2"></i> Nhận hàng gửi kho</a>
-                                            @endif
-                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-khach/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng</a>
-                                            <div class="dropdown-divider"></div>
-{{-- <a class="dropdown-item" href="{{ env('APP_URL') }}admin/don-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa đơn</a> --}}
                                         </div>
                                     </div>
                                 </td>
