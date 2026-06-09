@@ -16,7 +16,7 @@ use App\Models\Log;
 use App\Models\TraHangKhach;
 use App\Models\TraHangNCC;
 // use App\Models\DMDiaChi;
-// use App\Models\User;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +39,7 @@ class NongTriPhatSeeder extends Seeder
         TraHangKhach::truncate();
         TraHangNCC::truncate();
    //     DMDiaChi::truncate();
-   //     User::truncate();
+        User::truncate();
         
         // Clear system tables
         DB::connection('mongodb')->collection('password_resets')->truncate();
@@ -47,15 +47,15 @@ class NongTriPhatSeeder extends Seeder
         DB::connection('mongodb')->collection('personal_access_tokens')->truncate();
         DB::connection('mongodb')->collection('counters')->truncate();
 
-        // $this->command->info('0. Seeding Admin User...');
-        // User::create([
-           //  'fullname' => 'Nông Trí Phát',
-            // 'username' => 'admin@gmail.com',
-            // 'password' => bcrypt('admin'),
-            // 'roles' => ['Admin'],
-            // 'phone' => '0123456789',
-            // 'active' => 1
-        // ]);
+        $this->command->info('0. Seeding Admin User...');
+        User::create([
+            'fullname' => 'Nông Trí Phát',
+            'username' => 'admin@gmail.com',
+            'password' => bcrypt('admin'),
+            'roles' => ['Admin'],
+            'phone' => '0123456789',
+            'active' => 1
+        ]);
 
         $this->command->info('1. Seeding Don Vi Tinh...');
         $dvts = ['Bao 20 Kg', 'Bao 25kg', 'Bao 50kg', 'Chai', 'Cái', 'Cặp', 'Gói', 'Hủ', 'Viên', 'Xô'];

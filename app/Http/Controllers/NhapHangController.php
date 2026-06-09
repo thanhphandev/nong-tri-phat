@@ -9,6 +9,7 @@ use App\Models\HangHoa;
 use App\Models\NhaCungCap;
 use App\Models\CongNoNCC;
 use App\Models\DonViTinh;
+use App\Models\TraHangNCC;
 use App\Traits\CodeGeneratorTrait;
 use Validator;
 use Session;
@@ -726,4 +727,187 @@ class NhapHangController extends Controller
         Session::flash('msg', $msg);
         return redirect()->back();
     }
+
+    /**
+     * AJAX: Lấy thông tin cảnh báo trước khi hủy phiếu nhập
+     */
+    function get_huy_phieu_info($id)
+    {
+        $nh = NhapHang::find($id);
+        if (!$nh) return response()->json(['error' => 'Không tìm thấy phiếu nhập'], 404);
+
+        // Kiểm tra xem đã có phiếu trả hàng NCC chưa (bỏ qua phiếu đã hủy)
+        $check_tra_hang = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($id))->where('trang_thai', '!=', 0)->first();
+        if ($check_tra_hang) {
+            return response()->json(['error' => 'Phiếu nhập này đã có phiếu trả hàng ('.$check_tra_hang->ma_tra_hang.'). Vui lòng hủy phiếu trả hàng trước.'], 400);
+        }
+
+        $items = [];
+        $has_negative_warning = false;
+
+        $hh_ids = array_map(fn($h) => ObjectController::ObjectId($h['id_hanghoa']), $nh->hanghoa);
+        $hanghoa_dict = HangHoa::whereIn('_id', $hh_ids)->get()->keyBy(fn($i) => (string)$i->_id);
+
+        foreach ($nh->hanghoa as $hh) {
+            $id_hh = (string)$hh['id_hanghoa'];
+            $hh_db = $hanghoa_dict[$id_hh] ?? null;
+            
+            $ton_lo_hien_tai = 0;
+            $da_ban = 0;
+            $ma_nh = $nh->ma_nhap_hang;
+
+            if ($hh_db && isset($hh_db->ds_lo_hang)) {
+                foreach ($hh_db->ds_lo_hang as $lo) {
+                    if (($lo['ma_nhap_hang'] ?? '') == $ma_nh) {
+                        $ton_lo_hien_tai = (float)($lo['so_luong_con_lai'] ?? 0);
+                        $da_ban = (float)($lo['so_luong_nhap'] ?? 0) - $ton_lo_hien_tai;
+                        break;
+                    }
+                }
+            }
+
+            // Tính toán số lượng sẽ bị trừ (quy đổi về đơn vị chính)
+            $qty_to_deduct = (float)($hh['so_luong'] ?? 0);
+            if (($hh['don_vi_nhap'] ?? '') == 'retail') {
+                $ty_le = $hh_db->ty_le_quy_doi ?? 1;
+                $qty_to_deduct = $qty_to_deduct / $ty_le;
+            }
+
+            $ton_sau_huy = $ton_lo_hien_tai - $qty_to_deduct;
+            if ($ton_sau_huy < -0.001) $has_negative_warning = true;
+
+            $items[] = [
+                'ten' => $hh['ten'],
+                'so_luong_nhap' => $hh['so_luong'],
+                'dvt' => $hh['don_vi_tinh'] ?? '',
+                'da_ban' => $da_ban,
+                'ton_hien_tai' => $ton_lo_hien_tai,
+                'ton_sau_huy' => $ton_sau_huy,
+                'is_negative' => $ton_sau_huy < -0.001
+            ];
+        }
+
+        return response()->json([
+            'ma_nhap_hang' => $nh->ma_nhap_hang,
+            'tong_thanh_tien' => $nh->tong_thanh_tien,
+            'da_thanh_toan' => $nh->da_thanh_toan ?? 0,
+            'items' => $items,
+            'has_negative_warning' => $has_negative_warning
+        ]);
+    }
+
+    /**
+     * Xử lý Hủy phiếu nhập hàng
+     */
+    function huy_phieu_nhap(Request $request)
+    {
+        $id = $request->input('id');
+        $ly_do = $request->input('ly_do');
+        $ghi_chu = $request->input('ghi_chu');
+
+        // 1. Phân quyền (Chỉ Admin/Manager)
+        $user = session('user');
+        if (!(in_array('Admin', $user['roles']) || in_array('Manager', $user['roles']))) {
+            return response()->json(['error' => 'Bạn không có quyền thực hiện chức năng này.'], 403);
+        }
+
+        $nh = NhapHang::find($id);
+        if (!$nh || ($nh->tinh_trang ?? 0) == 3) {
+            return response()->json(['error' => 'Phiếu nhập không hợp lệ hoặc đã bị hủy.'], 400);
+        }
+
+        // 2. Kiểm tra phiếu trả hàng (bỏ qua phiếu đã hủy)
+        $check_tra_hang = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($id))->where('trang_thai', '!=', 0)->first();
+        if ($check_tra_hang) {
+            return response()->json(['error' => 'Không thể hủy vì đã có phiếu trả hàng liên quan.'], 400);
+        }
+
+        try {
+            // 3. Đảo ngược kho
+            foreach ($nh->hanghoa as $hh) {
+                $hh_db = HangHoa::find($hh['id_hanghoa']);
+                if ($hh_db) {
+                    $ds_lo = $hh_db->ds_lo_hang ?? [];
+                    $found = false;
+                    
+                    // Tính số lượng trừ (quy đổi)
+                    $qty_to_deduct = (float)($hh['so_luong'] ?? 0);
+                    if (($hh['don_vi_nhap'] ?? '') == 'retail') {
+                        $ty_le = $hh_db->ty_le_quy_doi ?? 1;
+                        $qty_to_deduct = $qty_to_deduct / $ty_le;
+                    }
+
+                    foreach ($ds_lo as &$lo) {
+                        if (($lo['ma_nhap_hang'] ?? '') == $nh->ma_nhap_hang) {
+                            $lo['so_luong_con_lai'] = (float)($lo['so_luong_con_lai'] ?? 0) - $qty_to_deduct;
+                            $lo['ghi_chu_huy'] = "Hủy phiếu nhập " . $nh->ma_nhap_hang . " ngày " . date('d/m/Y');
+                            $found = true;
+                            break;
+                        }
+                    }
+
+                    if (!$found) {
+                        // Nếu không tìm thấy lô (hiếm gặp), tạo một record điều chỉnh âm
+                        $ds_lo[] = [
+                            'ma_nhap_hang' => $nh->ma_nhap_hang,
+                            'so_luong_nhap' => 0,
+                            'so_luong_con_lai' => -$qty_to_deduct,
+                            'gia_von' => $hh['don_gia'] ?? 0,
+                            'ngay_nhap' => ObjectController::setDate(),
+                            'ghi_chu' => 'Lô điều chỉnh âm do hủy phiếu nhập gốc không tìm thấy'
+                        ];
+                    }
+
+                    $hh_db->ds_lo_hang = $ds_lo;
+                    // Re-calculate total stock
+                    $total_stock = 0;
+                    foreach ($ds_lo as $l) $total_stock += (float)($l['so_luong_con_lai'] ?? 0);
+                    $hh_db->so_luong_ton = $total_stock;
+                    $hh_db->save();
+                }
+            }
+
+            // 4. Đảo ngược công nợ
+            // Hủy nợ gốc (loai_cong_no = 0)
+            $cn_reversal = new CongNoNCC();
+            $cn_reversal->id_nhacungcap = $nh->id_nhacungcap;
+            $cn_reversal->id_nhaphang = ObjectController::ObjectId($nh->_id);
+            $cn_reversal->ma_nhap_hang = $nh->ma_nhap_hang;
+            $cn_reversal->ten_ncc = $nh->ten_ncc;
+            $cn_reversal->tong_thanh_tien = -$nh->tong_thanh_tien;
+            $cn_reversal->ngay_gio = ObjectController::setDate();
+            $cn_reversal->loai_cong_no = 0;
+            $cn_reversal->ghi_chu = "Hủy phiếu nhập: " . $ly_do;
+            $cn_reversal->id_user = ObjectController::ObjectId($user['_id']);
+            $cn_reversal->save();
+
+            // Nếu đã thanh toán, số tiền đó trở thành "số dư" (credit) của NCC -> không cần tạo record CongNo mới
+            // vì các record CongNoNCC cũ (loai_cong_no = 1) vẫn còn đó, nhưng nợ đã về 0 hoặc âm.
+
+            // 5. Cập nhật trạng thái phiếu nhập
+            $nh->tinh_trang = 3; // 3 = Đã hủy
+            $nh->huy_don = [
+                'ly_do' => $ly_do,
+                'ghi_chu' => $ghi_chu,
+                'nguoi_huy' => $user['fullname'],
+                'id_user' => ObjectController::ObjectId($user['_id']),
+                'ngay_huy' => ObjectController::setDate()
+            ];
+            $nh->save();
+
+            // 6. Log
+            LogController::addLog([
+                'action' => 'Hủy phiếu nhập hàng [' . $nh->ma_nhap_hang . ']',
+                'id_collection' => $nh->_id,
+                'collection' => 'nhap_hang',
+                'data' => ['ly_do' => $ly_do, 'ghi_chu' => $ghi_chu]
+            ]);
+
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+        }
+    }
 }
+

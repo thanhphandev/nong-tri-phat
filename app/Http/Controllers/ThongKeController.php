@@ -109,7 +109,7 @@ class ThongKeController extends Controller
             $item['so_luong_gui_kho'] = $sl_gui_con;   // SL đang gửi kho
             $item['id'] = (string) $product->_id;
 
-            if ($sl_thuc_te > 0) {
+            if ($sl_thuc_te != 0) {
                 $tonkho[] = $item;
                 $tonkho_sum += $sl_thuc_te;
             } else {
@@ -258,7 +258,7 @@ class ThongKeController extends Controller
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
             $end_date = ObjectController::convertDateTime_max($den_ngay);
 
-            // 1. SALES ORDER QUERY
+            // 1. SALES ORDER QUERY (Bỏ qua các đơn hàng đã bị hủy/xóa)
             $query = DonHang::where('ngay_ban', '>=', $start_date)
                 ->where('ngay_ban', '<=', $end_date);
 
@@ -267,6 +267,8 @@ class ThongKeController extends Controller
             }
             if ($tinh_trang !== null && $tinh_trang !== '') {
                 $query->where('tinh_trang', intval($tinh_trang));
+            } else {
+                $query->whereNotIn('tinh_trang', [2, 3]);
             }
 
             $danhsach = $query->orderBy('ngay_ban', 'desc')->get();
@@ -374,15 +376,14 @@ class ThongKeController extends Controller
             }
             $danhsach = $filtered_danhsach;
 
-            // 2. CUSTOMER RETURN QUERY
+            // 2. CUSTOMER RETURN QUERY (Bỏ qua các phiếu trả hàng đã bị hủy)
             $query_tra = \App\Models\TraHangKhach::where('ngay_tra', '>=', $start_date)
-                ->where('ngay_tra', '<=', $end_date);
+                ->where('ngay_tra', '<=', $end_date)
+                ->where('trang_thai', '!=', 0);
 
             if ($id_khachhang) {
                 $query_tra->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
             }
-            // Only confirmed returns usually count, assume status 1 is approved
-            // $query_tra->where('trang_thai', 1); 
 
             $ds_tra_hang = $query_tra->orderBy('ngay_tra', 'desc')->get();
             $so_don_tra = count($ds_tra_hang);
@@ -480,8 +481,31 @@ class ThongKeController extends Controller
             }
 
             // 3. NET CALCULATIONS (For Cards & Final Stats)
-            $tong_da_thanh_toan = $tong_da_thanh_toan_ban - $tong_doanh_thu_tra;
-            $tong_con_no = max(0, $tong_doanh_thu - $tong_da_thanh_toan);
+            // 3.1 TÍNH NỢ ĐẦU KỲ (Số dư thực tế trước ngày bắt đầu + Các bản ghi nợ đầu kỳ import trong kỳ)
+            $q_base = CongNo::query();
+            if ($id_khachhang) {
+                $q_base->where('id_khachhang', ObjectController::ObjectId($id_khachhang));
+            }
+
+            // Nợ cũ thực sự (trước start_date)
+            $no_tang_truoc = (clone $q_base)->where('ngay_gio', '<', $start_date)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $no_giam_truoc = (clone $q_base)->where('ngay_gio', '<', $start_date)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+            
+            // Cộng thêm các bản ghi nợ đầu kỳ (Import) nếu chúng nằm trong kỳ lọc hiện tại
+            $no_import_trong_ky = (clone $q_base)->whereBetween('ngay_gio', [$start_date, $end_date])
+                ->where('loai_cong_no', 0)
+                ->where('ghi_chu', 'regexp', '/Dư nợ đầu kỳ/i')
+                ->sum('tong_thanh_tien');
+
+            $no_dau_ky = ($no_tang_truoc - $no_giam_truoc) + $no_import_trong_ky;
+
+            // 3.2 TÍNH NỢ CUỐI KỲ (Số dư thực tế tại ngày kết thúc)
+            $no_tang_cuoi = (clone $q_base)->where('ngay_gio', '<=', $end_date)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $no_giam_cuoi = (clone $q_base)->where('ngay_gio', '<=', $end_date)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+            $tong_con_no = $no_tang_cuoi - $no_giam_cuoi;
+
+            // 3.3 THANH TOÁN TRONG KỲ
+            $tong_da_thanh_toan = (clone $q_base)->whereBetween('ngay_gio', [$start_date, $end_date])->where('loai_cong_no', 1)->sum('tong_thanh_tien');
 
             $loi_nhuan_tra = $tong_doanh_thu_tra - $tong_gia_von_tra;
             $tong_loi_nhuan = $tong_loi_nhuan_ban - $loi_nhuan_tra;
@@ -618,6 +642,7 @@ class ThongKeController extends Controller
             'tong_da_thanh_toan_ban',
             'tong_con_no',
             'tong_con_no_ban',
+            'no_dau_ky',
             'so_don_hang',
             'so_san_pham_ban',
             'so_don_tra',
@@ -700,9 +725,10 @@ class ThongKeController extends Controller
             $start_date = ObjectController::convertDateTime_max($tu_ngay);
             $end_date = ObjectController::convertDateTime_max($den_ngay);
 
-            // 1. IMPORT ORDERS
+            // 1. IMPORT ORDERS (Bỏ qua các phiếu nhập hàng đã bị hủy)
             $query = \App\Models\NhapHang::where('ngay_nhap', '>=', $start_date)
-                ->where('ngay_nhap', '<=', $end_date);
+                ->where('ngay_nhap', '<=', $end_date)
+                ->where('tinh_trang', '!=', 3);
 
             if ($id_nhacungcap) {
                 $query->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
@@ -756,9 +782,10 @@ class ThongKeController extends Controller
                 }
             }
 
-            // 2. SUPPLIER RETURNS (TraHangNCC)
+            // 2. SUPPLIER RETURNS (TraHangNCC - Bỏ qua các phiếu trả hàng đã bị hủy)
             $query_tra = \App\Models\TraHangNCC::where('ngay_tra', '>=', $start_date)
-                ->where('ngay_tra', '<=', $end_date);
+                ->where('ngay_tra', '<=', $end_date)
+                ->where('trang_thai', '!=', 0);
 
             if ($id_nhacungcap) {
                 $query_tra->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
@@ -793,15 +820,30 @@ class ThongKeController extends Controller
             // 3. NET VALUES
             $tong_gia_tri_nhap = $tong_gia_tri_nhap_goc - $tong_gia_tri_tra;
 
-            // Calculate payment & debt based on actual import orders in the period
-            // Use nhap_payments_map which already has total paid per import
-            $tong_da_thanh_toan = 0;
-            foreach ($danhsach as $nh) {
-                $nh_id = (string) $nh['_id'];
-                $tong_da_thanh_toan += isset($nhap_payments_map[$nh_id]) ? $nhap_payments_map[$nh_id] : 0;
+            // 3.1 TÍNH NỢ NCC (Số dư thực tế)
+            $q_base_ncc = \App\Models\CongNoNCC::query();
+            if ($id_nhacungcap) {
+                $q_base_ncc->where('id_nhacungcap', ObjectController::ObjectId($id_nhacungcap));
             }
-            $tong_da_thanh_toan = $tong_da_thanh_toan - $tong_gia_tri_tra;
-            $tong_con_no = $tong_gia_tri_nhap - $tong_da_thanh_toan;
+
+            // Nợ cũ thực sự (trước start_date)
+            $no_tang_dau_ncc = (clone $q_base_ncc)->where('ngay_gio', '<', $start_date)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $no_giam_dau_ncc = (clone $q_base_ncc)->where('ngay_gio', '<', $start_date)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+
+            // Cộng thêm các bản ghi nợ đầu kỳ (Import) nếu chúng nằm trong kỳ lọc hiện tại
+            $no_import_trong_ky_ncc = (clone $q_base_ncc)->whereBetween('ngay_gio', [$start_date, $end_date])
+                ->where('loai_cong_no', 0)
+                ->where('ghi_chu', 'regexp', '/Dư nợ đầu kỳ/i')
+                ->sum('tong_thanh_tien');
+
+            $no_dau_ky_ncc = ($no_tang_dau_ncc - $no_giam_dau_ncc) + $no_import_trong_ky_ncc;
+
+            $no_tang_cuoi_ncc = (clone $q_base_ncc)->where('ngay_gio', '<=', $end_date)->where('loai_cong_no', 0)->sum('tong_thanh_tien');
+            $no_giam_cuoi_ncc = (clone $q_base_ncc)->where('ngay_gio', '<=', $end_date)->where('loai_cong_no', 1)->sum('tong_thanh_tien');
+            $tong_con_no = $no_tang_cuoi_ncc - $no_giam_cuoi_ncc;
+
+            // 3.3 THANH TOÁN CHO NCC TRONG KỲ
+            $tong_da_thanh_toan = (clone $q_base_ncc)->whereBetween('ngay_gio', [$start_date, $end_date])->where('loai_cong_no', 1)->sum('tong_thanh_tien');
         }
 
         $so_san_pham = $so_san_pham_nhap - $so_san_pham_tra;
@@ -922,6 +964,7 @@ class ThongKeController extends Controller
             'tong_gia_tri_tra',
             'tong_da_thanh_toan',
             'tong_con_no',
+            'no_dau_ky_ncc',
             'so_phieu_nhap',
             'so_san_pham_nhap',
             'so_phieu_tra',

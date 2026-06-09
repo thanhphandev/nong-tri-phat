@@ -102,11 +102,6 @@ function tong_thanh_tien() {
         loiNhuanContainer.addClass('text-danger');
     }
 
-    // Logic cập nhật thanh toán
-    var hinh_thuc = $('input[name=hinh_thuc_thanh_toan]:checked').val();
-    if (hinh_thuc == 'tien_mat') {
-        $("#thanh-toan").val(tong_thanh_tien);
-    }
 }
 
 $(document).ready(function () {
@@ -115,8 +110,6 @@ $(document).ready(function () {
         update_prices_by_mode();
         if (val == 'tien_mat') {
             $("#thanh-toan").prop('readonly', false);
-            var total = $("#tong-thanh-tien").val();
-            $("#thanh-toan").val(total);
         } else {
             $("#thanh-toan").prop('readonly', false);
             $("#thanh-toan").val(0); // Reset hoặc giữ nguyên tùy logic, ở đây reset về 0 để nhập
@@ -127,6 +120,19 @@ $(document).ready(function () {
     // Sync id_khachhang with id_khachhang_cart
     $("#id_khachhang").change(function(){
         $("#id_khachhang_cart").val($(this).val());
+    });
+
+    // Quick Payment Shortcut - Pay Full Amount
+    $(document).on("click", "#btnPayFull", function () {
+        var total = $("#tong-thanh-tien").val();
+        $("#thanh-toan").val(total);
+        // Trigger change for jquery.number to format value
+        $("#thanh-toan").trigger("change");
+        // Show toast for feedback
+        $(this).addClass('btn-primary').removeClass('btn-outline-primary');
+        setTimeout(() => {
+            $(this).addClass('btn-outline-primary').removeClass('btn-primary');
+        }, 200);
     });
 });
 
@@ -172,6 +178,10 @@ function change_so_luong(path) {
         var thanh_tien = tt - ck;
         parent.find(".thanh-tien").val(thanh_tien);
         parent.find(".thanh-tien-show").html(currencyFormat(thanh_tien));
+
+        // FIX: Cập nhật tổng tiền NGAY LẬP TỨC sau khi tính thanh_tien
+        // Tránh race condition khi user submit form trước khi AJAX callback trả về
+        tong_thanh_tien();
 
         // Kiểm tra và hiển thị cảnh báo tồn kho
         var unitSelect = parent.find('.don-vi-ban');

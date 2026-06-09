@@ -436,7 +436,7 @@ class CongNoNCCController extends Controller
         $id_nhacungcap_mongo = ObjectController::ObjectId($id_nhacungcap);
 
         // 1. TÍNH NỢ ĐẦU KỲ
-        $noDauKy = isset($nhaCungCap->no_dau_ky) ? (float) $nhaCungCap->no_dau_ky : 0; // Lấy số dư nợ gốc ban đầu hệ thống
+        $noDauKy = 0; // Luôn bắt đầu từ 0, công nợ sẽ được tính từ lịch sử giao dịch (bao gồm cả dòng nợ cũ đã import)
 
         if ($fromDate) {
             $from_date_mongo = new \MongoDB\BSON\UTCDateTime($fromDate->getTimestamp() * 1000);
@@ -616,7 +616,7 @@ class CongNoNCCController extends Controller
         $id_nhacungcap_mongo = ObjectController::ObjectId($id_nhacungcap);
 
         // 1. TÍNH NỢ ĐẦU KỲ
-        $noDauKy = isset($nhaCungCap->no_dau_ky) ? (float) $nhaCungCap->no_dau_ky : 0;
+        $noDauKy = 0;
 
         if ($fromDate) {
             $from_date_mongo = new \MongoDB\BSON\UTCDateTime($fromDate->getTimestamp() * 1000);
@@ -876,7 +876,7 @@ class CongNoNCCController extends Controller
                     $sheet->getStyle('B' . $row)->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
                     $sheet->getStyle('A' . $row . ':J' . $row)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
                     $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('E' . $row . ':G' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('E' . $row . ':I' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $row++;
                 }
             }

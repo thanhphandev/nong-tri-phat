@@ -14,6 +14,30 @@
         <link href="{{ env('APP_URL') }}assets/css/icons.min.css" rel="stylesheet" type="text/css" />
         <link href="{{ env('APP_URL') }}assets/css/app.min.css" rel="stylesheet" type="text/css" />
         <link href="{{ env('APP_URL') }}assets/css/style.css" rel="stylesheet" type="text/css" />
+        <style>
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                20%, 40%, 60%, 80% { transform: translateX(5px); }
+            }
+            .shake { animation: shake 0.6s ease-in-out; }
+            .alert-login-error {
+                background-color: #fff3f3;
+                border: 1px solid #f5c6cb;
+                border-left: 4px solid #dc3545;
+                color: #721c24;
+                padding: 12px 16px;
+                border-radius: 4px;
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .alert-login-error i {
+                font-size: 18px;
+                color: #dc3545;
+            }
+        </style>
     </head>
     <body class="account-pages">
         <!-- Begin page -->
@@ -31,6 +55,12 @@
                             <form action="{{ env('APP_URL') }}auth/login" method="post">
                                 {{ csrf_field() }}
                                 <input type="hidden" name="url" value="{{ isset($url) ? $url : '' }}" />
+                                @if(session('error'))
+                                <div class="alert-login-error shake">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    <span>{{ session('error') }}</span>
+                                </div>
+                                @endif
                                 <div class="form-group row">
                                     <div class="col-12">
                                         <label for="emailaddress">Tài khoản</label>

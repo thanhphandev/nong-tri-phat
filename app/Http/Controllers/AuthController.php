@@ -46,15 +46,15 @@ class AuthController extends Controller
 
   function authenticate(Request $request){
     $data = $request->all();
-    $destination = isset($data['destination']) ? $data['destionation'] : '';
+    $destination = isset($data['destination']) ? $data['destination'] : '';
     if (Auth::attempt(['username' => $data['username'], 'password' => $data['password'], 'active' => 1])) {
-      $user = User::where('username', '=', $data['username'])->take(1)->get()->toArray();
-      $request->session()->put('user', $user[0]);
+      $user = User::where('username', '=', $data['username'])->first();
+      $request->session()->put('user', $user->toArray());
       $logQuery = array (
         'action' => 'Đăng nhập hệ thống',
-        'id_collection' => $user[0]['_id'],
+        'id_collection' => $user->_id,
         'collection' => 'users',
-        'data' => $user[0]
+        'data' => $user->toArray()
       );
       LogController::addLog($logQuery);
       if(isset($destination) && $destination){
@@ -63,7 +63,7 @@ class AuthController extends Controller
         return redirect()->intended(env('APP_URL').'admin');
       }
     } else {
-      return redirect()->intended(env('APP_URL').'auth/login');
+      return redirect()->intended(env('APP_URL').'auth/login')->with('error', 'Tài khoản hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.');
     }
   }
 

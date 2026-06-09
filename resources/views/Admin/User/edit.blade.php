@@ -64,7 +64,7 @@
                                                 @if(old('address.0') !== null)
                                                   <option value="{{ $a['ma'] }}" @if($a['ma'] == old('address.0'))) selected @endif >{{ $a['ten'] }}</option>
                                                 @else
-                                                  <option value="{{ $a['ma'] }}" @if($a['ma'] == $user['address'][0])) selected @endif >{{ $a['ten'] }}</option>
+                                                  <option value="{{ $a['ma'] }}" @if($a['ma'] == ($user['address'][0] ?? '')) selected @endif >{{ $a['ten'] }}</option>
                                                 @endif
                                               @endforeach
                                             @endif
@@ -78,7 +78,7 @@
                                                 @if(old('address.1') !== null)
                                                   <option value="{{ $a1['ma'] }}" @if($a1['ma'] == old('address.1'))) selected @endif >{{ $a1['ten'] }}</option>
                                                 @else
-                                                  <option value="{{ $a1['ma'] }}" @if($a1['ma'] == $user['address'][1])) selected @endif >{{ $a1['ten'] }}</option>
+                                                  <option value="{{ $a1['ma'] }}" @if($a1['ma'] == ($user['address'][1] ?? '')) selected @endif >{{ $a1['ten'] }}</option>
                                                 @endif
                                               @endforeach
                                             @endif
@@ -92,7 +92,7 @@
                                                 @if(old('address.2') !== null)
                                                   <option value="{{ $a2['ma'] }}" @if($a2['ma'] == old('address.2'))) selected @endif >{{ $a2['ten'] }}</option>
                                                 @else
-                                                  <option value="{{ $a2['ma'] }}" @if($a2['ma'] == $user['address'][2])) selected @endif >{{ $a2['ten'] }}</option>
+                                                  <option value="{{ $a2['ma'] }}" @if($a2['ma'] == ($user['address'][2] ?? '')) selected @endif >{{ $a2['ten'] }}</option>
                                                 @endif
                                               @endforeach
                                             @endif
@@ -106,7 +106,7 @@
                                 <div class="form-group row">
                                     <label class="control-label col-md-2 text-right p-t-10">Địa chỉ</label>
                                     <div class="col-md-10">
-                                        <input type="text" id="address_4" name="address[]" class="form-control" placeholder="Số nhà, tên đường, khóm, ấp,..." value="{{ $user['address'][3] }}" required>
+                                        <input type="text" id="address_4" name="address[]" class="form-control" placeholder="Số nhà, tên đường, khóm, ấp,..." value="{{ $user['address'][3] ?? '' }}" required>
                                     </div>
                                 </div>
                             </div>

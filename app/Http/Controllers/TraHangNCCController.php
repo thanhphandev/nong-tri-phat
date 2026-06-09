@@ -58,14 +58,12 @@ class TraHangNCCController extends Controller
         // Get supplier info
         $nhacungcap = NhaCungCap::find($nhaphang['id_nhacungcap']);
 
-        // Populate Unit names (Optimized to avoid N+1)
-
         // Populate Unit names and Calculate Returnable/In-Stock Quantities
         $items = $nhaphang['hanghoa'];
         $dvt_ids = array_filter(array_unique(array_column($items, 'id_donvitinh')));
 
-        // 1. Get previous returns
-        $previous_returns = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($nhaphang['_id']))->get();
+        // 1. Get previous returns (exclude cancelled returns)
+        $previous_returns = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($nhaphang['_id']))->where('trang_thai', '!=', 0)->get();
 
         // 2. Get Unit names
         $units = [];
@@ -159,8 +157,8 @@ class TraHangNCCController extends Controller
         $tong_tien_tra = 0;
         $arr_hanghoa = [];
 
-        // Check history to prevent over-returning
-        $previous_returns = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($nhaphang['_id']))->get();
+        // Check history to prevent over-returning (exclude cancelled returns)
+        $previous_returns = TraHangNCC::where('id_nhaphang', ObjectController::ObjectId($nhaphang['_id']))->where('trang_thai', '!=', 0)->get();
 
         foreach ($data['hanghoa'] as $hh) {
             if (isset($hh['so_luong_tra']) && $hh['so_luong_tra'] > 0) {
@@ -421,115 +419,106 @@ class TraHangNCCController extends Controller
     }
 
     /**
-     * Delete return (admin only, not recommended in production)
+     * Hủy phiếu trả hàng NCC (Safe Delete)
      */
-    function delete(Request $request, $id)
+    function huy_tra_hang(Request $request)
     {
+        $id = $request->input('id');
+        $ly_do = $request->input('ly_do');
+        $ghi_chu = $request->input('ghi_chu');
+
+        // 1. Phân quyền (Chỉ Admin/Manager)
+        $user = session('user');
+        if (!(in_array('Admin', $user['roles']) || in_array('Manager', $user['roles']))) {
+            return response()->json(['error' => 'Bạn không có quyền thực hiện chức năng này.'], 403);
+        }
+
         $tra_hang = TraHangNCC::find($id);
 
-        if (!$tra_hang) {
-            Session::flash('msg', 'Không tìm thấy phiếu trả hàng');
-            return redirect(env('APP_URL') . 'admin/tra-hang-ncc');
+        if (!$tra_hang || (isset($tra_hang['trang_thai']) && $tra_hang['trang_thai'] == 0 && isset($tra_hang['huy_phieu']))) {
+            return response()->json(['error' => 'Phiếu trả hàng không tồn tại hoặc đã bị hủy.'], 404);
         }
 
-        // 1. Revert Inventory (Add items back to stock)
-        // Find exact batch by id_nhap_hang and restore quantity
-        // -- N+1 Optimization for HangHoa --
-        $hh_ids = array_column($tra_hang['hanghoa'], 'id_hanghoa');
-        $hh_obj_ids = array_map(function ($id) {
-            return ObjectController::ObjectId($id); }, $hh_ids);
-        $hanghoa_dict = HangHoa::whereIn('_id', $hh_obj_ids)->get()->keyBy(function ($item) {
-            return (string) $item->_id; });
-        // -- N+1 Optimization for NhapHang --
-        $nhaphang = NhapHang::find($tra_hang['id_nhaphang']);
+        try {
+            // 2. Rollback Kho (Hoàn hàng lại vào kho)
+            if (isset($tra_hang['hanghoa'])) {
+                foreach ($tra_hang['hanghoa'] as $item) {
+                    $hang_hoa = HangHoa::find($item['id_hanghoa']);
+                    if (!$hang_hoa) continue;
 
-        foreach ($tra_hang['hanghoa'] as $item) {
-            $hang_hoa = isset($hanghoa_dict[(string) $item['id_hanghoa']]) ? $hanghoa_dict[(string) $item['id_hanghoa']] : null;
-            if ($hang_hoa) {
-                $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
-                $restored = false;
+                    $ds_lo_hang = $hang_hoa->ds_lo_hang ?? [];
+                    $restored = false;
+                    $id_nhaphang_obj = $tra_hang['id_nhaphang'];
 
-                // Find exact batch by id_nhap_hang ObjectId
-                $id_nhaphang_obj = $tra_hang['id_nhaphang'];
-
-                foreach ($ds_lo_hang as &$batch) {
-                    $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $tra_hang['ma_nhap_hang'] ? $id_nhaphang_obj : null);
-
-                    if ($batch_id_nhap !== null && (string) $batch_id_nhap == (string) $id_nhaphang_obj) {
-                        // Found the exact batch - add quantity back
-                        $current_qty = floatval($batch['so_luong_con_lai'] ?? 0);
-                        $batch['so_luong_con_lai'] = $current_qty + $item['so_luong_tra'];
-                        $restored = true;
-                        break;
-                    }
-                }
-                unset($batch);
-
-                // If batch not found, need to recreate it
-                if (!$restored) {
-                    // Get original import info for dates if available
-                    $ngay_san_xuat = null;
-                    $ngay_het_han = null;
-                    $gia_von = $item['don_gia'];
-
-                    if ($nhaphang) {
-                        foreach ($nhaphang['hanghoa'] as $nh_item) {
-                            if ((string) $nh_item['id_hanghoa'] == (string) $item['id_hanghoa']) {
-                                $ngay_san_xuat = $nh_item['ngay_san_xuat'] ?? null;
-                                $ngay_het_han = $nh_item['ngay_het_han'] ?? null;
-                                $gia_von = $nh_item['gia_von'] ?? $item['don_gia'];
-                                break;
-                            }
+                    foreach ($ds_lo_hang as &$batch) {
+                        $batch_id_nhap = isset($batch['id_nhap_hang']) ? $batch['id_nhap_hang'] : (isset($batch['ma_nhap_hang']) && $batch['ma_nhap_hang'] == $tra_hang['ma_nhap_hang'] ? $id_nhaphang_obj : null);
+                        if ($batch_id_nhap !== null && (string)$batch_id_nhap == (string)$id_nhaphang_obj) {
+                            $batch['so_luong_con_lai'] = floatval($batch['so_luong_con_lai'] ?? 0) + floatval($item['so_luong_tra']);
+                            $restored = true;
+                            break;
                         }
                     }
+                    unset($batch);
 
-                    // Create standardized batch
-                    $new_batch = [
-                        'id_nhap_hang' => $tra_hang['id_nhaphang'],
-                        'ma_nhap_hang' => $tra_hang['ma_nhap_hang'],
-                        'so_luong_nhap' => $item['so_luong_tra'],
-                        'so_luong_con_lai' => $item['so_luong_tra'],
-                        'ngay_san_xuat' => $ngay_san_xuat ?? new \MongoDB\BSON\UTCDateTime(Carbon::now()->getTimestamp() * 1000),
-                        'ngay_het_han' => $ngay_het_han ?? new \MongoDB\BSON\UTCDateTime(Carbon::now()->addYear()->getTimestamp() * 1000),
-                        'gia_von' => $gia_von,
-                        'ghi_chu' => 'Hủy trả hàng NCC: ' . $tra_hang['ma_tra_hang'],
-                    ];
-                    $ds_lo_hang[] = $new_batch;
+                    if (!$restored) {
+                        $new_batch = [
+                            'id_nhap_hang' => $tra_hang['id_nhaphang'],
+                            'ma_nhap_hang' => $tra_hang['ma_nhap_hang'],
+                            'so_luong_nhap' => $item['so_luong_tra'],
+                            'so_luong_con_lai' => $item['so_luong_tra'],
+                            'ngay_san_xuat' => ObjectController::setDate(),
+                            'gia_von' => $item['don_gia'] ?? 0,
+                            'ghi_chu' => 'Hủy trả hàng NCC: ' . $tra_hang['ma_tra_hang'],
+                        ];
+                        $ds_lo_hang[] = $new_batch;
+                    }
+
+                    $hang_hoa->ds_lo_hang = $ds_lo_hang;
+                    $total_stock = 0;
+                    foreach ($ds_lo_hang as $b) $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
+                    $hang_hoa->so_luong_ton = $total_stock;
+                    $hang_hoa->save();
                 }
-
-                $hang_hoa->ds_lo_hang = $ds_lo_hang;
-
-                // Tính lại so_luong_ton = SUM tất cả lô (đảm bảo đồng bộ)
-                $total_stock = 0;
-                foreach ($ds_lo_hang as $b) {
-                    $total_stock += floatval($b['so_luong_con_lai'] ?? 0);
-                }
-                $hang_hoa->so_luong_ton = $total_stock;
-                $hang_hoa->save();
             }
+
+            // 3. Revert CongNoNCC
+            if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
+                $congno = new CongNoNCC();
+                $congno->id_nhacungcap = $tra_hang['id_nhacungcap'];
+                $congno->id_nhaphang = $tra_hang['id_nhaphang'];
+                $congno->ma_nhap_hang = $tra_hang['ma_nhap_hang'];
+                $congno->ten_ncc = $tra_hang['ten_ncc'];
+                $congno->tong_thanh_tien = $tra_hang['tong_tien_tra'];
+                $congno->ngay_gio = ObjectController::setDate();
+                $congno->loai_cong_no = 0; // GHI NO lai
+                $congno->ghi_chu = 'Hủy phiếu trả hàng NCC: ' . $tra_hang['ma_tra_hang'] . ' - Lý do: ' . $ly_do;
+                $congno->id_user = ObjectController::ObjectId($user['_id']);
+                $congno->save();
+            }
+
+            // 4. Update Status (Soft Delete)
+            $tra_hang->trang_thai = 0; // 0 = Da huy
+            $tra_hang->huy_phieu = [
+                'ly_do' => $ly_do,
+                'ghi_chu' => $ghi_chu,
+                'nguoi_huy' => $user['fullname'],
+                'id_user' => ObjectController::ObjectId($user['_id']),
+                'ngay_huy' => ObjectController::setDate()
+            ];
+            $tra_hang->save();
+
+            // 5. Log
+            LogController::addLog([
+                'action' => 'Hủy phiếu trả hàng NCC [' . $tra_hang['ma_tra_hang'] . ']',
+                'id_collection' => $id,
+                'collection' => 'tra_hang_ncc',
+                'data' => ['ly_do' => $ly_do, 'ghi_chu' => $ghi_chu]
+            ]);
+
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
         }
-
-        // NOTE: Không cập nhật NhapHang collection - chỉ thao tác trên ds_lo_hang trong HangHoa
-
-        // 2. Revert CongNoNCC
-        if ($tra_hang['hinh_thuc_hoan'] == 'giam_no') {
-            $congno = new CongNoNCC();
-            $congno->id_nhacungcap = $tra_hang['id_nhacungcap'];
-            $congno->id_nhaphang = $tra_hang['id_nhaphang'];
-            $congno->ma_nhap_hang = $tra_hang['ma_nhap_hang'];
-            $congno->ten_ncc = $tra_hang['ten_ncc'];
-            $congno->tong_thanh_tien = $tra_hang['tong_tien_tra'];
-            $congno->ngay_gio = ObjectController::setDate();
-            $congno->loai_cong_no = 0; // 0 = GHI NO (Increase debt/liability back because we cancelled the payment/return)
-            $congno->ghi_chu = 'Hủy phiếu trả hàng NCC [' . $tra_hang['ma_tra_hang'] . ']';
-            $congno->id_user = ObjectController::ObjectId($request->session()->get('user._id'));
-            $congno->save();
-        }
-
-        // 3. Delete Record
-        $tra_hang->delete();
-
-        Session::flash('msg', 'Đã xóa phiếu trả hàng NCC và hoàn tác dữ liệu');
-        return redirect(env('APP_URL') . 'admin/tra-hang-ncc');
     }
 }

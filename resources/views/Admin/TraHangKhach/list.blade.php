@@ -27,6 +27,25 @@
         .table-sticky-header tbody tr.summary-row * {
             color: inherit !important;
         }
+        .cancelled-row {
+            background-color: #fff5f5 !important;
+            color: #adb5bd !important;
+            transition: all 0.3s ease;
+        }
+        .cancelled-row td {
+            text-decoration: line-through;
+            border-color: #f8d7da !important;
+        }
+        .cancelled-row .badge {
+            opacity: 0.6;
+            text-decoration: none !important;
+            display: inline-block;
+        }
+        .cancelled-row a {
+            color: #adb5bd !important;
+            pointer-events: auto;
+            text-decoration: underline;
+        }
     </style>
 @endsection
 @section('body')
@@ -67,7 +86,9 @@
                 @php
                     $sum_tong_tien = 0;
                     foreach($danhsach as $ds){
-                        $sum_tong_tien += floatval($ds['tong_tien_tra'] ?? 0);
+                        if(($ds['trang_thai'] ?? 1) != 0 || !isset($ds['huy_phieu'])){
+                            $sum_tong_tien += floatval($ds['tong_tien_tra'] ?? 0);
+                        }
                     }
                 @endphp
 				<div class="table-responsive table-sticky-header">
@@ -94,7 +115,8 @@
 					</thead>
 					<tbody>
 						@foreach($danhsach as $ds)
-						<tr>
+                        @php $is_cancelled = (isset($ds['trang_thai']) && $ds['trang_thai'] == 0 && isset($ds['huy_phieu'])); @endphp
+						<tr class="{{ $is_cancelled ? 'cancelled-row' : '' }}">
 							<td class="text-center">{{ $loop->iteration }}</td>
 							<td><a href="{{ env('APP_URL') }}admin/tra-hang-khach/view/{{ $ds['_id'] }}"><b class="text-primary">{{ $ds['ma_tra_hang'] }}</b></a></td>
 							<td>{{ $ds['ma_don_hang'] }}</td>
@@ -112,7 +134,9 @@
                                 @endif
                             </td>
                             <td class="text-center">
-                                @if($ds['trang_thai'] == 0)
+                                @if($is_cancelled)
+                                    <span class="badge badge-danger">Đã hủy</span>
+                                @elseif($ds['trang_thai'] == 0)
                                     <span class="badge badge-warning">Chờ duyệt</span>
                                 @elseif($ds['trang_thai'] == 1)
                                     <span class="badge badge-success">Đã duyệt</span>

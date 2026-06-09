@@ -28,6 +28,14 @@
         .table-sticky-header tbody tr.summary-row * {
             color: inherit !important;
         }
+        .cancelled-row {
+            background-color: #f8d7da !important;
+            opacity: 0.7;
+            text-decoration: line-through;
+        }
+        .cancelled-row a {
+            pointer-events: auto !important;
+        }
     </style>
 @endsection
 @section('body')
@@ -89,6 +97,9 @@
                     $sum_gia_tri_tra_hang = 0;
                     foreach($danhsach as $ds){
                         $t_so_luong = 0;
+                        if(($ds['tinh_trang'] ?? 0) == 3) continue; // Bỏ qua phiếu đã hủy
+                        
+                        $t_so_luong = 0;
                         if(isset($ds['hanghoa'])){
                             foreach($ds['hanghoa'] as $hh){
                                 $t_so_luong += $hh['so_luong'] ?? 0;
@@ -137,8 +148,9 @@
                             foreach($ds['hanghoa'] as $hh) {
                                 $so_luong += $hh['so_luong'];
                             }
+                            $is_cancelled = (isset($ds['tinh_trang']) && $ds['tinh_trang'] == 3);
                         @endphp
-						 <tr>   
+						 <tr class="{{ $is_cancelled ? 'cancelled-row' : '' }}">   
                             <td class="text-center">{{ $loop->iteration }}</td>
                             <td class="text-center"><a href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><b>{{ $ds['ma_nhap_hang'] }}</b></a></td>
 							<td class="text-center bold">{{ isset($ds['so_chung_tu']) ? $ds['so_chung_tu'] : '-' }}</td>
@@ -156,7 +168,9 @@
                                 @if(($ds['gia_tri_tra_hang'] ?? 0) > 0)
                                     <br/><small class="text-warning">Trả hàng: {{ number_format($ds['gia_tri_tra_hang'], 0, ",", ".") }}</small>
                                 @endif
-                                @if($ds['con_no'] > 0)
+                                @if($is_cancelled)
+                                    <br/><span class="badge badge-danger">ĐÃ HỦY</span>
+                                @elseif($ds['con_no'] > 0)
                                     <br/><small class="text-danger">Nợ: {{ number_format($ds['con_no'],0,",",".") }}</small>
                                 @else
                                     <br/><small class="badge badge-success px-1">Đã thanh toán</small>
@@ -171,12 +185,16 @@
                                     <div class="dropdown-menu dropdown-menu-right" style="z-index: 1050;">
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}"><i class="fa fa-eye text-primary mr-2"></i> Chi tiết</a>
                                         <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/in-phieu-nhap-hang/{{ $ds['_id'] }}" target="_blank"><i class="fa fa-print text-secondary mr-2"></i> In phiếu</a>
-                                        <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng NCC</a>
-                                        @if($ds['con_no'] > 0)
-                                            <a class="dropdown-item tra-no-btn" href="javascript:void(0)" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_nhap_hang'] }}" data-no="{{ $ds['con_no'] }}"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                        @if(!$is_cancelled)
+                                            <a class="dropdown-item" href="{{ env('APP_URL') }}admin/tra-hang-ncc/add/{{ $ds['_id'] }}"><i class="fas fa-undo text-warning mr-2"></i> Trả hàng NCC</a>
+                                            @if($ds['con_no'] > 0)
+                                                <a class="dropdown-item tra-no-btn" href="javascript:void(0)" data-id="{{ $ds['_id'] }}" data-ma="{{ $ds['ma_nhap_hang'] }}" data-no="{{ $ds['con_no'] }}"><i class="fas fa-money-bill-wave text-success mr-2"></i> Trả nợ</a>
+                                            @endif
+                                            @if(in_array('Admin', session('user')['roles']) || in_array('Manager', session('user')['roles']))
+                                                <div class="dropdown-divider"></div>
+                                                <a class="dropdown-item text-danger font-weight-bold" href="{{ env('APP_URL') }}admin/nhap-hang/edit/{{ $ds['_id'] }}#huy-phieu"><i class="fas fa-ban mr-2"></i> Hủy phiếu nhập</a>
+                                            @endif
                                         @endif
-                                        <div class="dropdown-divider"></div>
-                                        {{-- <a class="dropdown-item" href="{{ env('APP_URL') }}admin/nhap-hang/delete/{{ $ds['_id'] }}" onclick="return confirm('Chắc chắn xóa?');"><i class="fa fa-trash text-danger mr-2"></i> Xóa phiếu</a> --}}
                                     </div>
                                 </div>
                             </td>
@@ -320,8 +338,11 @@
                 
                 return confirm('Xác nhận đã thanh toán ' + $("#so_tien_tra").val() + ' VND cho nhà cung cấp?');
             });
-
-
+                        $('#btn_xac_nhan_huy').prop('disabled', false).html('<i class="fas fa-check-circle"></i> XÁC NHẬN HỦY PHIẾU');
+                        alert(xhr.responseJSON ? xhr.responseJSON.error : 'Lỗi hệ thống');
+                    }
+                });
+            });
         });
     </script>
 @endsection

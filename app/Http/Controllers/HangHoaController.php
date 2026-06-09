@@ -24,12 +24,20 @@ class HangHoaController extends Controller
         $loaihang = LoaiHang::All();
         $danhsach = HangHoa::query();
         if($id_donvitinh) {
-            $id_donvitinh = ObjectController::ObjectId($id_donvitinh);
-            $danhsach = $danhsach->where('id_donvitinh', '=', $id_donvitinh);
+            $id_donvitinh_obj = ObjectController::ObjectId($id_donvitinh);
+            $danhsach = $danhsach->where(function($q) use ($id_donvitinh, $id_donvitinh_obj) {
+                $q->where('id_donvitinh', '=', $id_donvitinh)
+                  ->orWhere('id_donvitinh', '=', $id_donvitinh_obj)
+                  ->orWhere('id_donvitinh', '=', (string)$id_donvitinh_obj);
+            });
         }
         if($id_loaihang){
-            $id_loaihang = ObjectController::ObjectId($id_loaihang);
-            $danhsach = $danhsach->where('id_loaihang', '=', $id_loaihang);
+            $id_loaihang_obj = ObjectController::ObjectId($id_loaihang);
+            $danhsach = $danhsach->where(function($q) use ($id_loaihang, $id_loaihang_obj) {
+                $q->where('id_loaihang', '=', $id_loaihang)
+                  ->orWhere('id_loaihang', '=', $id_loaihang_obj)
+                  ->orWhere('id_loaihang', '=', (string)$id_loaihang_obj);
+            });
         }
         if($keywords){
             $danhsach = $danhsach->where(function($query) use ($keywords) {
@@ -214,7 +222,7 @@ class HangHoaController extends Controller
             
             $str_hsd = "";
             if($ngay_het_han_gan_nhat){
-                $str_hsd = '<span class="badge badge-warning">HSD Gần nhất: ' . $ngay_het_han_gan_nhat->format('d/m/Y') . '</span>';
+                $str_hsd = '<span class="badge badge-warning">HSD Gần nhất: ' . $ngay_het_han_gan_nhat->format('d/m/y') . '</span>';
             }
 
             $warning_am_kho = "";
@@ -267,7 +275,7 @@ class HangHoaController extends Controller
                 return $t1 - $t2;
             });
         }
-        return view('Admin.HangHoa.ton-kho', compact('batches'));
+        return view('Admin.HangHoa.ton-kho', ['batches' => $batches, 'id_hanghoa' => $id]);
     }
 
     function autocomplete(Request $request) {
@@ -336,4 +344,116 @@ class HangHoaController extends Controller
         // Return standard Select2 format
         return response()->json(['results' => $formatted_results]);
     }
+    public function update_hsd_lo_hang(Request $request) {
+        $id_hanghoa = $request->id_hanghoa;
+        $ma_lo = $request->ma_lo;
+        $ngay_het_han = $request->ngay_het_han;
+
+        if(!$id_hanghoa || !$ma_lo) {
+            return response()->json(['status' => 'error', 'message' => 'Thiếu thông tin hàng hóa hoặc mã lô.']);
+        }
+
+        $hh = HangHoa::find($id_hanghoa);
+        if(!$hh) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy hàng hóa.']);
+        }
+
+        $ds_lo_hang = (array)($hh->ds_lo_hang ?? []);
+        $found = false;
+
+        $parsed_date = null;
+        if ($ngay_het_han) {
+            $formats = ['d/m/Y', 'd/m/y', 'd-m-Y', 'd-m-y', 'Y-m-d'];
+            foreach ($formats as $f) {
+                $d = \DateTime::createFromFormat($f, $ngay_het_han);
+                if ($d && $d->format($f) === $ngay_het_han) {
+                    $parsed_date = $d->format('Y-m-d');
+                    break;
+                }
+            }
+            if (!$parsed_date) $parsed_date = $ngay_het_han;
+        }
+
+        foreach($ds_lo_hang as &$lo) {
+            $current_ma_lo = $lo['ma_nhap_hang'] ?? ($lo['ma_lo'] ?? '');
+            if($current_ma_lo == $ma_lo) {
+                if ($parsed_date) {
+                    $lo['ngay_het_han'] = ObjectController::setConvertDate($parsed_date);
+                } else {
+                    $lo['ngay_het_han'] = '';
+                }
+                $found = true;
+                break;
+            }
+        }
+
+        if($found) {
+            $hh->ds_lo_hang = $ds_lo_hang;
+            $hh->save();
+
+            $querLog = array(
+                'action' => 'Cập nhật Hạn sử dụng lô hàng [' . $ma_lo . '] của HH [' . $hh->ma . ']',
+                'id_collection' => $hh->_id,
+                'collection' => 'hang_hoa',
+                'data' => $request->all()
+            );
+            \App\Http\Controllers\LogController::addLog($querLog);
+
+            return response()->json(['status' => 'success', 'message' => 'Cập nhật hạn sử dụng thành công.']);
+        }
+
+        return response()->json(['status' => 'error', 'message' => 'Không tìm thấy lô hàng tương ứng.']);
+    }
+
+    public function update_ton_kho_lo_hang(Request $request) {
+        $id_hanghoa = $request->id_hanghoa;
+        $ma_lo = $request->ma_lo;
+        $so_luong_moi = floatval($request->so_luong);
+        $gia_von_moi = isset($request->gia_von) ? ObjectController::convertStr2Number($request->gia_von) : null;
+
+        if(!$id_hanghoa || !$ma_lo) {
+            return response()->json(['status' => 'error', 'message' => 'Thiếu thông tin hàng hóa hoặc mã lô.']);
+        }
+
+        $hh = HangHoa::find($id_hanghoa);
+        if(!$hh) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy hàng hóa.']);
+        }
+
+        $ds_lo_hang = (array)($hh->ds_lo_hang ?? []);
+        $found = false;
+        $tong_ton_moi = 0;
+
+        foreach($ds_lo_hang as &$lo) {
+            $current_ma_lo = $lo['ma_nhap_hang'] ?? ($lo['ma_lo'] ?? '');
+            if($current_ma_lo == $ma_lo) {
+                $lo['so_luong_con_lai'] = $so_luong_moi;
+                if($gia_von_moi !== null) {
+                    $lo['gia_von'] = $gia_von_moi;
+                }
+                $found = true;
+            }
+            $tong_ton_moi += floatval($lo['so_luong_con_lai'] ?? 0);
+        }
+
+        if($found) {
+            $hh->ds_lo_hang = $ds_lo_hang;
+            $hh->so_luong_ton = $tong_ton_moi;
+            $hh->save();
+            
+            // Log action
+            $querLog = array(
+                'action' => 'Điều chỉnh tồn kho lô hàng ['.$ma_lo.'] của HH ['.$hh->ma.']',
+                'id_collection' => $id_hanghoa,
+                'collection' => 'hang_hoa',
+                'data' => $request->all()
+            );
+            LogController::addLog($querLog);
+
+            return response()->json(['status' => 'success', 'message' => 'Cập nhật tồn kho thành công.']);
+        }
+
+        return response()->json(['status' => 'error', 'message' => 'Không tìm thấy lô hàng tương ứng.']);
+    }
 }
+

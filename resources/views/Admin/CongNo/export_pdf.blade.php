@@ -79,6 +79,8 @@
                             @endif
                         @elseif($isTraHang) 
                             <span style="color: #d71a21;">Trả hàng: {{ $item->ma_phieu ?? '' }}</span>
+                        @elseif(isset($item->ghi_chu) && str_contains($item->ghi_chu, 'Dư nợ đầu kỳ'))
+                            <strong>DƯ NỢ ĐẦU KỲ (Hệ thống cũ)</strong>
                         @else 
                             {{ $item->tien_hang > 0 ? 'Trả tiền lại khách' : 'Thu tiền' }}
                         @endif
